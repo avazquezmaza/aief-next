@@ -1,0 +1,14 @@
+{
+  "name": "@aief/cli",
+  "version": "0.1.0",
+  "description": "Minimal CLI for AIEF projects.",
+  "type": "module",
+  "bin": {
+    "aief": "./bin/aief.js"
+  },
+  "scripts": {
+    "start": "node bin/aief.js",
+    "test": "node bin/aief.js help"
+  },
+  "license": "MIT"
+}
