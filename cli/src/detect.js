@@ -88,8 +88,7 @@ export function recommendSkills(project, catalog = loadCatalog()) {
     const triggers = (skill.when || []).filter((id) => signalById.has(id));
     if (!triggers.length) continue;
     recommendations.push({
-      id: skill.id,
-      description: skill.description,
+      ...skill,
       because: triggers.map((id) => {
         const signal = signalById.get(id);
         return `${signal.description} detected (${signal.reasons.join("; ")}) — ${signal.signal} signal`;
@@ -101,8 +100,7 @@ export function recommendSkills(project, catalog = loadCatalog()) {
     const fallback = catalog.skills.find((s) => s.fallback);
     if (fallback) {
       recommendations.push({
-        id: fallback.id,
-        description: fallback.description,
+        ...fallback,
         because: ["no strong technology signals detected; general review recommended"]
       });
     }

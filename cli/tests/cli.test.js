@@ -60,6 +60,65 @@ test("adopt does not touch application files", () => {
   assert.equal(fs.readFileSync(path.join(dir, "src", "app.js"), "utf8"), "console.log('app');");
 });
 
+test("adopt creates starter standards and never overwrites existing ones", () => {
+  const dir = makeProject({
+    "package.json": JSON.stringify({ dependencies: { react: "18.0.0" } }),
+    "knowledge/standards/base-standards.md": "MY CUSTOM RULES"
+  });
+  const { out } = aief(dir, ["adopt"]);
+  assert.match(out, /Created knowledge\/standards\/frontend-standards\.md/);
+  assert.equal(fs.readFileSync(path.join(dir, "knowledge", "standards", "base-standards.md"), "utf8"), "MY CUSTOM RULES");
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards"));
+  assert.ok(files.includes("frontend-standards.md"), "frontend standards expected for a React project");
+  assert.ok(!files.includes("backend-standards.md"), "no backend standards for a frontend-only project");
+});
+
+test("adopt on an unknown stack creates only the base standards", () => {
+  const dir = makeProject({ "README.md": "A plain library." });
+  aief(dir, ["adopt"]);
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards")).sort();
+  assert.deepEqual(files, ["base-standards.md", "documentation-standards.md", "security-standards.md", "testing-standards.md"]);
+});
+
+test("analyze seeds the Change with real detections, marked as inference", () => {
+  const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
+  aief(dir, ["adopt"]);
+  aief(dir, ["analyze"]);
+  const changeMd = fs.readFileSync(path.join(dir, "changes", "0002-analyze-current-architecture", "change.md"), "utf8");
+  assert.match(changeMd, /## Detected Context/);
+  assert.match(changeMd, /confirm or discard/);
+  assert.match(changeMd, /multitenant \(weak\)/);
+  assert.match(changeMd, /inferred from multitenant-saas-architect/);
+  assert.match(changeMd, /knowledge\/standards\/security-standards\.md/);
+});
+
+test("prompt includes standards and Skill context honestly", () => {
+  const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
+  aief(dir, ["adopt"]);
+  aief(dir, ["analyze"]);
+  const { out } = aief(dir, ["prompt", "--profile", "architect"]);
+  assert.match(out, /Project standards to follow/);
+  assert.match(out, /knowledge\/standards\/base-standards\.md/);
+  assert.match(out, /included as context, not executed/);
+  assert.match(out, /Multitenant SaaS Architect/);
+  assert.match(out, /Watch out for: queries missing the tenant filter/);
+});
+
+test("prompt is honest when a recommended Skill has no operational content", () => {
+  const dir = makeProject({ "README.md": "A plain library." });
+  aief(dir, ["new-change", "thing"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /no operational content yet/);
+});
+
+test("verify passes right after adopt creates standards", () => {
+  const dir = makeProject({ "README.md": "x" });
+  aief(dir, ["adopt"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0);
+  assert.match(out, /Result: PASS/);
+});
+
 test("doctor explains skill recommendations", () => {
   const dir = makeProject({ "README.md": "Multi-tenant SaaS platform." });
   const { status, out } = aief(dir, ["doctor"]);

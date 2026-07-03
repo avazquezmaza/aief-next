@@ -39,6 +39,25 @@ OpenSpec
 
 AIEF remains the project workflow. OpenSpec can implement the Specification part of that workflow.
 
+## The official OpenSpec workflow
+
+The real OpenSpec project (github.com/Fission-AI/OpenSpec — note: the older `openspec-ai/openspec` URL returns 404) defines this workflow:
+
+```text
+Explore -> Propose -> Apply -> Archive
+```
+
+Key facts for AIEF users (verified against the OpenSpec repository documentation on 2026-07-03):
+
+- `propose` is an **assistant slash command** (`/opsx:propose <idea>`), not a terminal command. The terminal CLI covers `openspec init`, `openspec update`, `openspec config` and related maintenance commands.
+- Each OpenSpec change lives in `openspec/changes/<name>/` with proposal, specs, design and tasks; completed changes are archived under `openspec/changes/archive/`.
+
+What this means for AIEF:
+
+- **AIEF uses** OpenSpec as the Proposal → Spec → Tasks engine, driven from your AI assistant with the OpenSpec slash commands.
+- **AIEF does not reimplement** proposal generation, spec deltas or archiving.
+- Because `propose` is not a terminal command, `aief propose` delegation will normally fall back to the local Change skeleton — loudly, by design (see below). The local skeleton is the supported path when OpenSpec is not installed or not driveable from the terminal.
+
 ## CLI integration contract
 
 `aief propose <idea>` delegates to OpenSpec only after validating the contract at runtime:
@@ -59,6 +78,6 @@ and creates a local Change with `proposal.md`. The fallback is always announced;
 | Aspect | Status |
 |---|---|
 | Runtime detection (`--version`, `--help` scan) | Covered by CLI tests (`cli/tests/cli.test.js`) using simulated OpenSpec binaries. |
-| Real OpenSpec release | **Not yet validated against a specific version.** When you validate one, record the version and command surface here. |
+| Real OpenSpec release | **Not yet validated against an installed release.** Repository documentation was reviewed (2026-07-03) and indicates `propose` is a slash command, not a terminal command — so terminal delegation is expected to fall back locally. When you install a release, record the version and observed command surface here. |
 
 If the real OpenSpec CLI uses a different command than `propose`, update `openspecInfo()`/`propose()` in `cli/src/cli.js` and this table.

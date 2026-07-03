@@ -52,13 +52,15 @@ aief verify
 aief close --yes
 ```
 
-## Skills recommendation
+## Skills and standards
 
 `aief doctor` and `aief adopt` inspect project signals and recommend possible Skills, always explaining why each Skill was recommended.
 
-Detectors and Skills are data, not engine logic: they live in `src/skills-catalog.json` and are evaluated by `src/detect.js` with word-boundary keyword matching to avoid false positives.
+Detectors, Skill recommendations and Skill content are data, not engine logic: they live in `src/skills-catalog.json` and are evaluated by `src/detect.js` with word-boundary keyword matching to avoid false positives. Skill content (promptContext, commonRisks, standardsToRead, evidenceExpectations) is injected into `aief prompt` output as context — Skills are never executed.
 
-Profiles define the role. Skills define specialized knowledge. Neither replaces `AGENTS.md`.
+`aief adopt` also creates editable project standards under `knowledge/standards/` (from `templates/standards/`), matched to detected frontend/backend signals and never overwriting existing files. `aief analyze` seeds the Analysis Change with detected signals, Skills, standards and inferred risks; `aief prompt` tells the assistant to follow the standards.
+
+Profiles define the role. Skills define specialized knowledge. Standards define project rules. None of them replaces `AGENTS.md`.
 
 ## OpenSpec delegation
 

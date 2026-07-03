@@ -60,10 +60,10 @@ aief prompt --assistant claude --profile architect
 What each step does:
 
 1. **doctor** — checks git/node/npm/OpenSpec availability, detects your stack (with reasons) and recommends Skills.
-2. **adopt** — creates `AGENTS.md` (if missing), `changes/`, `knowledge/` and an adoption Change using the next free ID. Idempotent; safe to re-run.
+2. **adopt** — creates `AGENTS.md` (if missing), `changes/`, `knowledge/`, starter **project standards** under `knowledge/standards/` matched to your stack, and an adoption Change using the next free ID. Idempotent; never overwrites; safe to re-run.
 3. **verify** — confirms required files and Change structures; warns about placeholder evidence.
-4. **analyze** — creates an Analysis Change so the first AI task is understanding, not modifying.
-5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change. `--assistant` picks the matching instruction file (claude, gemini, codex, cursor).
+4. **analyze** — creates an Analysis Change **seeded with everything doctor detected**: signals, recommended Skills, available standards, inferred risks (marked as inference) and open questions.
+5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change, including your project standards and the recommended Skills as context. `--assistant` picks the matching instruction file (claude, gemini, codex, cursor).
 
 Paste the generated prompt into your assistant and let it work inside the Change. When it finishes, run `aief verify`, then close the cycle:
 
@@ -119,6 +119,15 @@ aief release <version>
 ```
 
 Full reference: [docs/cli.md](docs/cli.md).
+
+## Project standards and Skills
+
+Two kinds of knowledge feed your assistant's prompts:
+
+- **Project standards** live in `knowledge/standards/` (base, documentation, testing, security — plus frontend/backend when detected). `aief adopt` creates them as editable starting points with `(adapt)` markers; they are *your project's* rules, and `aief prompt` tells the assistant to follow them.
+- **Skills** are specialized knowledge per technology or domain (multitenancy, n8n, AWS, RBAC…). They live in the catalog ([cli/src/skills-catalog.json](cli/src/skills-catalog.json)) and are recommended when their detection signals fire. `aief prompt` includes their context and common risks — as context for the assistant, never as something AIEF "executes".
+
+Neither replaces `AGENTS.md`, which stays at the top of the instruction hierarchy.
 
 ## How AIEF fits with OpenSpec and Specboot
 

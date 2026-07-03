@@ -1,5 +1,5 @@
 {
-  "description": "Technology detectors and Skill recommendations for the AIEF Adoption Engine. This is data, not workflow logic: edit or extend it without touching the CLI engine.",
+  "description": "Technology detectors and Skills for the AIEF Adoption Engine. This is data, not workflow logic. Three distinct concepts: a DETECTOR fires on project signals (dependencies, files, keywords); a SKILL RECOMMENDATION maps fired detectors ('when') to a Skill; SKILL CONTENT (purpose, whenToUse, standardsToRead, promptContext, commonRisks, evidenceExpectations) is contextual knowledge injected into prompts — AIEF includes it as context, it does not execute Skills.",
   "detectors": [
     {
       "id": "nextjs",
@@ -85,38 +85,76 @@
   "skills": [
     {
       "id": "multitenant-saas-architect",
+      "name": "Multitenant SaaS Architect",
       "description": "Tenant isolation, Host header resolution, tenant lifecycle, SaaS architecture.",
-      "when": ["multitenant"]
+      "when": ["multitenant"],
+      "whenToUse": "Any Change that touches tenant resolution, tenant-scoped data or tenant lifecycle.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "This is a multitenant system: every data access must be tenant-scoped, tenant resolution (e.g. by Host header or subdomain) is security-critical, and cross-tenant leakage is a critical bug.",
+      "commonRisks": ["queries missing the tenant filter", "tenant resolution trusting client-provided values", "shared caches leaking data across tenants"],
+      "evidenceExpectations": "Evidence should state how tenant isolation was verified for anything touched."
     },
     {
       "id": "n8n-automation-ops",
+      "name": "n8n Automation Ops",
       "description": "n8n Queue Mode, workflow catalog, executions, workers, Redis, health checks.",
-      "when": ["n8n"]
+      "when": ["n8n"],
+      "whenToUse": "Changes that call the n8n API, manage workflows/executions, or affect automation reliability.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "n8n is an external system: calls to its API must handle timeouts and failures explicitly, workflow activation is a privileged operation, and executions carry potentially sensitive payloads.",
+      "commonRisks": ["treating n8n as always available", "activating workflows without human approval", "logging execution payloads with sensitive data"],
+      "evidenceExpectations": "Evidence should record how n8n interactions were tested (mock or real instance)."
     },
     {
       "id": "aws-saas-platform",
+      "name": "AWS SaaS Platform",
       "description": "Cognito, RDS PostgreSQL, Secrets Manager, CloudFront, WAF, CloudWatch, CodePipeline, Terraform.",
-      "when": ["aws", "cognito"]
+      "when": ["aws", "cognito"],
+      "whenToUse": "Changes involving AWS services, authentication flows or infrastructure configuration.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "AWS-managed services are configured, not reimplemented: validate tokens server-side (e.g. Cognito JWTs), read secrets from the environment/secret manager, and treat infrastructure changes as reviewable code.",
+      "commonRisks": ["validating JWTs client-side only", "hardcoding region/pool identifiers", "IAM permissions broader than needed"],
+      "evidenceExpectations": "Evidence should note which AWS interactions were exercised for real vs mocked."
     },
     {
       "id": "security-rbac-reviewer",
+      "name": "Security & RBAC Reviewer",
       "description": "Server-side authorization, permissions, tenant isolation, secrets, audit events.",
-      "when": ["rbac", "multitenant"]
+      "when": ["rbac", "multitenant"],
+      "whenToUse": "Any Change touching authentication, authorization, permissions or sensitive data.",
+      "standardsToRead": ["security-standards.md"],
+      "promptContext": "Authorization is enforced server-side on every operation; the UI is never a security boundary. Check permissions at the point of data access, not only at the route entry.",
+      "commonRisks": ["authorization checked in the UI but not the API", "new endpoints missing permission checks", "secrets or tokens ending up in logs or evidence files"],
+      "evidenceExpectations": "Evidence should list which permission paths were tested, including a denied-access case."
     },
     {
       "id": "nextjs-nestjs-architecture",
+      "name": "Next.js / NestJS Architecture",
       "description": "Frontend/backend separation, server components, APIs, NestJS modules, adapter patterns.",
-      "when": ["nextjs", "nestjs"]
+      "when": ["nextjs", "nestjs"],
+      "whenToUse": "Changes that cross the frontend/backend boundary or add routes, server components or modules.",
+      "standardsToRead": ["frontend-standards.md", "backend-standards.md"],
+      "promptContext": "Keep the server/client boundary explicit: secrets and privileged calls stay server-side, client components receive plain serializable props, and API contracts are validated at the boundary.",
+      "commonRisks": ["server-only code or secrets imported into client bundles", "data fetching duplicated on both sides of the boundary", "API responses without input validation"],
+      "evidenceExpectations": "Evidence should state how the affected routes/components were exercised."
     },
     {
       "id": "ai-workflow-governance",
+      "name": "AI Workflow Governance",
       "description": "AI-generated workflows, human approval, inactive drafts, governance, auditability.",
-      "when": ["aiRoadmap"]
+      "when": ["aiRoadmap"],
+      "whenToUse": "Changes where AI generates or modifies artifacts that affect runtime behavior.",
+      "standardsToRead": ["security-standards.md", "documentation-standards.md"],
+      "promptContext": "AI-generated artifacts start inactive and require human approval before affecting runtime; every generation/approval should be attributable and auditable.",
+      "commonRisks": ["auto-activating generated artifacts", "no record of who approved what", "prompts or outputs containing secrets"],
+      "evidenceExpectations": "Evidence should show the approval path for anything AI-generated."
     },
     {
       "id": "project-architecture-reviewer",
+      "name": "Project Architecture Reviewer",
       "description": "General architecture review, module boundaries, risks, and technical debt.",
-      "fallback": true
+      "fallback": true,
+      "whenToUse": "When no specific technology signals are detected and a general review is the safest starting point."
     }
   ]
 }

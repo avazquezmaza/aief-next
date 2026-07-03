@@ -46,17 +46,26 @@ aief prompt --assistant claude --profile architect
 - No hidden state: the active Change is the latest one not marked Closed in its own `change.md` (override with `--change`). `verify` reports in-progress Changes calmly (`○ in progress`) and only warns when a *closed* Change lacks completed evidence.
 - Every command ends with a unified `Next:` hint pointing to the recommended next step.
 
-## Skills detection
+## Detectors, Skill recommendations and Skill content
 
-Technology detectors and Skill recommendations live in `cli/src/skills-catalog.json`, not in the workflow engine. Each detector declares:
+Three distinct concepts live in `cli/src/skills-catalog.json` (data, not engine logic):
 
-- `id` and `description`
-- `signal`: `strong` (dependencies, files) or `weak` (documentation keywords)
-- `dependencies` / `dependencyPrefixes` / `dependencySubstrings`
-- `files` to check for existence
-- `keywords` matched with word boundaries in `searchFiles`
+1. **Detector** — fires on project signals. Declares `id`, `description`, `signal` (`strong` = dependencies/files, `weak` = documentation keywords), `dependencies` / `dependencyPrefixes` / `dependencySubstrings`, `files`, and `keywords` matched with word boundaries in `searchFiles`.
+2. **Skill recommendation** — a skill's `when` lists the detector ids that trigger it. `doctor`/`adopt` print recommendations with the reason.
+3. **Skill content** — operational knowledge used by `aief prompt`: `name`, `purpose`/`description`, `whenToUse`, `standardsToRead`, `promptContext`, `commonRisks`, `evidenceExpectations`. Included in prompts *as context*; AIEF never executes a Skill. If a recommended Skill has no `promptContext`, the prompt says so honestly.
 
-Each skill declares `when` (detector ids that trigger it). Extend detection by editing the catalog; the engine (`cli/src/detect.js`) does not change.
+Extend any of the three by editing the catalog; the engine (`cli/src/detect.js`) does not change.
+
+## Project standards
+
+`aief adopt` creates editable starter standards under `knowledge/standards/` from templates in `cli/templates/standards/`:
+
+- Always: `base-standards.md`, `documentation-standards.md`, `testing-standards.md`, `security-standards.md`.
+- If frontend signals (nextjs/react/tailwind): `frontend-standards.md`.
+- If backend signals (nestjs/postgres/cognito/n8n): `backend-standards.md`.
+- Existing files are never overwritten.
+
+`aief analyze` lists them in the seeded Detected Context; `aief prompt` instructs the assistant to follow them.
 
 ## Testing
 

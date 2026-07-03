@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { detectProject, recommendSkills } from "./detect.js";
+
+const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
+const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "testing-standards.md", "security-standards.md"];
 
 const CHANGE_FILES = ["change.md", "spec.md", "tasks.md", "evidence.md"];
 
@@ -74,6 +78,26 @@ function printSkills(project) {
     console.log(`- ${skill.id}: ${skill.description}`);
     for (const reason of skill.because) console.log(`    because: ${reason}`);
   }
+}
+function standardsForProject(project) {
+  const files = [...BASE_STANDARDS];
+  if (project.tech.nextjs || project.tech.react || project.tech.tailwind) files.push("frontend-standards.md");
+  if (project.tech.nestjs || project.tech.postgres || project.tech.cognito || project.tech.n8n) files.push("backend-standards.md");
+  return files;
+}
+function createStandards(project) {
+  const created = [];
+  for (const file of standardsForProject(project)) {
+    const template = path.join(STANDARDS_TEMPLATES_DIR, file);
+    if (!fs.existsSync(template)) continue;
+    if (writeFile(cwd("knowledge", "standards", file), fs.readFileSync(template, "utf8"))) created.push(file);
+  }
+  return created;
+}
+function listStandards() {
+  const dir = cwd("knowledge", "standards");
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
 }
 function printSignals(project) {
   console.log("\nDetected project signals:");
@@ -201,11 +225,44 @@ function help(topic) {
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
 }
-function analysisChangeFiles(id, slug) {
+function analysisContextSection(context) {
+  if (!context) return "";
+  const { project, skills, standards } = context;
+  const risks = skills.flatMap((s) => (s.commonRisks || []).map((r) => `- (inferred from ${s.id}) ${r}`));
+  return [
+    "\n## Detected Context",
+    "",
+    "> Generated automatically by `aief analyze` from project signals. Everything below is detection or inference — confirm or discard it during the analysis.",
+    "",
+    "### Signals",
+    "",
+    project.signals.length ? project.signals.map((s) => `- ${s.id} (${s.signal}): ${s.reasons.join("; ")}`).join("\n") : "- No strong signals detected.",
+    "",
+    "### Recommended Skills",
+    "",
+    skills.map((s) => `- ${s.id}: ${s.description || s.whenToUse || ""}`).join("\n"),
+    "",
+    "### Available Standards",
+    "",
+    standards.length ? standards.map((f) => `- knowledge/standards/${f}`).join("\n") : "- None yet — run `aief adopt` to create starter standards.",
+    "",
+    "### Initial Risks (inferred from detected technologies — confirm or discard)",
+    "",
+    risks.length ? risks.join("\n") : "- None inferred.",
+    "",
+    "### Open Questions",
+    "",
+    "- Which detected technologies are actually in active use?",
+    "- Do the standards in knowledge/standards/ match current practice?",
+    "- What is intentionally out of scope for this analysis?",
+    ""
+  ].join("\n");
+}
+function analysisChangeFiles(id, slug, context) {
   return {
-    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nAnalysis\n\n## Objective\n\nAnalyze the current state of the project before implementing architectural or functional changes.\n\n## Scope\n\n### In scope\n\n- Analyze repository structure.\n- Review existing documentation.\n- Review current architecture.\n- Review runtime and development setup.\n- Review authentication and authorization.\n- Review integrations.\n- Review deployment and infrastructure.\n- Identify technical debt.\n- Identify risks.\n- Produce recommendations.\n\n### Out of scope\n\n- Implementing new functionality.\n- Refactoring existing code.\n- Modifying infrastructure.\n- Updating dependencies.\n\n## Success Criteria\n\n- Current architecture is documented.\n- Major gaps are identified.\n- Technical risks are documented.\n- Recommended next Changes are proposed.\n`,
+    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nAnalysis\n\n## Objective\n\nAnalyze the current state of the project before implementing architectural or functional changes.\n\n## Scope\n\n### In scope\n\n- Analyze repository structure.\n- Review existing documentation.\n- Review current architecture.\n- Review runtime and development setup.\n- Review authentication and authorization.\n- Review integrations.\n- Review deployment and infrastructure.\n- Identify technical debt.\n- Identify risks.\n- Produce recommendations.\n\n### Out of scope\n\n- Implementing new functionality.\n- Refactoring existing code.\n- Modifying infrastructure.\n- Updating dependencies.\n\n## Success Criteria\n\n- Current architecture is documented.\n- Major gaps are identified.\n- Technical risks are documented.\n- Recommended next Changes are proposed.\n${analysisContextSection(context)}`,
     "spec.md": `# Specification\n\n## Goal\n\nProduce a practical architectural assessment of the existing project.\n\n## Deliverables\n\n- Current architecture summary.\n- Gap analysis.\n- Risk list.\n- Technical debt list.\n- Recommended Change roadmap.\n\n## Acceptance Criteria\n\n- [ ] Repository structure reviewed.\n- [ ] Documentation reviewed.\n- [ ] Major modules reviewed.\n- [ ] Risks identified.\n- [ ] Roadmap proposed.\n- [ ] Evidence updated.\n`,
-    "tasks.md": `# Tasks\n\n- [ ] Review repository structure.\n- [ ] Review package and build configuration.\n- [ ] Review environment configuration.\n- [ ] Read README.\n- [ ] Read architecture documents.\n- [ ] Read assistant instruction files.\n- [ ] Review application architecture.\n- [ ] Review security model.\n- [ ] Review integrations.\n- [ ] Review infrastructure.\n- [ ] Identify strengths, gaps, risks and technical debt.\n- [ ] Complete evidence.md.\n`,
+    "tasks.md": `# Tasks\n\n- [ ] Review repository structure.\n- [ ] Review package and build configuration.\n- [ ] Review environment configuration.\n- [ ] Read README.\n- [ ] Read architecture documents.\n- [ ] Read assistant instruction files.\n- [ ] Confirm or discard the Detected Context section in change.md.\n- [ ] Review knowledge/standards/ against actual practice.\n- [ ] Review application architecture.\n- [ ] Review security model.\n- [ ] Review integrations.\n- [ ] Review infrastructure.\n- [ ] Identify strengths, gaps, risks and technical debt.\n- [ ] Complete evidence.md.\n`,
     "evidence.md": evidenceTemplate()
   };
 }
@@ -220,7 +277,7 @@ function genericChangeFiles(id, slug, title = "") {
 function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error("Change name is required."); process.exitCode = 1; return null; }
   const id = nextChangeId(); const changeDir = cwd("changes", `${id}-${slug}`);
-  const files = options.type === "analysis" ? analysisChangeFiles(id, slug) : genericChangeFiles(id, slug, name);
+  const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context) : genericChangeFiles(id, slug, name);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
@@ -235,6 +292,9 @@ function adopt(args) {
   fs.mkdirSync(cwd("changes"), { recursive: true }); fs.mkdirSync(cwd("knowledge"), { recursive: true }); fs.mkdirSync(cwd("profiles"), { recursive: true });
   writeFile(cwd("knowledge", "README.md"), "# Knowledge\n\nCapture decisions, lessons learned, constraints and project context here.\n");
   writeFile(cwd("profiles", "README.md"), "# Profiles\n\nUse AIEF role profiles from the source AIEF repository or define project-specific role guidance here.\n");
+  const createdStandards = createStandards(project);
+  for (const file of createdStandards) console.log(`✓ Created knowledge/standards/${file}`);
+  if (!createdStandards.length) console.log("✓ knowledge/standards/ already present (nothing overwritten)");
   if (!getChangeDirs().some((dir) => path.basename(dir).includes("adopt-aief"))) {
     // Use the next free ID so adoption never collides with existing Changes.
     const id = nextChangeId();
@@ -242,12 +302,21 @@ function adopt(args) {
     const files = genericChangeFiles(id, "adopt-aief", "Adopt AIEF workflow without changing application behavior.");
     writeFile(path.join(dir, "change.md"), files["change.md"]);
     writeFile(path.join(dir, "spec.md"), files["spec.md"]);
-    writeFile(path.join(dir, "tasks.md"), "# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/.\n- [x] Create knowledge/.\n- [x] Create adoption Change.\n- [ ] Run aief verify.\n- [ ] Update evidence.md.\n");
+    writeFile(path.join(dir, "tasks.md"), "# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/.\n- [x] Create knowledge/.\n- [x] Create knowledge/standards/ starter standards (see adopt output for the exact files).\n- [x] Create adoption Change.\n- [ ] Edit knowledge/standards/ so the \"(adapt)\" lines match this project.\n- [ ] Run aief verify.\n- [ ] Update evidence.md.\n");
     writeFile(path.join(dir, "evidence.md"), evidenceTemplate()); console.log(`✓ Created changes/${id}-adopt-aief`);
   } else console.log("✓ Adoption Change already exists");
   console.log(""); printSkills(project); printNext("aief verify", "aief analyze");
 }
-function analyze(args) { const parsed = parseArgs(args); section("AIEF Analyze"); console.log("Purpose: create an Analysis Change for an existing project.\nWrites only under changes/<id>-<name>/.\n"); createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis" }); printNext("aief prompt --assistant claude --profile architect"); }
+function analyze(args) {
+  const parsed = parseArgs(args);
+  section("AIEF Analyze");
+  console.log("Purpose: create an Analysis Change seeded with the project context doctor already detects.\nWrites only under changes/<id>-<name>/.\n");
+  const project = detectProject();
+  const context = { project, skills: recommendSkills(project), standards: listStandards() };
+  createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis", context });
+  if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
+  printNext("aief prompt --assistant claude --profile architect");
+}
 const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
 function prompt(args) {
   const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
@@ -260,8 +329,15 @@ function prompt(args) {
   const changeName = path.relative(process.cwd(), changeDir);
   // CRLF/LF tolerant: a Change written on Windows must still be recognized as Analysis.
   const isAnalysis = /##\s*type\s*(\r?\n)+\s*analysis\b/i.test(read(path.join(changeDir, "change.md")));
+  const standards = listStandards();
+  const project = detectProject();
+  const skills = recommendSkills(project);
+  const standardsBlock = standards.length ? `\nProject standards to follow:\n\n${standards.map((f) => `- knowledge/standards/${f}`).join("\n")}\n` : "";
+  const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
+    ? `- ${s.name || s.id}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
+    : `- ${s.name || s.id}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${standardsBlock}${skillsBlock}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 function markClosed(changeDir) {
   const file = path.join(changeDir, "change.md");

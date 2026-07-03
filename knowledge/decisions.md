@@ -74,6 +74,16 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-010: Project standards and Skills are contextual knowledge; OpenSpec remains the spec workflow engine
+
+**Decision.** AIEF adopts Specboot's *concepts* — modular project standards and role/skill knowledge — as files under `knowledge/standards/` (created by `aief adopt`, never overwritten) and as operational Skill content in `cli/src/skills-catalog.json` (purpose, whenToUse, standardsToRead, promptContext, commonRisks, evidenceExpectations). `aief prompt` injects both as *context* for the assistant. AIEF does not copy Specboot files and does not reimplement OpenSpec's Proposal → Spec → Tasks workflow.
+
+**Context.** Validation on a real project (Change 0016/0018) showed the biggest gap was contextual: prompts referenced profiles/skills with no operational content, and `analyze` discarded everything `doctor` detected. Specboot (LIDR) solves this with standards documents and skill files; copying it would fork a project we only want to learn from. Research during this Change also found the real OpenSpec (Fission-AI/OpenSpec) exposes `propose` as an assistant slash command, not a terminal command — confirming AIEF should treat OpenSpec as the spec engine used *through the assistant*, with AIEF's local Change skeleton as the documented fallback.
+
+**Consequences.** Three concepts stay distinct in the catalog: *detectors* (fire on project signals), *skill recommendations* (map detectors to Skills), and *skill content* (knowledge injected into prompts — included as context, never claimed to be "executed"). Standards are editable project property; AGENTS.md remains the rule hierarchy root; OpenSpec remains optional and authoritative for formal spec workflows.
+
+---
+
 ## ADR-009: No hidden state — the Change files are the only source of truth
 
 **Decision.** AIEF stores no state outside the Change files. A Change is closed when its own `change.md` carries a `## Status / Closed` section (written by `aief close --yes`). The "active Change" is derived: the latest Change not marked Closed, overridable with `--change`. A proposed `.aief/state.json` was evaluated and rejected.
