@@ -2,21 +2,20 @@
 
 ## Implementation
 
-- [x] Add task input.
-- [x] Add create task action.
-- [x] Store tasks in memory.
-- [x] Render task list.
-- [x] Prevent empty task creation.
+- [x] Create `TodoList` class.
+- [x] Implement `createTask(title)`.
+- [x] Implement `listTasks()`.
+- [x] Reject empty task titles.
+- [x] Assign incremental task IDs.
+- [x] Default new tasks to `completed: false`.
+
+## Tests
+
+- [x] Test task creation.
+- [x] Test task listing.
+- [x] Test empty title rejection.
 
 ## Documentation
 
-- [x] Document example scope.
-
-## Verification
-
-- [x] Manually verify valid task creation.
-- [x] Manually verify empty task rejection.
-
-## Evidence
-
-- [x] Update `evidence.md`.
+- [x] Update example README.
+- [x] Update evidence.

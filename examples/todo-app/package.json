@@ -1,0 +1,16 @@
+{
+  "name": "aief-todo-app-example",
+  "version": "0.1.0",
+  "description": "Minimal executable Todo App example for AIEF.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "aief",
+    "ai-engineering",
+    "example",
+    "todo"
+  ],
+  "license": "MIT"
+}

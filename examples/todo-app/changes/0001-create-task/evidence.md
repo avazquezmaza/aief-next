@@ -2,29 +2,43 @@
 
 ## Summary
 
-The Todo App example defines a complete AIEF Change for creating tasks.
+Implemented a minimal in-memory Todo service.
+
+## Changed Files
+
+```text
+src/todo.js
+tests/todo.test.js
+package.json
+README.md
+```
 
 ## Verification
 
-Manual verification steps:
+Command:
 
-1. Enter a non-empty task title.
-2. Submit the task.
-3. Confirm the task appears in the list.
-4. Submit an empty title.
-5. Confirm no task is created.
+```bash
+npm test
+```
+
+Expected result:
+
+```text
+3 tests pass.
+```
 
 ## Results
 
-- Valid task creation: passed.
-- Empty task rejection: passed.
-- Documentation updated: passed.
+- Creates a task with a title: passed.
+- Lists created tasks: passed.
+- Rejects empty task titles: passed.
 
 ## Known Issues
 
-- This is a documentation/example Change only.
-- No executable Todo App implementation is included in this starter example.
+- Tasks are not persisted.
+- There is no UI.
+- Task completion is not implemented.
 
 ## Lessons Learned
 
-A small Change can be fully described with four files: `change.md`, `spec.md`, `tasks.md`, and `evidence.md`.
+A small executable example makes AIEF easier to learn because the specification, tasks, code, tests, and evidence are all visible together.

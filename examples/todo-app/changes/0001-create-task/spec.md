@@ -2,26 +2,26 @@
 
 ## Goal
 
-Users can create a new task with a title.
+Users can create and list Todo tasks.
 
 ## Requirements
 
-- The user can enter a task title.
-- The user can submit the task.
-- The task appears in the task list.
-- Empty task titles are not accepted.
+- A task has:
+  - `id`
+  - `title`
+  - `completed`
+- New tasks must default to `completed: false`.
+- Empty or whitespace-only titles must be rejected.
+- Created tasks must be retrievable through a list operation.
 
 ## Acceptance Criteria
 
-- [ ] Given a non-empty title, when the user submits, then the task appears in the list.
-- [ ] Given an empty title, when the user submits, then no task is created.
-- [ ] The input clears after a valid task is created.
+- [x] Given a non-empty title, when a task is created, then a task object is returned.
+- [x] Given a created task, when tasks are listed, then the task appears in the list.
+- [x] Given an empty title, when a task is created, then an error is raised.
 
 ## Constraints
 
-- Keep the implementation simple.
-- No backend is required for this example.
-
-## Assumptions
-
-- Tasks can be stored in memory.
+- Use plain JavaScript.
+- Do not add external dependencies.
+- Keep storage in memory.

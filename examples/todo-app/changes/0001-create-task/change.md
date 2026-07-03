@@ -6,24 +6,28 @@
 
 ## Objective
 
-Add the ability to create a task in the Todo App.
+Add the ability to create tasks in the Todo App.
 
 ## Scope
 
 ### In scope
 
-- Add a task title.
-- Save the task in memory.
-- Display the created task.
+- Create a task with a title.
+- Reject empty task titles.
+- List created tasks.
+- Store tasks in memory.
 
 ### Out of scope
 
-- Authentication.
-- Database persistence.
 - Task editing.
 - Task deletion.
+- Task completion.
+- Database persistence.
+- Web UI.
 
 ## Success Criteria
 
-- A user can create a task.
-- The task appears in the task list.
+- A valid task can be created.
+- Empty titles are rejected.
+- Created tasks can be listed.
+- Automated tests verify the behavior.
