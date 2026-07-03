@@ -1,99 +1,48 @@
 # AIEF CLI
 
-The AIEF CLI automates the most common AIEF actions.
+The AIEF CLI is a guided workflow tool.
 
-## Run locally
+It should explain what each command does, what it reads, what it writes, and what to do next.
 
-```bash
-node cli/bin/aief.js help
-```
-
-## Commands
+## Existing project flow
 
 ```bash
-node cli/bin/aief.js doctor
-node cli/bin/aief.js status
-node cli/bin/aief.js init my-project
-node cli/bin/aief.js new-change add-login
-node cli/bin/aief.js propose "Add login"
-node cli/bin/aief.js use-profile developer
-node cli/bin/aief.js verify
-node cli/bin/aief.js release 0.1.0
+aief doctor
+aief adopt
+aief verify
+aief analyze
+aief prompt --profile architect
 ```
 
-## Local alias
+## Command groups
 
-```bash
-alias aief="node /path/to/aief-next/cli/bin/aief.js"
-```
-
-Then:
+### Discovery
 
 ```bash
 aief doctor
 aief status
+aief help doctor
+```
+
+### Adoption
+
+```bash
+aief adopt
+aief analyze
+```
+
+### Work
+
+```bash
 aief new-change add-login
-```
-
-## npm link
-
-From the repository root:
-
-```bash
-cd cli
-npm link
-```
-
-Then use:
-
-```bash
-aief help
-aief doctor
-aief init my-project
-```
-
-## OpenSpec integration
-
-`aief propose` checks if OpenSpec is available.
-
-If OpenSpec is installed, it attempts to delegate proposal creation.
-
-If OpenSpec is not installed, it creates a local AIEF Change with `proposal.md`.
-
-```bash
 aief propose "Add login"
+aief prompt --profile architect
+aief verify
+aief close
 ```
 
-## Commands explained
+## Skills recommendation
 
-### doctor
+`aief doctor` and `aief adopt` inspect project signals and recommend possible Skills.
 
-Checks local tooling and project status.
-
-### status
-
-Shows AIEF repository/project health and recent Changes.
-
-### init
-
-Creates a new AIEF-compatible project.
-
-### new-change
-
-Creates a new Change folder.
-
-### propose
-
-Creates or delegates a proposal.
-
-### use-profile
-
-Prints a ready-to-copy assistant prompt.
-
-### verify
-
-Checks required files and Change structure.
-
-### release
-
-Creates release notes.
+Profiles define the role. Skills define specialized knowledge.

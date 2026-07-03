@@ -1,83 +1,36 @@
-# AIEF CLI
+# AIEF CLI UX
 
-The CLI makes AIEF easier to use.
+The CLI should be self-explanatory.
 
-## Main commands
+Each command should answer:
 
-```bash
-aief doctor
-aief status
-aief init my-project
-aief new-change add-login
-aief propose "Add login"
-aief verify
-aief release 0.1.0
-```
+- Purpose
+- When to use it
+- What it reads
+- What it writes
+- Examples
+- Recommended next step
 
-## Recommended setup
-
-From the AIEF repository:
-
-```bash
-cd cli
-npm link
-```
-
-Then:
-
-```bash
-aief help
-```
-
-## Doctor
+## Existing project adoption
 
 ```bash
 aief doctor
-```
-
-Checks:
-
-- Git
-- Node
-- npm
-- OpenSpec availability
-- AIEF project files
-
-## Status
-
-```bash
-aief status
-```
-
-Shows:
-
-- AIEF files
-- adapters
-- profiles
-- number of Changes
-- recent Changes
-
-## Propose
-
-```bash
-aief propose "Add login"
-```
-
-Behavior:
-
-1. If OpenSpec is installed, AIEF tries to delegate proposal creation.
-2. If not, AIEF creates a local Change skeleton and `proposal.md`.
-
-This keeps AIEF usable with or without OpenSpec.
-
-## Verify
-
-```bash
+aief adopt
 aief verify
+aief analyze
+aief prompt --profile architect
 ```
 
-Checks the required AIEF structure and each Change folder.
+## Command intent
 
-## Philosophy
-
-The CLI should make the simple workflow easier without hiding the AIEF model.
+| Command | Purpose | Writes files? |
+|---|---|---|
+| `doctor` | Inspect environment and project readiness | No |
+| `status` | Show current AIEF adoption state | No |
+| `adopt` | Add minimum AIEF workflow to an existing project | Yes |
+| `analyze` | Create an Analysis Change | Yes |
+| `prompt` | Generate assistant prompt | No |
+| `verify` | Check AIEF structure | No |
+| `close` | Print closure checklist | No in MVP |
+| `propose` | Create/delegate proposal | Yes |
+| `release` | Create release notes | Yes |
