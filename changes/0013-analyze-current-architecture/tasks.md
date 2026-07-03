@@ -1,14 +1,14 @@
 # Tasks
 
-- [ ] Review repository structure.
-- [ ] Review package and build configuration.
-- [ ] Review environment configuration.
-- [ ] Read README.
-- [ ] Read architecture documents.
-- [ ] Read assistant instruction files.
-- [ ] Review application architecture.
-- [ ] Review security model.
-- [ ] Review integrations.
-- [ ] Review infrastructure.
-- [ ] Identify strengths, gaps, risks and technical debt.
-- [ ] Complete evidence.md.
+- [x] Review repository structure.
+- [x] Review package and build configuration.
+- [x] Review environment configuration.
+- [x] Read README.
+- [x] Read architecture documents.
+- [x] Read assistant instruction files.
+- [x] Review application architecture.
+- [x] Review security model.
+- [x] Review integrations.
+- [x] Review infrastructure.
+- [x] Identify strengths, gaps, risks and technical debt.
+- [x] Complete evidence.md (captured retroactively; see note in evidence.md).

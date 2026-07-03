@@ -125,7 +125,7 @@ const COMMAND_HELP = {
     when: "After creating a Change.",
     reads: "AGENTS.md, assistant files, profiles and the active (or selected) Change.",
     writes: "Nothing.",
-    example: "aief prompt --profile architect --change 0002",
+    example: "aief prompt --assistant claude --profile architect --change 0002",
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
@@ -185,7 +185,7 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [--profile architect] [--change change-id]\n  aief verify\n  aief close [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [--assistant claude|gemini|codex|cursor] [--profile architect] [--change change-id]\n  aief verify\n  aief close [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -237,8 +237,12 @@ function adopt(args) {
   console.log(""); printSkills(project); console.log("\nNext:\n  aief verify\n  aief analyze");
 }
 function analyze(args) { const parsed = parseArgs(args); section("AIEF Analyze"); console.log("Purpose: create an Analysis Change for an existing project.\nWrites only under changes/<id>-<name>/.\n"); createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis" }); console.log("\nNext:\n  aief prompt --profile architect"); }
+const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
 function prompt(args) {
   const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
+  const assistant = typeof parsed.assistant === "string" ? parsed.assistant.toLowerCase() : "";
+  if (assistant && !ASSISTANT_FILES[assistant]) console.warn(`Unknown assistant "${parsed.assistant}". Known: ${Object.keys(ASSISTANT_FILES).join(", ")}.`);
+  const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
   if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
   if (!changeDir) { console.error("No Change found. Run: aief new-change <name> or aief analyze"); process.exitCode = 1; return; }
@@ -246,7 +250,7 @@ function prompt(args) {
   // CRLF/LF tolerant: a Change written on Windows must still be recognized as Analysis.
   const isAnalysis = /##\s*type\s*(\r?\n)+\s*analysis\b/i.test(read(path.join(changeDir, "change.md")));
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${exists("CLAUDE.md") ? "- CLAUDE.md" : ""}\n${exists("README.md") ? "- README.md" : ""}\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 function close(args) { section("AIEF Close"); console.log("Purpose: guide closure of the active Change. Writes nothing in this MVP.\n"); const changeDir = latestChangeDir(); if (!changeDir) { console.error("No Change found."); process.exitCode = 1; return; } console.log(`Active Change: ${path.relative(process.cwd(), changeDir)}\n`); console.log("Before commit, confirm:\n- [ ] evidence.md has Summary.\n- [ ] evidence.md has Activities Performed.\n- [ ] evidence.md has Verification and actual results.\n- [ ] evidence.md has Findings or implementation summary.\n- [ ] evidence.md has Risks or Known Issues.\n- [ ] evidence.md has Recommendations.\n- [ ] evidence.md has Lessons Learned.\n- [ ] evidence.md has Next Change.\n\nRecommended commands:\n  aief verify\n  git status"); }
 function checkChange(changeDir) { const missing = [], empty = []; for (const file of CHANGE_FILES) { const full = path.join(changeDir, file); if (!fs.existsSync(full)) missing.push(file); else if (!fs.readFileSync(full, "utf8").trim()) empty.push(file); } return { missing, empty }; }

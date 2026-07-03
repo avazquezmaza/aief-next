@@ -18,7 +18,7 @@ aief doctor
 aief adopt
 aief verify
 aief analyze
-aief prompt --profile architect
+aief prompt --assistant claude --profile architect
 ```
 
 ## Command intent
@@ -30,7 +30,7 @@ aief prompt --profile architect
 | `adopt` | Add minimum AIEF workflow to an existing project | Yes (never application code) |
 | `analyze` | Create an Analysis Change | Yes |
 | `new-change` | Create a Change skeleton | Yes |
-| `prompt` | Generate assistant prompt | No |
+| `prompt` | Generate assistant prompt (`--assistant claude\|gemini\|codex\|cursor`) | No |
 | `verify` | Check AIEF structure | No |
 | `close` | Print closure checklist | No in MVP |
 | `propose` | Create/delegate proposal | Yes |

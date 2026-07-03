@@ -96,6 +96,18 @@ test("prompt recognizes an Analysis Change even with CRLF line endings", () => {
   assert.match(out, /Do not modify application source code/);
 });
 
+test("prompt --assistant selects the matching instruction file", () => {
+  const dir = makeProject({ "GEMINI.md": "# Gemini rules", "CLAUDE.md": "# Claude rules" });
+  aief(dir, ["new-change", "thing"]);
+  const gemini = aief(dir, ["prompt", "--assistant", "gemini"]);
+  assert.match(gemini.out, /- GEMINI\.md/);
+  assert.doesNotMatch(gemini.out, /- CLAUDE\.md/);
+  const fallback = aief(dir, ["prompt"]);
+  assert.match(fallback.out, /- CLAUDE\.md/);
+  const unknown = aief(dir, ["prompt", "--assistant", "clippy"]);
+  assert.match(unknown.out, /Unknown assistant "clippy"/);
+});
+
 test("verify fails when a change file is missing and warns on placeholder evidence", () => {
   const dir = makeProject({ "README.md": "x", "AGENTS.md": "x" });
   aief(dir, ["new-change", "thing"]);

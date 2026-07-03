@@ -1,14 +1,10 @@
-# AIEF
+# AIEF — AI Engineering Workflow Engine
+
+[![CI](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml/badge.svg)](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml)
 
 > **Coordinate humans, AI assistants, specifications, implementation and evidence in one simple workflow.**
 
-AIEF is an orchestration layer for AI-assisted software engineering.
-
-It does not replace your AI assistant.  
-It does not replace OpenSpec.  
-It does not replace Specboot.  
-
-It coordinates them.
+AIEF is not another spec generator and not another prompt library. It is the **workflow engine** that keeps AI-assisted engineering consistent:
 
 ```text
 Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
@@ -16,272 +12,181 @@ Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
 
 ---
 
-## Why AIEF?
+## The problem
 
-AI-assisted development can become messy quickly:
+AI-assisted development gets messy fast:
 
-```text
-Different prompts
-Different assistant behavior
-Unclear requirements
-Untracked decisions
-Missing evidence
-Outdated documentation
-```
+- every developer prompts differently,
+- requirements live in chat histories,
+- decisions go untracked,
+- "done" has no evidence,
+- documentation drifts.
 
-AIEF gives teams a simple way to keep work consistent:
+AIEF fixes this with one rule — **think in Changes** — and a CLI that guides you through it:
 
 - every meaningful unit of work is a **Change**,
-- every Change has a **specification**,
-- every implementation has **tasks**,
+- every Change has a **specification** and **tasks**,
 - every completed Change has **evidence**,
-- every AI assistant follows the same project rules.
+- every AI assistant follows the same project rules (`AGENTS.md`).
 
----
+## Separation of responsibilities
 
-## How AIEF fits with OpenSpec and Specboot
+AIEF orchestrates. It does not replace your tools.
+
+| Component | Responsibility |
+|---|---|
+| **AIEF** | Workflow orchestration: Changes, verification, evidence, adoption |
+| **OpenSpec** *(optional)* | Proposal / Spec / Tasks generation |
+| **Specboot** *(optional)* | Assistant instruction bootstrapping |
+| **AI assistants** | Analysis, implementation, review, documentation |
+| **Skills** | Specialized technology knowledge |
+
+Instruction hierarchy — `AGENTS.md` is always the source of truth:
+
+```text
+AGENTS.md -> assistant file (CLAUDE.md, GEMINI.md, ...) -> profile -> skill -> active Change
+```
 
 ```mermaid
 flowchart TD
-    A[AIEF] --> B[Workflow]
-    A --> C[Changes]
-    A --> D[Evidence]
-
-    A --> E[OpenSpec]
-    A --> F[Specboot]
-    A --> G[AI Assistants]
-    A --> H[AIEF CLI]
-
-    E --> I[Proposals / Specs / Tasks]
-    F --> J[Agent Instructions]
-    G --> K[Implementation / Review / Docs]
-    H --> L[Automation]
-
-    I --> M[Your Project]
-    J --> M
-    K --> M
-    L --> M
+    A[AIEF Workflow Engine] --> B[Changes + Evidence]
+    A --> C[OpenSpec: Proposal / Spec / Tasks]
+    A --> D[Specboot: Assistant Instructions]
+    A --> E[AI Assistants: Build / Review / Document]
+    A --> F[Skills: Specialized Knowledge]
+    B --> M[Your Project]
+    C --> M
+    D --> M
+    E --> M
+    F --> M
 ```
-
-| Component | Purpose |
-|---|---|
-| **AIEF** | Coordinates the engineering workflow |
-| **OpenSpec** | Helps create structured proposals, specs and tasks |
-| **Specboot** | Helps bootstrap AI assistant instruction files |
-| **AI assistants** | Help design, implement, review and document changes |
-| **AIEF CLI** | Automates project, Change, status and release tasks |
 
 ---
 
-## Start here
+## Get the CLI
+
+Requires Node >= 18. No dependencies.
+
+```bash
+git clone https://github.com/avazquezmaza/aief-next.git
+cd aief-next/cli
+npm link        # installs a global `aief` command
+```
+
+Prefer not to link? Run it directly: `node cli/bin/aief.js <command>`.
+
+## Adopt AIEF in an existing project (primary use case)
+
+From your project's root:
+
+```bash
+aief doctor      # inspect environment and project readiness — writes nothing
+aief adopt       # add the AIEF workflow — never touches application code
+aief verify      # check the AIEF structure
+aief analyze     # create an Analysis Change (analysis only, no code changes)
+aief prompt --assistant claude --profile architect
+```
+
+What each step does:
+
+1. **doctor** — checks git/node/npm/OpenSpec availability, detects your stack (with reasons) and recommends Skills.
+2. **adopt** — creates `AGENTS.md` (if missing), `changes/`, `knowledge/` and an adoption Change using the next free ID. Idempotent; safe to re-run.
+3. **verify** — confirms required files and Change structures; warns about placeholder evidence.
+4. **analyze** — creates an Analysis Change so the first AI task is understanding, not modifying.
+5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change. `--assistant` picks the matching instruction file (claude, gemini, codex, cursor).
+
+Paste the generated prompt into your assistant and let it work inside the Change. When it finishes, run `aief verify` and `aief close`.
+
+## Start a new project
+
+```bash
+aief init my-project
+cd my-project
+aief new-change add-login
+aief prompt --assistant claude
+```
+
+Every Change gets this skeleton:
+
+```text
+changes/0001-add-login/
+├── change.md      # why and what
+├── spec.md        # requirements and acceptance criteria
+├── tasks.md       # implementation checklist
+└── evidence.md    # what actually happened, verified
+```
+
+## Guarantees
+
+- `doctor`, `status`, `prompt`, `verify` and `close` **never write files**.
+- `adopt` and `analyze` **never modify application code** — they only add AIEF workflow files.
+- `adopt` never collides with existing Changes and is idempotent.
+- OpenSpec and Specboot are **optional**; the CLI works without them and announces any fallback explicitly (never silently).
+- Skill recommendations always **explain why** they fired.
+- Every command explains itself: `aief help <command>` shows purpose, when to use it, what it reads, what it writes, an example and the next step.
+
+## Commands
+
+```bash
+aief help [command]   # self-documenting help for every command
+aief doctor           # environment + project readiness
+aief status           # adoption status and recent Changes
+aief adopt            # adopt AIEF in an existing project
+aief analyze          # create an Analysis Change
+aief new-change <name>
+aief propose "<idea>" # delegates to OpenSpec when available
+aief prompt [--assistant claude] [--profile architect] [--change id]
+aief verify           # check AIEF structures
+aief close            # closure checklist for the active Change
+aief init <name>      # new AIEF project
+aief release <version>
+```
+
+Full reference: [docs/cli.md](docs/cli.md).
+
+## Using OpenSpec and Specboot
+
+Both are optional.
+
+- `aief propose "Add login"` validates the OpenSpec contract at runtime (installed? version? `propose` exposed?) and delegates when possible. On any failure it says so and creates a local Change instead. Details: [adapters/openspec/](adapters/openspec/README.md).
+- Specboot's ideas (instruction hierarchy, profiles) are integrated conceptually via [adapters/specboot/](adapters/specboot/README.md) and [templates/specboot/](templates/specboot/).
+
+## Tests and validation
+
+```bash
+cd cli && npm test               # CLI test suite (node --test, no dependencies)
+cd examples/todo-app && npm test # executable example (3 tests)
+node cli/bin/aief.js verify      # validate this repository's own AIEF structure
+```
+
+CI runs all three on every push and pull request ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+
+## Learn more
 
 | I want to... | Go to |
 |---|---|
-| Understand AIEF | [Navigator](NAVIGATOR.md) |
+| Understand AIEF step by step | [Navigator](NAVIGATOR.md) |
 | Decide what path to follow | [Decision Tree](docs/navigator/decision-tree.md) |
-| Start a new project | [New Project](docs/navigator/new-project.md) |
-| Adopt AIEF in an existing project | [Existing Project](docs/navigator/existing-project.md) |
-| Use Windows, Linux or macOS | [Install Guides](docs/navigator/install) |
-| Use AI assistants | [AI Assistants](docs/navigator/ai-assistants.md) |
-| Use OpenSpec or Specboot | [Tooling](docs/navigator/tooling.md) |
+| Adopt AIEF in an existing project | [Existing Project Guide](docs/navigator/existing-project.md) |
+| Start a new project | [New Project Guide](docs/navigator/new-project.md) |
+| Install on Windows, Linux or macOS | [Install Guides](docs/navigator/install) |
 | Learn by example | [Todo App Example](examples/todo-app/README.md) |
+| Understand the architecture decisions | [Decision Log](knowledge/decisions.md) |
+| See how AI assistants must behave | [AGENTS.md](AGENTS.md) |
 
----
+## Status and roadmap
 
-## Quick Start
+AIEF is in **Phase 2 — Validation** ([roadmap](docs/roadmap.md)): the framework, CLI and tests exist; the current goal is validating adoption on real existing projects and improving only from observed evidence.
 
-### 1. Check your environment
+Short roadmap:
 
-```bash
-node cli/bin/aief.js doctor
-```
+1. Validate `aief adopt` + `analyze` on a real existing project.
+2. Validate the OpenSpec integration against a real release.
+3. First public release.
+4. Then: npm package, GitHub Action, more Skills.
 
-### 2. Create a new AIEF project
-
-```bash
-node cli/bin/aief.js init my-project
-cd my-project
-```
-
-### 3. Create your first Change
-
-```bash
-node ../cli/bin/aief.js new-change add-login
-```
-
-This creates:
-
-```text
-changes/0001-add-login/
-├── change.md
-├── spec.md
-├── tasks.md
-└── evidence.md
-```
-
-### 4. Ask AI to help
-
-```bash
-node ../cli/bin/aief.js use-profile developer
-```
-
-Give your assistant:
-
-```text
-AGENTS.md
-profiles/developer.md
-changes/0001-add-login/
-```
-
-### 5. Verify the project
-
-```bash
-node ../cli/bin/aief.js status
-node ../cli/bin/aief.js verify
-```
-
----
-
-## Using OpenSpec
-
-If OpenSpec is installed, AIEF can delegate proposal creation to it.
-
-```bash
-node cli/bin/aief.js propose "Add login"
-```
-
-If OpenSpec is available, the CLI will attempt to call it.  
-If not, AIEF creates a local Change skeleton and tells you what to do next.
-
-AIEF remains usable even without OpenSpec.
-
----
-
-## Using Specboot
-
-Specboot is optional.
-
-Use it when you want stronger multi-assistant instruction bootstrapping.
-
-AIEF uses this hierarchy:
-
-```text
-AGENTS.md
-  -> CLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md
-  -> profiles/
-  -> active Change
-```
-
-`AGENTS.md` remains the source of truth.
-
----
-
-## Repository structure
-
-```text
-.
-├── README.md
-├── NAVIGATOR.md
-├── AGENTS.md
-├── CLAUDE.md
-├── GEMINI.md
-├── CODEX.md
-├── CURSOR.md
-├── cli/
-├── docs/
-├── specs/
-├── templates/
-├── starter-project/
-├── examples/
-├── profiles/
-├── adapters/
-├── changes/
-└── releases/
-```
-
----
-
-## Example
-
-Run the executable Todo App example:
-
-```bash
-cd examples/todo-app
-npm test
-```
-
-Expected result:
-
-```text
-3 tests pass
-```
-
-The example includes:
-
-```text
-specification
-tasks
-source code
-tests
-evidence
-```
-
----
-
-## CLI
-
-```bash
-node cli/bin/aief.js help
-node cli/bin/aief.js doctor
-node cli/bin/aief.js status
-node cli/bin/aief.js init my-project
-node cli/bin/aief.js new-change add-login
-node cli/bin/aief.js propose "Add login"
-node cli/bin/aief.js verify
-node cli/bin/aief.js release 0.1.0
-```
-
-Optional local alias:
-
-```bash
-alias aief="node /path/to/aief-next/cli/bin/aief.js"
-```
-
----
-
-## Core idea
-
-AIEF is built around one concept:
-
-> **Think in Changes.**
-
-A Change is any meaningful unit of engineering work:
-
-- feature,
-- bug fix,
-- refactor,
-- documentation update,
-- research spike,
-- release preparation.
-
-Every Change should be understandable, actionable and verifiable.
-
----
-
-## Status
-
-AIEF is currently a starter framework and CLI MVP.
-
-Recommended versioning:
-
-```text
-v0.1.0 = first usable starter release
-v0.2.0 = validation from real existing project adoption
-v1.0.0 = stable public release
-```
-
----
+Progress is tracked as Changes in [changes/](changes/) — the repository uses its own workflow.
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).

@@ -2,7 +2,18 @@
 
 The AIEF CLI is a guided workflow tool.
 
-It should explain what each command does, what it reads, what it writes, and what to do next.
+It explains what each command does, what it reads, what it writes, and what to do next: `aief help <command>`.
+
+## Install
+
+Requires Node >= 18. No dependencies.
+
+```bash
+cd cli
+npm link   # installs a global `aief` command
+```
+
+Or run directly: `node cli/bin/aief.js <command>`.
 
 ## Existing project flow
 
@@ -11,7 +22,7 @@ aief doctor
 aief adopt
 aief verify
 aief analyze
-aief prompt --profile architect
+aief prompt --assistant claude --profile architect
 ```
 
 ## Command groups
@@ -36,7 +47,7 @@ aief analyze
 ```bash
 aief new-change add-login
 aief propose "Add login"
-aief prompt --profile architect
+aief prompt --assistant claude --profile architect
 aief verify
 aief close
 ```
