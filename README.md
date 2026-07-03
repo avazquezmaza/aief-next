@@ -1,183 +1,284 @@
 # AIEF
 
-**The simplest way to start an AI Engineering project.**
+> **Coordinate humans, AI assistants, specifications, implementation and evidence in one simple workflow.**
 
-AIEF helps humans and AI assistants collaborate using a small, repeatable, specification-driven workflow.
+AIEF is an orchestration layer for AI-assisted software engineering.
 
-- Learn the basics in 10 minutes.
-- Start your first project in 15 minutes.
-- Work with Claude, Gemini, Codex, Cursor, GitHub Copilot, ChatGPT, or any AI assistant.
+It does not replace your AI assistant.  
+It does not replace OpenSpec.  
+It does not replace Specboot.  
+
+It coordinates them.
+
+```text
+Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
+```
 
 ---
 
 ## Why AIEF?
 
-AI-assisted development often becomes inconsistent:
-
-- different prompts,
-- different expectations,
-- undocumented decisions,
-- missing validation,
-- no evidence of what changed.
-
-AIEF keeps the process simple:
+AI-assisted development can become messy quickly:
 
 ```text
-Idea -> Spec -> Tasks -> Build -> Verify -> Evidence
+Different prompts
+Different assistant behavior
+Unclear requirements
+Untracked decisions
+Missing evidence
+Outdated documentation
 ```
 
-Every meaningful change has a specification, tasks, and evidence.
+AIEF gives teams a simple way to keep work consistent:
+
+- every meaningful unit of work is a **Change**,
+- every Change has a **specification**,
+- every implementation has **tasks**,
+- every completed Change has **evidence**,
+- every AI assistant follows the same project rules.
 
 ---
 
-## Core Principles
+## How AIEF fits with OpenSpec and Specboot
 
-1. **Human-Led**: AI assists, humans decide.
-2. **Specification-Driven**: do not build before the goal is clear.
-3. **Simplicity First**: start small; add complexity only when needed.
-4. **Tool Agnostic**: use any AI assistant or development tool.
-5. **Evidence over Opinion**: close work with proof, not assumptions.
+```mermaid
+flowchart TD
+    A[AIEF] --> B[Workflow]
+    A --> C[Changes]
+    A --> D[Evidence]
+
+    A --> E[OpenSpec]
+    A --> F[Specboot]
+    A --> G[AI Assistants]
+    A --> H[AIEF CLI]
+
+    E --> I[Proposals / Specs / Tasks]
+    F --> J[Agent Instructions]
+    G --> K[Implementation / Review / Docs]
+    H --> L[Automation]
+
+    I --> M[Your Project]
+    J --> M
+    K --> M
+    L --> M
+```
+
+| Component | Purpose |
+|---|---|
+| **AIEF** | Coordinates the engineering workflow |
+| **OpenSpec** | Helps create structured proposals, specs and tasks |
+| **Specboot** | Helps bootstrap AI assistant instruction files |
+| **AI assistants** | Help design, implement, review and document changes |
+| **AIEF CLI** | Automates project, Change, status and release tasks |
+
+---
+
+## Start here
+
+| I want to... | Go to |
+|---|---|
+| Understand AIEF | [Navigator](NAVIGATOR.md) |
+| Decide what path to follow | [Decision Tree](docs/navigator/decision-tree.md) |
+| Start a new project | [New Project](docs/navigator/new-project.md) |
+| Adopt AIEF in an existing project | [Existing Project](docs/navigator/existing-project.md) |
+| Use Windows, Linux or macOS | [Install Guides](docs/navigator/install) |
+| Use AI assistants | [AI Assistants](docs/navigator/ai-assistants.md) |
+| Use OpenSpec or Specboot | [Tooling](docs/navigator/tooling.md) |
+| Learn by example | [Todo App Example](examples/todo-app/README.md) |
 
 ---
 
 ## Quick Start
 
-### 1. Create a project
-
-Copy the project template:
+### 1. Check your environment
 
 ```bash
-cp -R templates/project my-project
+node cli/bin/aief.js doctor
+```
+
+### 2. Create a new AIEF project
+
+```bash
+node cli/bin/aief.js init my-project
 cd my-project
 ```
 
-### 2. Create your first Change
+### 3. Create your first Change
 
 ```bash
-mkdir -p changes/0001-my-first-change
-cp ../templates/change/* changes/0001-my-first-change/
+node ../cli/bin/aief.js new-change add-login
 ```
 
-### 3. Fill the Change files
+This creates:
 
 ```text
-changes/0001-my-first-change/
+changes/0001-add-login/
 ├── change.md
 ├── spec.md
 ├── tasks.md
 └── evidence.md
 ```
 
-### 4. Work with your AI assistant
+### 4. Ask AI to help
 
-Point your assistant to:
+```bash
+node ../cli/bin/aief.js use-profile developer
+```
+
+Give your assistant:
 
 ```text
 AGENTS.md
-changes/0001-my-first-change/spec.md
-changes/0001-my-first-change/tasks.md
+profiles/developer.md
+changes/0001-add-login/
 ```
 
-### 5. Verify and capture evidence
+### 5. Verify the project
 
-Update:
-
-```text
-changes/0001-my-first-change/evidence.md
+```bash
+node ../cli/bin/aief.js status
+node ../cli/bin/aief.js verify
 ```
-
-Done.
 
 ---
 
-## Project Structure
+## Using OpenSpec
+
+If OpenSpec is installed, AIEF can delegate proposal creation to it.
+
+```bash
+node cli/bin/aief.js propose "Add login"
+```
+
+If OpenSpec is available, the CLI will attempt to call it.  
+If not, AIEF creates a local Change skeleton and tells you what to do next.
+
+AIEF remains usable even without OpenSpec.
+
+---
+
+## Using Specboot
+
+Specboot is optional.
+
+Use it when you want stronger multi-assistant instruction bootstrapping.
+
+AIEF uses this hierarchy:
 
 ```text
-project/
+AGENTS.md
+  -> CLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md
+  -> profiles/
+  -> active Change
+```
+
+`AGENTS.md` remains the source of truth.
+
+---
+
+## Repository structure
+
+```text
+.
 ├── README.md
+├── NAVIGATOR.md
 ├── AGENTS.md
+├── CLAUDE.md
+├── GEMINI.md
+├── CODEX.md
+├── CURSOR.md
+├── cli/
+├── docs/
+├── specs/
+├── templates/
+├── starter-project/
+├── examples/
+├── profiles/
+├── adapters/
 ├── changes/
-│   └── 0001-example-change/
-│       ├── change.md
-│       ├── spec.md
-│       ├── tasks.md
-│       └── evidence.md
-└── knowledge/
-```
-
----
-
-## Workflow
-
-```text
-Define
-  ↓
-Design
-  ↓
-Build
-  ↓
-Verify
-  ↓
-Release
-```
-
-For small changes, `Design` can be lightweight. The important rule is simple:
-
-> Every change must be understandable, actionable, and verifiable.
-
----
-
-## AI Assistant Support
-
-AIEF uses `AGENTS.md` as the universal source of truth.
-
-Assistant-specific files only add small adaptations:
-
-```text
-AGENTS.md   universal rules
-CLAUDE.md   Claude-specific guidance
-GEMINI.md   Gemini-specific guidance
-CODEX.md    Codex-specific guidance
-CURSOR.md   Cursor-specific guidance
+└── releases/
 ```
 
 ---
 
 ## Example
 
-See:
+Run the executable Todo App example:
 
-```text
-examples/todo-app/
+```bash
+cd examples/todo-app
+npm test
 ```
 
-It shows a complete change from idea to evidence.
+Expected result:
+
+```text
+3 tests pass
+```
+
+The example includes:
+
+```text
+specification
+tasks
+source code
+tests
+evidence
+```
 
 ---
 
-## Dogfooding
+## CLI
 
-AIEF is developed using AIEF.
+```bash
+node cli/bin/aief.js help
+node cli/bin/aief.js doctor
+node cli/bin/aief.js status
+node cli/bin/aief.js init my-project
+node cli/bin/aief.js new-change add-login
+node cli/bin/aief.js propose "Add login"
+node cli/bin/aief.js verify
+node cli/bin/aief.js release 0.1.0
+```
 
-Every meaningful repository change should include:
+Optional local alias:
 
-```text
-changes/<change-id>/
-├── change.md
-├── spec.md
-├── tasks.md
-└── evidence.md
+```bash
+alias aief="node /path/to/aief-next/cli/bin/aief.js"
 ```
 
 ---
 
-## Roadmap
+## Core idea
 
-- `v0.1`: starter repository
-- `v0.2`: usable project template and example
-- `v0.3`: OpenSpec alignment
-- `v0.4`: Specboot alignment
-- `v1.0`: stable starter release
+AIEF is built around one concept:
+
+> **Think in Changes.**
+
+A Change is any meaningful unit of engineering work:
+
+- feature,
+- bug fix,
+- refactor,
+- documentation update,
+- research spike,
+- release preparation.
+
+Every Change should be understandable, actionable and verifiable.
+
+---
+
+## Status
+
+AIEF is currently a starter framework and CLI MVP.
+
+Recommended versioning:
+
+```text
+v0.1.0 = first usable starter release
+v0.2.0 = validation from real existing project adoption
+v1.0.0 = stable public release
+```
 
 ---
 

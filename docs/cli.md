@@ -1,32 +1,83 @@
 # AIEF CLI
 
-The AIEF CLI removes manual folder creation.
+The CLI makes AIEF easier to use.
 
-## Basic commands
+## Main commands
 
 ```bash
-node cli/bin/aief.js help
-node cli/bin/aief.js init my-project
-node cli/bin/aief.js new-change add-login
-node cli/bin/aief.js verify
+aief doctor
+aief status
+aief init my-project
+aief new-change add-login
+aief propose "Add login"
+aief verify
+aief release 0.1.0
 ```
 
-## Recommended workflow
+## Recommended setup
+
+From the AIEF repository:
 
 ```bash
-aief init my-project
-cd my-project
-aief new-change add-login
-aief use-profile developer
+cd cli
+npm link
+```
+
+Then:
+
+```bash
+aief help
+```
+
+## Doctor
+
+```bash
+aief doctor
+```
+
+Checks:
+
+- Git
+- Node
+- npm
+- OpenSpec availability
+- AIEF project files
+
+## Status
+
+```bash
+aief status
+```
+
+Shows:
+
+- AIEF files
+- adapters
+- profiles
+- number of Changes
+- recent Changes
+
+## Propose
+
+```bash
+aief propose "Add login"
+```
+
+Behavior:
+
+1. If OpenSpec is installed, AIEF tries to delegate proposal creation.
+2. If not, AIEF creates a local Change skeleton and `proposal.md`.
+
+This keeps AIEF usable with or without OpenSpec.
+
+## Verify
+
+```bash
 aief verify
 ```
 
-## Why this exists
+Checks the required AIEF structure and each Change folder.
 
-AIEF should be easy to use.
+## Philosophy
 
-The CLI helps users avoid asking:
-
-- Where do I put files?
-- What files does a Change need?
-- How do I start?
+The CLI should make the simple workflow easier without hiding the AIEF model.
