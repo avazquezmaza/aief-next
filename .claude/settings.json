@@ -11,7 +11,8 @@
       "Bash(node cli/bin/aief.js verify)",
       "Bash(echo \"verify-exit=$?\")",
       "Bash(node cli/bin/aief.js new-change public-readiness-and-ci)",
-      "Read(//home/avazquez/PRS/claude-code/AIEF/examples/**)"
+      "Read(//home/avazquez/PRS/claude-code/AIEF/examples/**)",
+      "Bash(node cli/bin/aief.js new-change adoption-ux-quick-wins)"
     ]
   }
 }

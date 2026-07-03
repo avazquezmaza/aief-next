@@ -62,6 +62,8 @@ Three distinct concepts live in `cli/src/skills-catalog.json` (data, not engine 
 2. **Skill recommendation** — a skill's `when` lists the detector ids that trigger it. `doctor`/`adopt` print recommendations with the reason.
 3. **Skill content** — operational knowledge used by `aief prompt`: `name`, `purpose`/`description`, `whenToUse`, `standardsToRead`, `promptContext`, `commonRisks`, `evidenceExpectations`. Included in prompts *as context*; AIEF never executes a Skill. If a recommended Skill has no `promptContext`, the prompt says so honestly.
 
+`aief adopt` also writes the recommended Skills as a readable artifact, `knowledge/skills.md` (never overwritten), so the project shows which Skills apply and why; `analyze` and `prompt` reference it when present.
+
 Extend any of the three by editing the catalog; the engine (`cli/src/detect.js`) does not change.
 
 ## Project standards
