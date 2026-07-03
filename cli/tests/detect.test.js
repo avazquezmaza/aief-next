@@ -71,6 +71,17 @@ test("skills are recommended with reasons", () => {
   }
 });
 
+test("drizzle counts as postgres and cognito recommends the AWS skill (learned from Flux Portal validation)", () => {
+  const dir = makeProject({
+    "package.json": JSON.stringify({ dependencies: { "drizzle-orm": "0.36.4", "amazon-cognito-identity-js": "6.3.12" } })
+  });
+  const project = detectProject(dir);
+  const ids = project.signals.map((s) => s.id);
+  assert.ok(ids.includes("postgres"));
+  assert.ok(ids.includes("cognito"));
+  assert.ok(recommendSkills(project).some((s) => s.id === "aws-saas-platform"));
+});
+
 test("no signals falls back to general reviewer", () => {
   const dir = makeProject({ "README.md": "A simple library." });
   const skills = recommendSkills(detectProject(dir));

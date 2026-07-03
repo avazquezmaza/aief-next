@@ -37,3 +37,7 @@ Make the repository clear, usable and presentable for first-time users: rewrite 
 - No evidence file remains a silent placeholder: completed or honestly annotated.
 - No contradictions between README, docs/cli.md, cli/README.md and CLI help.
 - All tests pass; `aief verify` passes.
+
+## Status
+
+Closed (2026-07-03)

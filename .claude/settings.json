@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node cli/bin/aief.js new-change adoption-engine-hardening)",
+      "Bash(node cli/bin/aief.js help new-change)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(node cli/bin/aief.js doctor)",
+      "Bash(npm test *)",
+      "Bash(node --test tests)",
+      "Bash(node --test \"tests/*.test.js\")",
+      "Bash(node cli/bin/aief.js verify)",
+      "Bash(echo \"verify-exit=$?\")",
+      "Bash(node cli/bin/aief.js new-change public-readiness-and-ci)",
+      "Read(//home/avazquez/PRS/claude-code/AIEF/examples/**)"
+    ]
+  }
+}

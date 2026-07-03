@@ -32,7 +32,7 @@ aief prompt --assistant claude --profile architect
 | `new-change` | Create a Change skeleton | Yes |
 | `prompt` | Generate assistant prompt (`--assistant claude\|gemini\|codex\|cursor`) | No |
 | `verify` | Check AIEF structure | No |
-| `close` | Print closure checklist | No in MVP |
+| `close` | Readiness checks (files, tasks, evidence); `--yes` marks the Change Closed | Only `change.md` Status, with `--yes` |
 | `propose` | Create/delegate proposal | Yes |
 | `release` | Create release notes | Yes (never overwrites) |
 | `init` | Create a new AIEF project | Yes |
@@ -43,6 +43,8 @@ aief prompt --assistant claude --profile architect
 - `adopt` uses the next free Change ID; it never collides with existing Changes and is idempotent.
 - Skill recommendations always explain why they fired (detector, evidence, signal strength).
 - OpenSpec delegation is validated at runtime; failures fall back loudly to local Change generation (see `adapters/openspec/README.md`).
+- No hidden state: the active Change is the latest one not marked Closed in its own `change.md` (override with `--change`). `verify` reports in-progress Changes calmly (`○ in progress`) and only warns when a *closed* Change lacks completed evidence.
+- Every command ends with a unified `Next:` hint pointing to the recommended next step.
 
 ## Skills detection
 

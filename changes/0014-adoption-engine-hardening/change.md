@@ -41,3 +41,7 @@ Harden the Adoption Engine (doctor, adopt, analyze, prompt, verify, close) so it
 - `aief help <command>` works for every documented command.
 - CLI tests pass with `npm test` in `cli/`.
 - `aief verify` still passes on this repository.
+
+## Status
+
+Closed (2026-07-03)

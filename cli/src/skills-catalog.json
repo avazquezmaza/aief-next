@@ -37,7 +37,7 @@
       "id": "postgres",
       "description": "PostgreSQL data layer",
       "signal": "strong",
-      "dependencies": ["pg", "postgres", "postgres-js", "@prisma/client"]
+      "dependencies": ["pg", "postgres", "postgres-js", "@prisma/client", "drizzle-orm", "drizzle-kit"]
     },
     {
       "id": "aws",
@@ -96,7 +96,7 @@
     {
       "id": "aws-saas-platform",
       "description": "Cognito, RDS PostgreSQL, Secrets Manager, CloudFront, WAF, CloudWatch, CodePipeline, Terraform.",
-      "when": ["aws"]
+      "when": ["aws", "cognito"]
     },
     {
       "id": "security-rbac-reviewer",

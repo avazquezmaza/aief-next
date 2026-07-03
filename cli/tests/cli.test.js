@@ -108,16 +108,51 @@ test("prompt --assistant selects the matching instruction file", () => {
   assert.match(unknown.out, /Unknown assistant "clippy"/);
 });
 
-test("verify fails when a change file is missing and warns on placeholder evidence", () => {
+test("verify fails when a change file is missing and stays calm about in-progress evidence", () => {
   const dir = makeProject({ "README.md": "x", "AGENTS.md": "x" });
   aief(dir, ["new-change", "thing"]);
   const pass = aief(dir, ["verify"]);
   assert.equal(pass.status, 0);
-  assert.match(pass.out, /template placeholders/);
+  assert.match(pass.out, /in progress \(evidence not completed yet; expected/);
+  assert.doesNotMatch(pass.out, /✗/);
   fs.rmSync(path.join(dir, "changes", "0001-thing", "spec.md"));
   const fail = aief(dir, ["verify"]);
   assert.equal(fail.status, 1);
   assert.match(fail.out, /spec\.md missing/);
+});
+
+test("close refuses an incomplete Change and explains what is pending", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const report = aief(dir, ["close"]);
+  assert.equal(report.status, 0);
+  assert.match(report.out, /evidence\.md has not been completed yet/);
+  assert.match(report.out, /unchecked task/);
+  const refused = aief(dir, ["close", "--yes"]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.out, /Not closed/);
+  assert.doesNotMatch(fs.readFileSync(path.join(dir, "changes", "0001-thing", "change.md"), "utf8"), /## Status/);
+});
+
+test("close --yes marks a ready Change as Closed; the Change stops being active", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const changeDir = path.join(dir, "changes", "0001-thing");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  const closed = aief(dir, ["close", "--yes"]);
+  assert.equal(closed.status, 0);
+  assert.match(closed.out, /✓ Closed changes\/0001-thing/);
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Status\n\nClosed \(\d{4}-\d{2}-\d{2}\)/);
+  const verify = aief(dir, ["verify"]);
+  assert.match(verify.out, /0001-thing \(closed\)/);
+  const noOpen = aief(dir, ["prompt"]);
+  assert.equal(noOpen.status, 1);
+  assert.match(noOpen.out, /No open Change found/);
+  aief(dir, ["new-change", "second"]);
+  const next = aief(dir, ["prompt"]);
+  assert.equal(next.status, 0);
+  assert.match(next.out, /0002-second/);
 });
 
 test("propose without OpenSpec falls back loudly to a local Change", () => {
@@ -146,6 +181,20 @@ test("propose reports delegation failure and falls back", { skip: !POSIX }, () =
   const { out } = aief(dir, ["propose", "Add login"], { PATH: `${fakeBin}:${process.env.PATH}` });
   assert.match(out, /OpenSpec delegation failed \(exit code 7\)\. Falling back to local Change generation\./);
   assert.ok(fs.existsSync(path.join(dir, "changes", "0001-add-login", "proposal.md")));
+});
+
+test("close works when change.md prose merely mentions \"## Status\"", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const changeDir = path.join(dir, "changes", "0001-thing");
+  fs.appendFileSync(path.join(changeDir, "change.md"), "\nThis Change adds a `## Status` section to templates.\n");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nDone.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Done.\n", "utf8");
+  const closed = aief(dir, ["close", "--yes"]);
+  assert.equal(closed.status, 0);
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /\n## Status\n\nClosed \(\d{4}-\d{2}-\d{2}\)/);
+  const verify = aief(dir, ["verify"]);
+  assert.match(verify.out, /0001-thing \(closed\)/);
 });
 
 test("help covers every documented command with six fields", () => {

@@ -49,7 +49,7 @@ aief new-change add-login
 aief propose "Add login"
 aief prompt --assistant claude --profile architect
 aief verify
-aief close
+aief close --yes
 ```
 
 ## Skills recommendation

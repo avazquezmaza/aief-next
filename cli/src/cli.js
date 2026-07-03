@@ -39,9 +39,20 @@ function getChangeDirs() {
     .sort()
     .map((name) => path.join(changesPath, name));
 }
+// A Change is closed when its change.md carries a "## Status / Closed" section
+// (written by `aief close --yes`). The Change files are the only source of truth;
+// there is no separate state file.
+function isClosed(changeDir) {
+  // Anchored to line start so prose that merely mentions "## Status" does not count.
+  return /^##\s*status\s*(\r?\n)+\s*closed/im.test(read(path.join(changeDir, "change.md")));
+}
 function latestChangeDir() {
-  const changes = getChangeDirs();
-  return changes.length ? changes[changes.length - 1] : null;
+  const open = getChangeDirs().filter((dir) => !isClosed(dir));
+  return open.length ? open[open.length - 1] : null;
+}
+function printNext(...commands) {
+  console.log("\nNext:");
+  for (const command of commands) console.log(`  ${command}`);
 }
 function parseArgs(args) {
   const parsed = { _: [] };
@@ -137,11 +148,11 @@ const COMMAND_HELP = {
     next: "Fix reported gaps, then aief close."
   },
   close: {
-    purpose: "Guide closure of the active Change.",
-    when: "After evidence is ready.",
-    reads: "Latest or selected Change.",
-    writes: "Nothing in this MVP; prints the closure checklist.",
-    example: "aief close",
+    purpose: "Check that the active Change is ready (files, tasks, evidence) and mark it Closed.",
+    when: "After evidence is complete, before commit.",
+    reads: "Latest open (or selected) Change: change.md, tasks.md, evidence.md.",
+    writes: "A Status section in change.md — only with --yes and only when all checks pass. Without --yes it writes nothing.",
+    example: "aief close --yes",
     next: "Commit your work, then aief status."
   },
   release: {
@@ -185,7 +196,7 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [--assistant claude|gemini|codex|cursor] [--profile architect] [--change change-id]\n  aief verify\n  aief close [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [--assistant claude|gemini|codex|cursor] [--profile architect] [--change change-id]\n  aief verify\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -213,7 +224,7 @@ function createChange(name, options = {}) {
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
-function newChange(args) { const parsed = parseArgs(args); createChange(parsed._.join(" "), { type: parsed.type || "general" }); }
+function newChange(args) { const parsed = parseArgs(args); const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", "aief prompt"); }
 function adopt(args) {
   section("AIEF Adopt"); console.log("Purpose: prepare an existing project to use AIEF without changing application code.");
   const project = detectProject();
@@ -234,9 +245,9 @@ function adopt(args) {
     writeFile(path.join(dir, "tasks.md"), "# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/.\n- [x] Create knowledge/.\n- [x] Create adoption Change.\n- [ ] Run aief verify.\n- [ ] Update evidence.md.\n");
     writeFile(path.join(dir, "evidence.md"), evidenceTemplate()); console.log(`✓ Created changes/${id}-adopt-aief`);
   } else console.log("✓ Adoption Change already exists");
-  console.log(""); printSkills(project); console.log("\nNext:\n  aief verify\n  aief analyze");
+  console.log(""); printSkills(project); printNext("aief verify", "aief analyze");
 }
-function analyze(args) { const parsed = parseArgs(args); section("AIEF Analyze"); console.log("Purpose: create an Analysis Change for an existing project.\nWrites only under changes/<id>-<name>/.\n"); createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis" }); console.log("\nNext:\n  aief prompt --profile architect"); }
+function analyze(args) { const parsed = parseArgs(args); section("AIEF Analyze"); console.log("Purpose: create an Analysis Change for an existing project.\nWrites only under changes/<id>-<name>/.\n"); createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis" }); printNext("aief prompt --assistant claude --profile architect"); }
 const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
 function prompt(args) {
   const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
@@ -245,22 +256,56 @@ function prompt(args) {
   const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
   if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
-  if (!changeDir) { console.error("No Change found. Run: aief new-change <name> or aief analyze"); process.exitCode = 1; return; }
+  if (!changeDir) { console.error("No open Change found."); printNext("aief new-change <name>", "aief analyze"); process.exitCode = 1; return; }
   const changeName = path.relative(process.cwd(), changeDir);
   // CRLF/LF tolerant: a Change written on Windows must still be recognized as Analysis.
   const isAnalysis = /##\s*type\s*(\r?\n)+\s*analysis\b/i.test(read(path.join(changeDir, "change.md")));
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
   console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
-function close(args) { section("AIEF Close"); console.log("Purpose: guide closure of the active Change. Writes nothing in this MVP.\n"); const changeDir = latestChangeDir(); if (!changeDir) { console.error("No Change found."); process.exitCode = 1; return; } console.log(`Active Change: ${path.relative(process.cwd(), changeDir)}\n`); console.log("Before commit, confirm:\n- [ ] evidence.md has Summary.\n- [ ] evidence.md has Activities Performed.\n- [ ] evidence.md has Verification and actual results.\n- [ ] evidence.md has Findings or implementation summary.\n- [ ] evidence.md has Risks or Known Issues.\n- [ ] evidence.md has Recommendations.\n- [ ] evidence.md has Lessons Learned.\n- [ ] evidence.md has Next Change.\n\nRecommended commands:\n  aief verify\n  git status"); }
+function markClosed(changeDir) {
+  const file = path.join(changeDir, "change.md");
+  const stamp = `Closed (${new Date().toISOString().slice(0, 10)})`;
+  let content = read(file);
+  if (/^##\s*status\s*$/im.test(content)) content = content.replace(/(^##\s*Status\s*(?:\r?\n)+)[^\r\n]*/im, `$1${stamp}`);
+  else content = `${content.replace(/\s*$/, "")}\n\n## Status\n\n${stamp}\n`;
+  writeFile(file, content, true);
+  return isClosed(changeDir);
+}
+function close(args) {
+  const parsed = parseArgs(args);
+  section("AIEF Close");
+  console.log("Purpose: check that the active Change is ready and, with --yes, mark it Closed in change.md.\n");
+  let changeDir = latestChangeDir();
+  if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
+  if (!changeDir) { console.error("No open Change found."); printNext("aief new-change <name>"); process.exitCode = 1; return; }
+  const name = path.relative(process.cwd(), changeDir);
+  if (isClosed(changeDir)) { console.log(`${name} is already closed.`); return; }
+  const result = checkChange(changeDir);
+  const openTasks = (read(path.join(changeDir, "tasks.md")).match(/^\s*- \[ \]/gm) || []).length;
+  const problems = [
+    ...result.missing.map((f) => `${f} is missing`),
+    ...result.empty.map((f) => `${f} is empty`),
+    ...(evidenceIsPlaceholder(changeDir) ? ["evidence.md has not been completed yet"] : []),
+    ...(openTasks ? [`${openTasks} unchecked task(s) in tasks.md`] : [])
+  ];
+  console.log(`Change: ${name}\n`);
+  if (!problems.length) console.log("✓ All readiness checks passed.");
+  else for (const problem of problems) console.log(`○ ${problem}`);
+  if (!parsed.yes) { printNext(problems.length ? "resolve the items above, then: aief close --yes" : "aief close --yes"); return; }
+  if (problems.length) { console.error("\nNot closed: resolve the items above first."); process.exitCode = 1; return; }
+  if (!markClosed(changeDir)) { console.error(`\nCould not mark ${name} as Closed — check the Status section in change.md.`); process.exitCode = 1; return; }
+  console.log(`\n✓ Closed ${name}.`);
+  printNext("git status", "aief status");
+}
 function checkChange(changeDir) { const missing = [], empty = []; for (const file of CHANGE_FILES) { const full = path.join(changeDir, file); if (!fs.existsSync(full)) missing.push(file); else if (!fs.readFileSync(full, "utf8").trim()) empty.push(file); } return { missing, empty }; }
 function evidenceIsPlaceholder(changeDir) {
   const content = read(path.join(changeDir, "evidence.md"));
   return (content.match(/^Pending\.\s*$/gm) || []).length >= 3;
 }
-function verify() { section("AIEF Verify"); console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n"); let ok = true; for (const item of ["README.md", "AGENTS.md", "changes"]) { if (exists(item)) console.log(`✓ ${item}`); else { console.error(`✗ Missing: ${item}`); ok = false; } } if (exists("knowledge")) console.log("✓ knowledge/"); else console.warn("! Recommended but missing: knowledge/"); for (const changeDir of getChangeDirs()) { const name = path.relative(process.cwd(), changeDir); const result = checkChange(changeDir); if (!result.missing.length && !result.empty.length) { if (evidenceIsPlaceholder(changeDir)) console.warn(`! ${name}/evidence.md still has template placeholders ("Pending.")`); else console.log(`✓ ${name}`); } else { ok = false; for (const f of result.missing) console.error(`✗ ${name}/${f} missing`); for (const f of result.empty) console.error(`✗ ${name}/${f} empty`); } } console.log(ok ? "\nResult: PASS" : "\nResult: FAIL"); if (!ok) process.exitCode = 1; }
-function status(project = detectProject()) { section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n"); const checks = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["Changes", exists("changes")], ["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]]; for (const [n, ok] of checks) console.log(`${ok ? "✓" : "!"} ${n}`); const changes = getChangeDirs(); console.log(`\nChanges: ${changes.length}`); for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`); console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`); console.log("\nNext:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : changes.length ? "  aief prompt" : "  aief analyze"); }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); console.log("Environment:"); for (const [name, ok] of [["git", commandExists("git")], ["node", commandExists("node")], ["npm", commandExists("npm")], ["openspec", commandExists("openspec") || commandExists("opsx")], ["npx", commandExists("npx")]]) console.log(`${ok ? "✓" : "!"} ${name}`); const project = detectProject(); status(project); printSignals(project); console.log(""); printSkills(project); console.log("\nRecommended next step:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : "  aief analyze"); }
+function verify() { section("AIEF Verify"); console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n"); let ok = true; for (const item of ["README.md", "AGENTS.md", "changes"]) { if (exists(item)) console.log(`✓ ${item}`); else { console.error(`✗ Missing: ${item}`); ok = false; } } if (exists("knowledge")) console.log("✓ knowledge/"); else console.warn("! Recommended but missing: knowledge/"); for (const changeDir of getChangeDirs()) { const name = path.relative(process.cwd(), changeDir); const result = checkChange(changeDir); if (!result.missing.length && !result.empty.length) { const closed = isClosed(changeDir); if (!evidenceIsPlaceholder(changeDir)) console.log(`✓ ${name}${closed ? " (closed)" : ""}`); else if (closed) console.warn(`! ${name} is closed but evidence.md was never completed`); else console.log(`○ ${name} — in progress (evidence not completed yet; expected until the Change is closed)`); } else { ok = false; for (const f of result.missing) console.error(`✗ ${name}/${f} missing`); for (const f of result.empty) console.error(`✗ ${name}/${f} empty`); } } console.log(ok ? "\nResult: PASS" : "\nResult: FAIL"); if (!ok) process.exitCode = 1; }
+function status(project = detectProject(), showNext = true) { section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n"); const checks = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["Changes", exists("changes")], ["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]]; for (const [n, ok] of checks) console.log(`${ok ? "✓" : "!"} ${n}`); const changes = getChangeDirs(); console.log(`\nChanges: ${changes.length}`); for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`); console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`); if (showNext) printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : changes.length ? "aief prompt" : "aief analyze"); }
+function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); console.log("Environment:"); for (const [name, ok] of [["git", commandExists("git")], ["node", commandExists("node")], ["npm", commandExists("npm")], ["openspec", commandExists("openspec") || commandExists("opsx")], ["npx", commandExists("npx")]]) console.log(`${ok ? "✓" : "!"} ${name}`); const project = detectProject(); status(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : "aief analyze"); }
 function initProject(name) { const projectName = name || "aief-project"; const projectPath = path.resolve(projectName); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${projectName}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Validate the OpenSpec CLI contract before delegating. Never assume
 // "openspec propose <idea>" exists: check installation, version and
@@ -292,7 +337,8 @@ function propose(args) {
   const dir = createChange(idea);
   if (dir) {
     writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`);
-    console.log("Created local proposal.md. Next: review it, then run aief prompt.");
+    console.log("Created local proposal.md.");
+    printNext("review proposal.md", "aief prompt");
   }
 }
 function useProfile(profile) { console.log(`Use AGENTS.md.\n\nAct as the ${slugify(profile || "developer")} profile.\n\nWork only on the active Change.\n`); }

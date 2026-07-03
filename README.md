@@ -29,37 +29,7 @@ AIEF fixes this with one rule — **think in Changes** — and a CLI that guides
 - every completed Change has **evidence**,
 - every AI assistant follows the same project rules (`AGENTS.md`).
 
-## Separation of responsibilities
-
-AIEF orchestrates. It does not replace your tools.
-
-| Component | Responsibility |
-|---|---|
-| **AIEF** | Workflow orchestration: Changes, verification, evidence, adoption |
-| **OpenSpec** *(optional)* | Proposal / Spec / Tasks generation |
-| **Specboot** *(optional)* | Assistant instruction bootstrapping |
-| **AI assistants** | Analysis, implementation, review, documentation |
-| **Skills** | Specialized technology knowledge |
-
-Instruction hierarchy — `AGENTS.md` is always the source of truth:
-
-```text
-AGENTS.md -> assistant file (CLAUDE.md, GEMINI.md, ...) -> profile -> skill -> active Change
-```
-
-```mermaid
-flowchart TD
-    A[AIEF Workflow Engine] --> B[Changes + Evidence]
-    A --> C[OpenSpec: Proposal / Spec / Tasks]
-    A --> D[Specboot: Assistant Instructions]
-    A --> E[AI Assistants: Build / Review / Document]
-    A --> F[Skills: Specialized Knowledge]
-    B --> M[Your Project]
-    C --> M
-    D --> M
-    E --> M
-    F --> M
-```
+AIEF orchestrates — it does not replace your AI assistant or your spec tooling. Everything else (OpenSpec, Specboot, Skills) is optional and explained [further down](#how-aief-fits-with-openspec-and-specboot).
 
 ---
 
@@ -95,7 +65,12 @@ What each step does:
 4. **analyze** — creates an Analysis Change so the first AI task is understanding, not modifying.
 5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change. `--assistant` picks the matching instruction file (claude, gemini, codex, cursor).
 
-Paste the generated prompt into your assistant and let it work inside the Change. When it finishes, run `aief verify` and `aief close`.
+Paste the generated prompt into your assistant and let it work inside the Change. When it finishes, run `aief verify`, then close the cycle:
+
+```bash
+aief close        # readiness report: files, tasks, evidence
+aief close --yes  # marks the Change as Closed in change.md
+```
 
 ## Start a new project
 
@@ -118,9 +93,10 @@ changes/0001-add-login/
 
 ## Guarantees
 
-- `doctor`, `status`, `prompt`, `verify` and `close` **never write files**.
+- `doctor`, `status`, `prompt` and `verify` **never write files**. `close` writes one thing only — a `Status` section in `change.md` — and only with `--yes` after all readiness checks pass.
 - `adopt` and `analyze` **never modify application code** — they only add AIEF workflow files.
 - `adopt` never collides with existing Changes and is idempotent.
+- The Change files are the **only source of truth** — no hidden state files; the active Change is simply the latest one not marked Closed (override with `--change`).
 - OpenSpec and Specboot are **optional**; the CLI works without them and announces any fallback explicitly (never silently).
 - Skill recommendations always **explain why** they fired.
 - Every command explains itself: `aief help <command>` shows purpose, when to use it, what it reads, what it writes, an example and the next step.
@@ -137,16 +113,44 @@ aief new-change <name>
 aief propose "<idea>" # delegates to OpenSpec when available
 aief prompt [--assistant claude] [--profile architect] [--change id]
 aief verify           # check AIEF structures
-aief close            # closure checklist for the active Change
+aief close [--yes]    # readiness checks; --yes marks the Change Closed
 aief init <name>      # new AIEF project
 aief release <version>
 ```
 
 Full reference: [docs/cli.md](docs/cli.md).
 
-## Using OpenSpec and Specboot
+## How AIEF fits with OpenSpec and Specboot
 
-Both are optional.
+Both are optional. AIEF orchestrates; it does not replace your tools.
+
+| Component | Responsibility |
+|---|---|
+| **AIEF** | Workflow orchestration: Changes, verification, evidence, adoption |
+| **OpenSpec** *(optional)* | Proposal / Spec / Tasks generation |
+| **Specboot** *(optional)* | Assistant instruction bootstrapping |
+| **AI assistants** | Analysis, implementation, review, documentation |
+| **Skills** | Specialized technology knowledge |
+
+Instruction hierarchy — `AGENTS.md` is always the source of truth:
+
+```text
+AGENTS.md -> assistant file (CLAUDE.md, GEMINI.md, ...) -> profile -> skill -> active Change
+```
+
+```mermaid
+flowchart TD
+    A[AIEF Workflow Engine] --> B[Changes + Evidence]
+    A --> C[OpenSpec: Proposal / Spec / Tasks]
+    A --> D[Specboot: Assistant Instructions]
+    A --> E[AI Assistants: Build / Review / Document]
+    A --> F[Skills: Specialized Knowledge]
+    B --> M[Your Project]
+    C --> M
+    D --> M
+    E --> M
+    F --> M
+```
 
 - `aief propose "Add login"` validates the OpenSpec contract at runtime (installed? version? `propose` exposed?) and delegates when possible. On any failure it says so and creates a local Change instead. Details: [adapters/openspec/](adapters/openspec/README.md).
 - Specboot's ideas (instruction hierarchy, profiles) are integrated conceptually via [adapters/specboot/](adapters/specboot/README.md) and [templates/specboot/](templates/specboot/).
