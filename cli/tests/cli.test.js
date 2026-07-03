@@ -225,6 +225,36 @@ test("prompt recognizes an Analysis Change even with CRLF line endings", () => {
   assert.match(out, /Do not modify application source code/);
 });
 
+test("prompt accepts the assistant as a positional argument for all four assistants", () => {
+  const dir = makeProject({ "CLAUDE.md": "#c", "GEMINI.md": "#g", "CODEX.md": "#x", "CURSOR.md": "#u" });
+  aief(dir, ["new-change", "thing"]);
+  for (const [name, file] of [["gemini", "GEMINI.md"], ["claude", "CLAUDE.md"], ["codex", "CODEX.md"], ["cursor", "CURSOR.md"]]) {
+    const r = aief(dir, ["prompt", name]);
+    assert.equal(r.status, 0, `prompt ${name} must succeed`);
+    assert.match(r.out, new RegExp(`- ${file}`), `prompt ${name} must include ${file}`);
+  }
+});
+
+test("--assistant wins over the positional argument", () => {
+  const dir = makeProject({ "GEMINI.md": "#g", "CODEX.md": "#x" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt", "gemini", "--assistant", "codex"]);
+  assert.equal(r.status, 0);
+  assert.match(r.out, /- CODEX\.md/);
+  assert.doesNotMatch(r.out, /- GEMINI\.md/);
+});
+
+test("unknown positional assistant fails with guidance — never a silent fallback", () => {
+  const dir = makeProject({ "CLAUDE.md": "#c" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt", "architect"]);
+  assert.equal(r.status, 1);
+  assert.match(r.out, /Unknown assistant "architect"/);
+  assert.match(r.out, /- claude/);
+  assert.match(r.out, /--profile architect/);
+  assert.doesNotMatch(r.out, /Copy this prompt/);
+});
+
 test("prompt --assistant selects the matching instruction file", () => {
   const dir = makeProject({ "GEMINI.md": "# Gemini rules", "CLAUDE.md": "# Claude rules" });
   aief(dir, ["new-change", "thing"]);

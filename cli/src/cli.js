@@ -160,7 +160,7 @@ const COMMAND_HELP = {
     when: "After creating a Change.",
     reads: "AGENTS.md, assistant files, profiles and the active (or selected) Change.",
     writes: "Nothing.",
-    example: "aief prompt --assistant claude --profile architect --change 0002",
+    example: "aief prompt gemini --profile architect   (or: aief prompt --assistant gemini)",
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
@@ -220,7 +220,8 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [--assistant claude|gemini|codex|cursor] [--profile architect] [--change change-id]\n  aief verify\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief propose <idea>\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+              (long form: --assistant gemini)\n  aief verify\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -387,7 +388,7 @@ function adopt(args) {
     artifacts.push(`changes/${id}-adopt-aief/ (this Change)`);
     writeFile(path.join(dir, "change.md"), files["change.md"]);
     writeFile(path.join(dir, "spec.md"), files["spec.md"]);
-    writeFile(path.join(dir, "tasks.md"), `# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/, knowledge/ and profiles/.\n- [x] Create knowledge/standards/ starter standards.\n- [x] Generate this Change's evidence automatically.\n- [ ] Edit knowledge/standards/ so the "(adapt)" lines match this project.\n- [ ] Run aief verify, then close this Change: aief close --yes --change adopt-aief\n`);
+    writeFile(path.join(dir, "tasks.md"), `# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/, knowledge/ and profiles/.\n- [x] Create knowledge/standards/ starter standards.\n- [x] Generate this Change's evidence automatically.\n- [ ] Edit knowledge/standards/ so the "(adapt)" lines match this project.\n- [ ] Run aief verify, then close this Change: aief close --yes --change adopt-aief\n\nNote: this Change can be closed before or after the Analysis Change. The Analysis Change becomes the active Change automatically.\n`);
     writeFile(path.join(dir, "evidence.md"), adoptionEvidence(project, skills, artifacts));
     console.log(`✓ Created changes/${id}-adopt-aief (evidence generated automatically)`);
   } else console.log("✓ Adoption Change already exists");
@@ -401,13 +402,22 @@ function analyze(args) {
   const context = { project, skills: recommendSkills(project), standards: listStandards(), skillsDocPresent: exists("knowledge/skills.md") };
   createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis", context });
   if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
-  printNext("aief prompt --assistant claude --profile architect");
+  printNext("aief prompt claude --profile architect");
 }
 const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
 function prompt(args) {
   const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
-  const assistant = typeof parsed.assistant === "string" ? parsed.assistant.toLowerCase() : "";
-  if (assistant && !ASSISTANT_FILES[assistant]) console.warn(`Unknown assistant "${parsed.assistant}". Known: ${Object.keys(ASSISTANT_FILES).join(", ")}.`);
+  // Assistant selection: positional (aief prompt gemini) or --assistant; the
+  // explicit flag wins when both are given. Unknown values are a hard error —
+  // never a silent fallback.
+  const requested = typeof parsed.assistant === "string" ? parsed.assistant : (parsed._[0] || "");
+  const assistant = requested.toLowerCase();
+  if (requested && !ASSISTANT_FILES[assistant]) {
+    console.error(`Unknown assistant "${requested}".\n\nKnown assistants:\n\n${Object.keys(ASSISTANT_FILES).map((a) => `- ${a}`).join("\n")}\n\nIf you meant a role, use:\n\n--profile ${requested}`);
+    process.exitCode = 1;
+    return;
+  }
+  if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project${exists("CLAUDE.md") ? "; including CLAUDE.md instead" : ""}.`);
   const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
   if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");

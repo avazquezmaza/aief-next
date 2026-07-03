@@ -38,6 +38,14 @@ AIEF prepares the project and the context:
 
 **This level never implements functional code.**
 
+### The adoption Change
+
+After `adopt` + `analyze` you will normally have two Changes: `0001-adopt-aief` (evidence auto-generated) and `0002-analyze-current-architecture`. This is correct and requires no special handling:
+
+- You do **not** need to close the adoption Change first.
+- The latest open Change is automatically the active one, so `prompt` and `close` target the Analysis Change.
+- Close the adoption Change whenever its remaining human tasks are done (adapt the standards, run verify): `aief close --yes --change adopt-aief` — before or after the Analysis, the order does not affect AIEF.
+
 ## Level 2 — OpenSpec / Assistant Feature Workflow
 
 The development cycle itself runs in your AI assistant, optionally powered by OpenSpec.
@@ -98,7 +106,7 @@ If you use both tools, archive in OpenSpec **and** close in AIEF — each govern
 ```text
 aief new-change <name>      # or: aief propose "<idea>"  (announces the local path)
 edit change.md / spec.md    # you and your assistant define the work
-aief prompt --assistant claude
+aief prompt claude
 aief verify && aief close --yes
 ```
 

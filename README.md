@@ -58,7 +58,7 @@ aief doctor      # inspect environment and project readiness — writes nothing
 aief adopt       # add the AIEF workflow — never touches application code
 aief verify      # check the AIEF structure
 aief analyze     # create an Analysis Change (analysis only, no code changes)
-aief prompt --assistant claude --profile architect
+aief prompt claude --profile architect   # or: gemini, codex, cursor
 ```
 
 What each step does:
@@ -67,7 +67,9 @@ What each step does:
 2. **adopt** — creates `AGENTS.md` (if missing), `changes/`, `knowledge/`, starter **project standards** under `knowledge/standards/` matched to your stack, and an adoption Change using the next free ID. Idempotent; never overwrites; safe to re-run.
 3. **verify** — confirms required files and Change structures; warns about placeholder evidence.
 4. **analyze** — creates an Analysis Change **seeded with everything doctor detected**: signals, recommended Skills, available standards, inferred risks (marked as inference) and open questions.
-5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change, including your project standards and the recommended Skills as context. `--assistant` picks the matching instruction file (claude, gemini, codex, cursor).
+5. **prompt** — prints a ready-to-paste prompt for your assistant, scoped to the active Change, including your project standards and the recommended Skills as context. Pass the assistant directly (`aief prompt gemini`) or with the long form (`--assistant gemini`); unknown values fail with guidance instead of silently falling back.
+
+After adoption you will typically have two Changes: `0001-adopt-aief` and the Analysis Change. That is correct — the Analysis Change becomes the active one automatically, and the adoption Change can be closed before or after it (`aief close --yes --change adopt-aief`). The order does not affect AIEF.
 
 Paste the generated prompt into your assistant and let it work inside the Change. When it finishes, run `aief verify`, then close the cycle:
 
@@ -82,7 +84,7 @@ aief close --yes  # marks the Change as Closed in change.md
 aief init my-project
 cd my-project
 aief new-change add-login
-aief prompt --assistant claude
+aief prompt claude
 ```
 
 Every Change gets this skeleton:
@@ -115,7 +117,7 @@ aief adopt            # adopt AIEF in an existing project
 aief analyze          # create an Analysis Change
 aief new-change <name>
 aief propose "<idea>" # delegates to OpenSpec when available
-aief prompt [--assistant claude] [--profile architect] [--change id]
+aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change id]
 aief verify           # check AIEF structures
 aief close [--yes]    # readiness checks; --yes marks the Change Closed
 aief init <name>      # new AIEF project

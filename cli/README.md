@@ -24,7 +24,7 @@ aief doctor
 aief adopt
 aief verify
 aief analyze
-aief prompt --assistant claude --profile architect
+aief prompt claude --profile architect
 ```
 
 ## Command groups
@@ -49,7 +49,7 @@ aief analyze
 ```bash
 aief new-change add-login
 aief propose "Add login"
-aief prompt --assistant claude --profile architect
+aief prompt claude --profile architect
 aief verify
 aief close --yes
 ```

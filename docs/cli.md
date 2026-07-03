@@ -26,7 +26,7 @@ aief doctor
 aief adopt
 aief verify
 aief analyze
-aief prompt --assistant claude --profile architect
+aief prompt claude --profile architect
 ```
 
 ## Command intent
@@ -38,7 +38,7 @@ aief prompt --assistant claude --profile architect
 | `adopt` | Add minimum AIEF workflow to an existing project | Yes (never application code) |
 | `analyze` | Create an Analysis Change | Yes |
 | `new-change` | Create a Change skeleton | Yes |
-| `prompt` | Generate assistant prompt (`--assistant claude\|gemini\|codex\|cursor`) | No |
+| `prompt` | Generate assistant prompt (`aief prompt gemini` or `--assistant gemini`; claude/gemini/codex/cursor; unknown values fail with guidance) | No |
 | `verify` | Check AIEF structure | No |
 | `close` | Readiness checks (files, tasks, evidence); `--yes` marks the Change Closed | Only `change.md` Status, with `--yes` |
 | `propose` | Create/delegate proposal | Yes |
@@ -53,6 +53,7 @@ aief prompt --assistant claude --profile architect
 - OpenSpec delegation is validated at runtime; failures fall back loudly to local Change generation (see `adapters/openspec/README.md`).
 - No hidden state: the active Change is the latest one not marked Closed in its own `change.md` (override with `--change`). `verify` reports in-progress Changes calmly (`○ in progress`) and only warns when a *closed* Change lacks completed evidence.
 - Every command ends with a unified `Next:` hint pointing to the recommended next step.
+- After adoption, having `0001-adopt-aief` open alongside the Analysis Change is normal: the Analysis Change becomes the active one automatically, and the adoption Change can be closed before or after it — the order does not affect AIEF.
 
 ## Detectors, Skill recommendations and Skill content
 
