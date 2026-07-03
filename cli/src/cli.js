@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { detectProject, recommendSkills } from "./detect.js";
 
 const CHANGE_FILES = ["change.md", "spec.md", "tasks.md", "evidence.md"];
 
@@ -9,7 +10,9 @@ function exists(target) { return fs.existsSync(cwd(target)); }
 function read(file) { return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : ""; }
 function writeFile(filePath, content, overwrite = false) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  if (overwrite || !fs.existsSync(filePath)) fs.writeFileSync(filePath, content, "utf8");
+  if (!overwrite && fs.existsSync(filePath)) return false;
+  fs.writeFileSync(filePath, content, "utf8");
+  return true;
 }
 function run(command, args = [], options = {}) {
   return spawnSync(command, args, { stdio: options.stdio || "pipe", shell: process.platform === "win32", encoding: "utf8" });
@@ -32,7 +35,7 @@ function getChangeDirs() {
   const changesPath = cwd("changes");
   if (!fs.existsSync(changesPath)) return [];
   return fs.readdirSync(changesPath)
-    .filter((name) => fs.statSync(path.join(changesPath, name)).isDirectory())
+    .filter((name) => fs.statSync(path.join(changesPath, name), { throwIfNoEntry: false })?.isDirectory())
     .sort()
     .map((name) => path.join(changesPath, name));
 }
@@ -54,66 +57,131 @@ function parseArgs(args) {
   return parsed;
 }
 function section(title) { console.log("\n" + title); console.log("─".repeat(60)); }
-function searchText(paths, needle) {
-  const n = needle.toLowerCase();
-  return paths.some((p) => {
-    const full = cwd(p);
-    return fs.existsSync(full) && fs.readFileSync(full, "utf8").toLowerCase().includes(n);
-  });
-}
-function detectProject() {
-  const packageJsonPath = cwd("package.json");
-  let packageJson = {};
-  if (fs.existsSync(packageJsonPath)) {
-    try { packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")); } catch { packageJson = {}; }
-  }
-  const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-  const tech = {
-    nextjs: Boolean(deps.next),
-    react: Boolean(deps.react),
-    nestjs: Object.keys(deps).some((d) => d.startsWith("@nestjs/")),
-    typescript: Boolean(deps.typescript) || exists("tsconfig.json"),
-    tailwind: Boolean(deps.tailwindcss) || exists("tailwind.config.ts") || exists("tailwind.config.js"),
-    postgres: Object.keys(deps).some((d) => ["pg", "postgres", "postgres-js", "@prisma/client"].includes(d)),
-    aws: Object.keys(deps).some((d) => d.startsWith("@aws-sdk/")) || exists("terraform") || exists("infra"),
-    cognito: Object.keys(deps).some((d) => d.includes("cognito")),
-    n8n: JSON.stringify(packageJson).toLowerCase().includes("n8n") || searchText(["README.md", "CLAUDE.md"], "n8n"),
-    multitenant: searchText(["README.md", "CLAUDE.md", "docs/architecture.md"], "tenant"),
-    rbac: searchText(["README.md", "CLAUDE.md", "docs/architecture.md"], "rbac") || searchText(["README.md", "CLAUDE.md"], "permission"),
-    aiRoadmap: searchText(["README.md", "CLAUDE.md"], "ai") || searchText(["README.md", "CLAUDE.md"], "llm")
-  };
-  return { packageJson, tech };
-}
-function recommendedSkills(project) {
-  const skills = [];
-  if (project.tech.multitenant) skills.push(["multitenant-saas-architect", "Tenant isolation, Host header resolution, tenant lifecycle, SaaS architecture."]);
-  if (project.tech.n8n) skills.push(["n8n-automation-ops", "n8n Queue Mode, workflow catalog, executions, workers, Redis, health checks."]);
-  if (project.tech.aws) skills.push(["aws-saas-platform", "Cognito, RDS PostgreSQL, Secrets Manager, CloudFront, WAF, CloudWatch, CodePipeline, Terraform."]);
-  if (project.tech.rbac || project.tech.multitenant) skills.push(["security-rbac-reviewer", "Server-side authorization, permissions, tenant isolation, secrets, audit events."]);
-  if (project.tech.nextjs || project.tech.nestjs) skills.push(["nextjs-nestjs-architecture", "Frontend/backend separation, server components, APIs, NestJS modules, adapter patterns."]);
-  if (project.tech.aiRoadmap) skills.push(["ai-workflow-governance", "AI-generated workflows, human approval, inactive drafts, governance, auditability."]);
-  if (!skills.length) skills.push(["project-architecture-reviewer", "General architecture review, module boundaries, risks, and technical debt."]);
-  return skills;
-}
 function printSkills(project) {
   console.log("Recommended Skills:");
-  for (const [name, description] of recommendedSkills(project)) console.log(`- ${name}: ${description}`);
+  for (const skill of recommendSkills(project)) {
+    console.log(`- ${skill.id}: ${skill.description}`);
+    for (const reason of skill.because) console.log(`    because: ${reason}`);
+  }
+}
+function printSignals(project) {
+  console.log("\nDetected project signals:");
+  if (!project.signals.length) { console.log("(none)"); return; }
+  for (const signal of project.signals) {
+    console.log(`✓ ${signal.id} (${signal.signal}): ${signal.reasons.join("; ")}`);
+  }
 }
 const COMMAND_HELP = {
-  doctor: ["Inspect your local environment and current project readiness for AIEF.", "Use before adoption or when the project feels misconfigured.", "Reads PATH, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/.", "Writes nothing."],
-  status: ["Show current AIEF adoption status and recent Changes.", "Use when you want to know where the project stands.", "Reads project structure and Changes.", "Writes nothing."],
-  adopt: ["Prepare an existing project to use AIEF without changing application code.", "Use inside an existing project before analysis or implementation Changes.", "Reads README.md, CLAUDE.md, package.json and common project files.", "Writes AGENTS.md if missing, changes/, knowledge/, profiles/README.md, and changes/0001-adopt-aief/ if missing."],
-  analyze: ["Create an Analysis Change for an existing project.", "Use after adopt, before functional or architectural changes.", "Reads project signals.", "Writes changes/<next>-analyze-current-architecture/."],
-  prompt: ["Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or ChatGPT.", "Use after creating a Change.", "Reads AGENTS.md, assistant files, profiles and active Change.", "Writes nothing."],
-  close: ["Guide closure of the active Change.", "Use after evidence is ready.", "Reads latest or selected Change.", "Writes nothing in this MVP; prints closure checklist."],
-  verify: ["Verify required AIEF files and Change structures.", "Use before commit or after adoption.", "Reads README.md, AGENTS.md, changes/, knowledge/.", "Writes nothing."],
-  propose: ["Create a proposal from an idea, delegating to OpenSpec when available.", "Use when you have an idea but no Change yet.", "Reads OpenSpec availability and changes/.", "Writes OpenSpec output if available, otherwise local Change + proposal.md."]
+  doctor: {
+    purpose: "Inspect your local environment and current project readiness for AIEF.",
+    when: "Before adoption or when the project feels misconfigured.",
+    reads: "PATH, package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/.",
+    writes: "Nothing.",
+    example: "aief doctor",
+    next: "aief adopt (existing project) or aief init <name> (new project)."
+  },
+  status: {
+    purpose: "Show current AIEF adoption status and recent Changes.",
+    when: "When you want to know where the project stands.",
+    reads: "Project structure, package.json and changes/.",
+    writes: "Nothing.",
+    example: "aief status",
+    next: "aief prompt if a Change is active, otherwise aief analyze."
+  },
+  adopt: {
+    purpose: "Prepare an existing project to use AIEF without changing application code.",
+    when: "Inside an existing project, before analysis or implementation Changes.",
+    reads: "README.md, CLAUDE.md, AGENTS.md, package.json and common project files.",
+    writes: "AGENTS.md if missing, changes/, knowledge/, profiles/README.md, and changes/<next-id>-adopt-aief/ if missing. Never modifies application code.",
+    example: "aief adopt",
+    next: "aief verify, then aief analyze."
+  },
+  analyze: {
+    purpose: "Create an Analysis Change for an existing project.",
+    when: "After adopt, before functional or architectural changes.",
+    reads: "Project signals (package.json, README.md, docs).",
+    writes: "changes/<next-id>-analyze-current-architecture/ (or the name you pass).",
+    example: "aief analyze",
+    next: "aief prompt --profile architect."
+  },
+  "new-change": {
+    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md).",
+    when: "Whenever you start a meaningful unit of work.",
+    reads: "changes/ to compute the next ID.",
+    writes: "changes/<next-id>-<name>/.",
+    example: "aief new-change add-login",
+    next: "Fill change.md and spec.md, then aief prompt."
+  },
+  propose: {
+    purpose: "Create a proposal from an idea, delegating to OpenSpec when available.",
+    when: "When you have an idea but no Change yet.",
+    reads: "OpenSpec availability and version, changes/.",
+    writes: "OpenSpec output if delegation succeeds, otherwise a local Change plus proposal.md. Falls back loudly, never silently.",
+    example: "aief propose \"Add login\"",
+    next: "Review the proposal, then aief prompt."
+  },
+  prompt: {
+    purpose: "Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or ChatGPT.",
+    when: "After creating a Change.",
+    reads: "AGENTS.md, assistant files, profiles and the active (or selected) Change.",
+    writes: "Nothing.",
+    example: "aief prompt --profile architect --change 0002",
+    next: "Paste the prompt into your assistant; afterwards aief verify."
+  },
+  verify: {
+    purpose: "Verify required AIEF files and Change structures.",
+    when: "Before commit or after adoption.",
+    reads: "README.md, AGENTS.md, changes/, knowledge/.",
+    writes: "Nothing.",
+    example: "aief verify",
+    next: "Fix reported gaps, then aief close."
+  },
+  close: {
+    purpose: "Guide closure of the active Change.",
+    when: "After evidence is ready.",
+    reads: "Latest or selected Change.",
+    writes: "Nothing in this MVP; prints the closure checklist.",
+    example: "aief close",
+    next: "Commit your work, then aief status."
+  },
+  release: {
+    purpose: "Create release notes for a version.",
+    when: "When preparing a release.",
+    reads: "releases/.",
+    writes: "releases/v<version>.md if it does not exist (never overwrites).",
+    example: "aief release 0.2.0",
+    next: "Fill in the release notes, then tag the release."
+  },
+  init: {
+    purpose: "Create a new AIEF project skeleton.",
+    when: "When starting a project from scratch.",
+    reads: "Nothing.",
+    writes: "<project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/.",
+    example: "aief init my-project",
+    next: "cd my-project, then aief new-change <name>."
+  },
+  "use-profile": {
+    purpose: "Print a minimal prompt header for a role profile.",
+    when: "When you want the assistant to act as a specific role.",
+    reads: "Nothing.",
+    writes: "Nothing.",
+    example: "aief use-profile developer",
+    next: "aief prompt for a full, Change-aware prompt."
+  },
+  help: {
+    purpose: "Show general usage or detailed help for one command.",
+    when: "Anytime.",
+    reads: "Nothing.",
+    writes: "Nothing.",
+    example: "aief help adopt",
+    next: "Run the command you just read about."
+  }
 };
 function printCommandHelp(command) {
   const info = COMMAND_HELP[command];
   if (!info) { console.error(`Unknown help topic: ${command}`); console.log(`Available topics: ${Object.keys(COMMAND_HELP).join(", ")}`); process.exitCode = 1; return; }
   console.log(`AIEF Help: ${command}`); console.log("─".repeat(60));
-  console.log(`\nPurpose\n${info[0]}\n\nWhen to use it\n${info[1]}\n\nReads\n${info[2]}\n\nWrites\n${info[3]}`);
+  console.log(`\nPurpose\n${info.purpose}\n\nWhen to use it\n${info.when}\n\nReads\n${info.reads}\n\nWrites\n${info.writes}\n\nExample\n  ${info.example}\n\nNext step\n${info.next}`);
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
@@ -148,8 +216,8 @@ function createChange(name, options = {}) {
 function newChange(args) { const parsed = parseArgs(args); createChange(parsed._.join(" "), { type: parsed.type || "general" }); }
 function adopt(args) {
   section("AIEF Adopt"); console.log("Purpose: prepare an existing project to use AIEF without changing application code.");
-  const project = detectProject(); console.log("\nDetected project signals:");
-  for (const [k, v] of Object.entries(project.tech)) if (v) console.log(`✓ ${k}`);
+  const project = detectProject();
+  printSignals(project);
   if (!exists("AGENTS.md")) {
     writeFile(cwd("AGENTS.md"), `# Project Agent Instructions\n\nAI assists. Humans decide.\n\n## Rules\n\n- Read the active Change before editing.\n- Read spec.md before implementation.\n- Read tasks.md before changing files.\n- Keep changes small.\n- Do not modify unrelated files.\n- Update evidence.md before completion.\n\nIf present, also read CLAUDE.md, GEMINI.md, CODEX.md, or CURSOR.md.\n`); console.log("✓ Created AGENTS.md");
   } else console.log("✓ AGENTS.md already exists");
@@ -157,31 +225,72 @@ function adopt(args) {
   writeFile(cwd("knowledge", "README.md"), "# Knowledge\n\nCapture decisions, lessons learned, constraints and project context here.\n");
   writeFile(cwd("profiles", "README.md"), "# Profiles\n\nUse AIEF role profiles from the source AIEF repository or define project-specific role guidance here.\n");
   if (!getChangeDirs().some((dir) => path.basename(dir).includes("adopt-aief"))) {
-    const dir = cwd("changes", "0001-adopt-aief");
-    writeFile(path.join(dir, "change.md"), genericChangeFiles("0001", "adopt-aief", "Adopt AIEF workflow without changing application behavior.")["change.md"]);
-    writeFile(path.join(dir, "spec.md"), genericChangeFiles("0001", "adopt-aief")["spec.md"]);
+    // Use the next free ID so adoption never collides with existing Changes.
+    const id = nextChangeId();
+    const dir = cwd("changes", `${id}-adopt-aief`);
+    const files = genericChangeFiles(id, "adopt-aief", "Adopt AIEF workflow without changing application behavior.");
+    writeFile(path.join(dir, "change.md"), files["change.md"]);
+    writeFile(path.join(dir, "spec.md"), files["spec.md"]);
     writeFile(path.join(dir, "tasks.md"), "# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/.\n- [x] Create knowledge/.\n- [x] Create adoption Change.\n- [ ] Run aief verify.\n- [ ] Update evidence.md.\n");
-    writeFile(path.join(dir, "evidence.md"), evidenceTemplate()); console.log("✓ Created changes/0001-adopt-aief");
-  }
+    writeFile(path.join(dir, "evidence.md"), evidenceTemplate()); console.log(`✓ Created changes/${id}-adopt-aief`);
+  } else console.log("✓ Adoption Change already exists");
   console.log(""); printSkills(project); console.log("\nNext:\n  aief verify\n  aief analyze");
 }
 function analyze(args) { const parsed = parseArgs(args); section("AIEF Analyze"); console.log("Purpose: create an Analysis Change for an existing project.\nWrites only under changes/<id>-<name>/.\n"); createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis" }); console.log("\nNext:\n  aief prompt --profile architect"); }
 function prompt(args) {
-  const parsed = parseArgs(args); const profile = parsed.profile || "developer"; let changeDir = latestChangeDir();
-  if (parsed.change) { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
+  const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
+  if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
   if (!changeDir) { console.error("No Change found. Run: aief new-change <name> or aief analyze"); process.exitCode = 1; return; }
-  const changeName = path.relative(process.cwd(), changeDir); const isAnalysis = read(path.join(changeDir, "change.md")).toLowerCase().includes("## type\n\nanalysis");
+  const changeName = path.relative(process.cwd(), changeDir);
+  // CRLF/LF tolerant: a Change written on Windows must still be recognized as Analysis.
+  const isAnalysis = /##\s*type\s*(\r?\n)+\s*analysis\b/i.test(read(path.join(changeDir, "change.md")));
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
   console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${exists("CLAUDE.md") ? "- CLAUDE.md" : ""}\n${exists("README.md") ? "- README.md" : ""}\n\n${isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete only:\n\n- ${changeName}/evidence.md\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 function close(args) { section("AIEF Close"); console.log("Purpose: guide closure of the active Change. Writes nothing in this MVP.\n"); const changeDir = latestChangeDir(); if (!changeDir) { console.error("No Change found."); process.exitCode = 1; return; } console.log(`Active Change: ${path.relative(process.cwd(), changeDir)}\n`); console.log("Before commit, confirm:\n- [ ] evidence.md has Summary.\n- [ ] evidence.md has Activities Performed.\n- [ ] evidence.md has Verification and actual results.\n- [ ] evidence.md has Findings or implementation summary.\n- [ ] evidence.md has Risks or Known Issues.\n- [ ] evidence.md has Recommendations.\n- [ ] evidence.md has Lessons Learned.\n- [ ] evidence.md has Next Change.\n\nRecommended commands:\n  aief verify\n  git status"); }
 function checkChange(changeDir) { const missing = [], empty = []; for (const file of CHANGE_FILES) { const full = path.join(changeDir, file); if (!fs.existsSync(full)) missing.push(file); else if (!fs.readFileSync(full, "utf8").trim()) empty.push(file); } return { missing, empty }; }
-function verify() { section("AIEF Verify"); console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n"); let ok = true; for (const item of ["README.md", "AGENTS.md", "changes"]) { if (exists(item)) console.log(`✓ ${item}`); else { console.error(`✗ Missing: ${item}`); ok = false; } } if (exists("knowledge")) console.log("✓ knowledge/"); else console.warn("! Recommended but missing: knowledge/"); for (const changeDir of getChangeDirs()) { const name = path.relative(process.cwd(), changeDir); const result = checkChange(changeDir); if (!result.missing.length && !result.empty.length) console.log(`✓ ${name}`); else { ok = false; for (const f of result.missing) console.error(`✗ ${name}/${f} missing`); for (const f of result.empty) console.error(`✗ ${name}/${f} empty`); } } console.log(ok ? "\nResult: PASS" : "\nResult: FAIL"); if (!ok) process.exitCode = 1; }
-function status() { section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n"); const checks = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["Changes", exists("changes")], ["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]]; for (const [n, ok] of checks) console.log(`${ok ? "✓" : "!"} ${n}`); const changes = getChangeDirs(); console.log(`\nChanges: ${changes.length}`); for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`); const detected = Object.entries(detectProject().tech).filter(([,v]) => v).map(([k]) => k); console.log(`\nDetected project type: ${detected.length ? detected.join(", ") : "No strong signals detected."}`); console.log("\nNext:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : changes.length ? "  aief prompt" : "  aief analyze"); }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); console.log("Environment:"); for (const [name, ok] of [["git", commandExists("git")], ["node", commandExists("node")], ["npm", commandExists("npm")], ["openspec", commandExists("openspec") || commandExists("opsx")], ["npx", commandExists("npx")]]) console.log(`${ok ? "✓" : "!"} ${name}`); status(); console.log(""); printSkills(detectProject()); console.log("\nRecommended next step:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : "  aief analyze"); }
+function evidenceIsPlaceholder(changeDir) {
+  const content = read(path.join(changeDir, "evidence.md"));
+  return (content.match(/^Pending\.\s*$/gm) || []).length >= 3;
+}
+function verify() { section("AIEF Verify"); console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n"); let ok = true; for (const item of ["README.md", "AGENTS.md", "changes"]) { if (exists(item)) console.log(`✓ ${item}`); else { console.error(`✗ Missing: ${item}`); ok = false; } } if (exists("knowledge")) console.log("✓ knowledge/"); else console.warn("! Recommended but missing: knowledge/"); for (const changeDir of getChangeDirs()) { const name = path.relative(process.cwd(), changeDir); const result = checkChange(changeDir); if (!result.missing.length && !result.empty.length) { if (evidenceIsPlaceholder(changeDir)) console.warn(`! ${name}/evidence.md still has template placeholders ("Pending.")`); else console.log(`✓ ${name}`); } else { ok = false; for (const f of result.missing) console.error(`✗ ${name}/${f} missing`); for (const f of result.empty) console.error(`✗ ${name}/${f} empty`); } } console.log(ok ? "\nResult: PASS" : "\nResult: FAIL"); if (!ok) process.exitCode = 1; }
+function status(project = detectProject()) { section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n"); const checks = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["Changes", exists("changes")], ["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]]; for (const [n, ok] of checks) console.log(`${ok ? "✓" : "!"} ${n}`); const changes = getChangeDirs(); console.log(`\nChanges: ${changes.length}`); for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`); console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`); console.log("\nNext:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : changes.length ? "  aief prompt" : "  aief analyze"); }
+function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); console.log("Environment:"); for (const [name, ok] of [["git", commandExists("git")], ["node", commandExists("node")], ["npm", commandExists("npm")], ["openspec", commandExists("openspec") || commandExists("opsx")], ["npx", commandExists("npx")]]) console.log(`${ok ? "✓" : "!"} ${name}`); const project = detectProject(); status(project); printSignals(project); console.log(""); printSkills(project); console.log("\nRecommended next step:"); console.log(!exists("AGENTS.md") || !exists("changes") ? "  aief adopt" : "  aief analyze"); }
 function initProject(name) { const projectName = name || "aief-project"; const projectPath = path.resolve(projectName); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${projectName}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
-function propose(args) { section("AIEF Propose"); const idea = args.join(" "); if (!idea) { console.error('Example: aief propose "Add login"'); process.exitCode = 1; return; } if (commandExists("openspec")) { const r = run("openspec", ["propose", idea], { stdio: "inherit" }); if (r.status === 0) return; } const dir = createChange(idea); if (dir) writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`); }
+// Validate the OpenSpec CLI contract before delegating. Never assume
+// "openspec propose <idea>" exists: check installation, version and
+// whether the propose command is actually exposed.
+function openspecInfo() {
+  if (!commandExists("openspec")) return { installed: false };
+  const versionResult = run("openspec", ["--version"]);
+  const version = versionResult.status === 0 ? String(versionResult.stdout || "").trim() : "unknown";
+  const helpResult = run("openspec", ["--help"]);
+  const helpText = `${helpResult.stdout || ""}${helpResult.stderr || ""}`;
+  const supportsPropose = helpResult.status === 0 && /\bpropose\b/i.test(helpText);
+  return { installed: true, version, supportsPropose };
+}
+function propose(args) {
+  section("AIEF Propose");
+  const idea = args.join(" ");
+  if (!idea) { console.error('Example: aief propose "Add login"'); process.exitCode = 1; return; }
+  const openspec = openspecInfo();
+  if (!openspec.installed) {
+    console.log("OpenSpec is not installed. Creating a local Change instead.");
+  } else if (!openspec.supportsPropose) {
+    console.warn(`OpenSpec ${openspec.version} is installed but does not expose a "propose" command. Falling back to local Change generation.`);
+  } else {
+    console.log(`Delegating to OpenSpec ${openspec.version}...`);
+    const r = run("openspec", ["propose", idea], { stdio: "inherit" });
+    if (r.status === 0) return;
+    console.error(`OpenSpec delegation failed (exit code ${r.status}). Falling back to local Change generation.`);
+  }
+  const dir = createChange(idea);
+  if (dir) {
+    writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`);
+    console.log("Created local proposal.md. Next: review it, then run aief prompt.");
+  }
+}
 function useProfile(profile) { console.log(`Use AGENTS.md.\n\nAct as the ${slugify(profile || "developer")} profile.\n\nWork only on the active Change.\n`); }
-function release(version) { const clean = String(version || "").replace(/^v/, ""); if (!clean) { console.error("Version is required. Example: aief release 0.1.0"); process.exitCode = 1; return; } const file = path.join("releases", `v${clean}.md`); writeFile(file, `# Release v${clean}\n\n## Summary\n\n-\n\n## Verification\n\n-\n`); console.log(`Created release notes: ${file}`); }
+function release(version) { const clean = String(version || "").replace(/^v/, ""); if (!clean) { console.error("Version is required. Example: aief release 0.1.0"); process.exitCode = 1; return; } const file = path.join("releases", `v${clean}.md`); const created = writeFile(file, `# Release v${clean}\n\n## Summary\n\n-\n\n## Verification\n\n-\n`); console.log(created ? `Created release notes: ${file}` : `Release notes already exist (not overwritten): ${file}`); }
 export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case undefined: help(rest[0]); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

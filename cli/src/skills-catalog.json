@@ -1,0 +1,122 @@
+{
+  "description": "Technology detectors and Skill recommendations for the AIEF Adoption Engine. This is data, not workflow logic: edit or extend it without touching the CLI engine.",
+  "detectors": [
+    {
+      "id": "nextjs",
+      "description": "Next.js application",
+      "signal": "strong",
+      "dependencies": ["next"]
+    },
+    {
+      "id": "react",
+      "description": "React frontend",
+      "signal": "strong",
+      "dependencies": ["react"]
+    },
+    {
+      "id": "nestjs",
+      "description": "NestJS backend",
+      "signal": "strong",
+      "dependencyPrefixes": ["@nestjs/"]
+    },
+    {
+      "id": "typescript",
+      "description": "TypeScript project",
+      "signal": "strong",
+      "dependencies": ["typescript"],
+      "files": ["tsconfig.json"]
+    },
+    {
+      "id": "tailwind",
+      "description": "Tailwind CSS",
+      "signal": "strong",
+      "dependencies": ["tailwindcss"],
+      "files": ["tailwind.config.ts", "tailwind.config.js"]
+    },
+    {
+      "id": "postgres",
+      "description": "PostgreSQL data layer",
+      "signal": "strong",
+      "dependencies": ["pg", "postgres", "postgres-js", "@prisma/client"]
+    },
+    {
+      "id": "aws",
+      "description": "AWS infrastructure",
+      "signal": "strong",
+      "dependencyPrefixes": ["@aws-sdk/"],
+      "files": ["terraform", "infra"]
+    },
+    {
+      "id": "cognito",
+      "description": "Amazon Cognito authentication",
+      "signal": "strong",
+      "dependencySubstrings": ["cognito"]
+    },
+    {
+      "id": "n8n",
+      "description": "n8n workflow automation",
+      "signal": "weak",
+      "dependencySubstrings": ["n8n"],
+      "keywords": ["n8n"],
+      "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+    },
+    {
+      "id": "multitenant",
+      "description": "Multi-tenant architecture",
+      "signal": "weak",
+      "keywords": ["tenant", "tenants", "multitenant", "multi-tenant", "multitenancy"],
+      "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+    },
+    {
+      "id": "rbac",
+      "description": "Role-based access control",
+      "signal": "weak",
+      "keywords": ["rbac", "role-based", "permissions", "authorization"],
+      "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+    },
+    {
+      "id": "aiRoadmap",
+      "description": "AI features on the roadmap",
+      "signal": "weak",
+      "keywords": ["llm", "llms", "genai", "ai-powered", "ai assistant", "ai assistants", "ai features", "artificial intelligence", "machine learning"],
+      "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+    }
+  ],
+  "skills": [
+    {
+      "id": "multitenant-saas-architect",
+      "description": "Tenant isolation, Host header resolution, tenant lifecycle, SaaS architecture.",
+      "when": ["multitenant"]
+    },
+    {
+      "id": "n8n-automation-ops",
+      "description": "n8n Queue Mode, workflow catalog, executions, workers, Redis, health checks.",
+      "when": ["n8n"]
+    },
+    {
+      "id": "aws-saas-platform",
+      "description": "Cognito, RDS PostgreSQL, Secrets Manager, CloudFront, WAF, CloudWatch, CodePipeline, Terraform.",
+      "when": ["aws"]
+    },
+    {
+      "id": "security-rbac-reviewer",
+      "description": "Server-side authorization, permissions, tenant isolation, secrets, audit events.",
+      "when": ["rbac", "multitenant"]
+    },
+    {
+      "id": "nextjs-nestjs-architecture",
+      "description": "Frontend/backend separation, server components, APIs, NestJS modules, adapter patterns.",
+      "when": ["nextjs", "nestjs"]
+    },
+    {
+      "id": "ai-workflow-governance",
+      "description": "AI-generated workflows, human approval, inactive drafts, governance, auditability.",
+      "when": ["aiRoadmap"]
+    },
+    {
+      "id": "project-architecture-reviewer",
+      "description": "General architecture review, module boundaries, risks, and technical debt.",
+      "fallback": true
+    }
+  ]
+}

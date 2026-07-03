@@ -43,6 +43,20 @@ aief close
 
 ## Skills recommendation
 
-`aief doctor` and `aief adopt` inspect project signals and recommend possible Skills.
+`aief doctor` and `aief adopt` inspect project signals and recommend possible Skills, always explaining why each Skill was recommended.
 
-Profiles define the role. Skills define specialized knowledge.
+Detectors and Skills are data, not engine logic: they live in `src/skills-catalog.json` and are evaluated by `src/detect.js` with word-boundary keyword matching to avoid false positives.
+
+Profiles define the role. Skills define specialized knowledge. Neither replaces `AGENTS.md`.
+
+## OpenSpec delegation
+
+`aief propose` validates the OpenSpec contract at runtime (installed? version? `propose` command exposed?). On any failure it prints an explicit message and falls back to a local Change — never silently. See `adapters/openspec/README.md`.
+
+## Tests
+
+```bash
+npm test
+```
+
+Runs the CLI suite with `node --test` (Node >= 18, no dependencies). Covers Change ID safety, adoption idempotence, detection, skill reasons, Analysis Changes, CRLF handling, verify, help coverage and the OpenSpec fallback paths.

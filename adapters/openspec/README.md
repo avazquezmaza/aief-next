@@ -38,3 +38,27 @@ OpenSpec
 ```
 
 AIEF remains the project workflow. OpenSpec can implement the Specification part of that workflow.
+
+## CLI integration contract
+
+`aief propose <idea>` delegates to OpenSpec only after validating the contract at runtime:
+
+1. Check that an `openspec` executable is on PATH.
+2. Read the version from `openspec --version` (reported as `unknown` if unavailable).
+3. Scan `openspec --help` for a `propose` command before calling it.
+4. If any step fails, or `openspec propose <idea>` exits non-zero, AIEF prints an explicit message — for example:
+
+```text
+OpenSpec delegation failed (exit code 1). Falling back to local Change generation.
+```
+
+and creates a local Change with `proposal.md`. The fallback is always announced; AIEF never duplicates work silently.
+
+### Validation status
+
+| Aspect | Status |
+|---|---|
+| Runtime detection (`--version`, `--help` scan) | Covered by CLI tests (`cli/tests/cli.test.js`) using simulated OpenSpec binaries. |
+| Real OpenSpec release | **Not yet validated against a specific version.** When you validate one, record the version and command surface here. |
+
+If the real OpenSpec CLI uses a different command than `propose`, update `openspecInfo()`/`propose()` in `cli/src/cli.js` and this table.
