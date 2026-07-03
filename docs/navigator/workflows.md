@@ -1,5 +1,7 @@
 # Workflows
 
+All variants below are combinations of the same [three-level AIEF workflow](../Workflow.md): AIEF context (level 1), assistant/OpenSpec feature work (level 2), AIEF governance (level 3).
+
 Choose the smallest workflow that works.
 
 ## Workflow A: AIEF Only

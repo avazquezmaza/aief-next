@@ -4,11 +4,15 @@
 
 > **Coordinate humans, AI assistants, specifications, implementation and evidence in one simple workflow.**
 
-AIEF is not another spec generator and not another prompt library. It is the **workflow engine** that keeps AI-assisted engineering consistent:
+AIEF is not another spec generator and not another prompt library. It is the **workflow engine** that keeps AI-assisted engineering consistent, in three levels:
 
 ```text
-Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
+1 · Context     (AIEF)                 doctor -> adopt -> verify -> analyze -> prompt
+2 · Feature     (assistant + OpenSpec) Explore -> Propose -> Apply -> Archive
+3 · Governance  (AIEF)                 verify -> close
 ```
+
+Full picture: [The AIEF Workflow](docs/Workflow.md).
 
 ---
 

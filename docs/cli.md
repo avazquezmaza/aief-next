@@ -1,5 +1,13 @@
 # AIEF CLI UX
 
+Every command belongs to one level of the [three-level workflow](Workflow.md):
+
+| Level | Commands |
+|---|---|
+| 1 · Context | `doctor`, `adopt`, `analyze`, `new-change`, `propose`, `prompt`, `status` |
+| 2 · Feature | none — the assistant (optionally with OpenSpec) does the work; AIEF only hands over the prompt |
+| 3 · Governance | `verify`, `close` |
+
 The CLI is self-explanatory.
 
 Every command answers, via `aief help <command>`:
