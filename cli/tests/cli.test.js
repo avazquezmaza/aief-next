@@ -225,6 +225,37 @@ test("prompt recognizes an Analysis Change even with CRLF line endings", () => {
   assert.match(out, /Do not modify application source code/);
 });
 
+test("prompt warns against overwriting when evidence has real content", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "# Evidence\n\n## Summary\n\nReal validated findings.\n", "utf8");
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /evidence\.md already exists and has real content/);
+  assert.match(out, /Do not overwrite it blindly/);
+  assert.match(out, /report that the evidence was re-verified/);
+});
+
+test("prompt has no overwrite warning for placeholder or empty evidence", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const fresh = aief(dir, ["prompt"]);
+  assert.doesNotMatch(fresh.out, /Do not overwrite it blindly/);
+  fs.writeFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "", "utf8");
+  const empty = aief(dir, ["prompt"]);
+  assert.doesNotMatch(empty.out, /Do not overwrite it blindly/);
+});
+
+test("prompt separates project evidence from AIEF feedback and clarifies tasks ownership", () => {
+  const dir = makeProject();
+  aief(dir, ["analyze"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /Where results belong/);
+  assert.match(out, /Feedback about AIEF or the tooling goes in your response/);
+  assert.match(out, /Do not mark tasks\.md items yourself unless the Change or the user explicitly asks/);
+  assert.match(out, /tell the user which tasks appear complete/);
+  assert.match(out, /complete or amend/);
+});
+
 test("prompt accepts the assistant as a positional argument for all four assistants", () => {
   const dir = makeProject({ "CLAUDE.md": "#c", "GEMINI.md": "#g", "CODEX.md": "#x", "CURSOR.md": "#u" });
   aief(dir, ["new-change", "thing"]);
