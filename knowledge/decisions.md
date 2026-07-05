@@ -1,6 +1,62 @@
 # Architecture Decision Log
 
-Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: decision, context, consequences.
+Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: decision, context, consequences. Entries are accepted unless explicitly marked otherwise.
+
+---
+
+## ADR-012: Operational Profiles
+
+**Status: Accepted (2026-07-05). Proposed 2026-07-04; revised twice after review (structured model; orthogonality principle). Acceptance of this ADR is the milestone — implementation (0025) is a separate decision, not yet started.**
+
+**Milestone context.** Changes 0016–0024 completed real-project validation, standards as project context, operational and visible Skills, workflow clarity, adoption UX fixes, Gemini prompt UX and prompt lifecycle guardrails. The Workflow Engine is considered stable for the validated lane (solo developer, Node stack, any of four assistants, no OpenSpec). The one remaining promise-gap inside the generated prompt is the Profile.
+
+**What is a Profile?** A Profile is **structured operational knowledge about how to reason** in the active Change. It is not a document: it is a model, conceptually parallel to the Skills catalog, whose fields describe a way of working:
+
+```text
+goal            what this role is trying to achieve
+thinkingStyle   how it approaches problems (e.g. trade-offs first, defects first)
+priorities      what it optimizes for, in order
+expectedOutputs what its results look like
+avoid           what is outside this role's job or judgment
+```
+
+It is selected explicitly by the human per Change (`--profile`), never detected from the project. Markdown, when it exists at all, is an optional *rendered representation* of this model — exactly as `knowledge/skills.md` is a rendered view of the Skills catalog, never the source of truth.
+
+**The knowledge taxonomy.** Each layer answers one distinct question, which is why none can absorb another:
+
+| Layer | Question it answers |
+|---|---|
+| AGENTS.md | What rules must never be violated? |
+| **Profile** | **How should I reason?** |
+| Standards | How should this project be built? |
+| Skills | What should I know? |
+
+**Design principle — the four dimensions are orthogonal.** These layers are not four kinds of documentation; they are four *dimensions of engineering context*, and their questions are orthogonal. One layer must never absorb another:
+
+- **Profiles must never contain project facts** — that is Standards' dimension.
+- **Skills must never define assistant behaviour** — they inform reasoning, they do not shape it; behaviour belongs to Profiles (and rules to AGENTS.md).
+- **Standards must never become project detection** — they state how the project must be built; discovering what the project *is* belongs to the detectors.
+- **AGENTS.md must never become a knowledge base** — it holds inviolable rules, nothing else.
+
+Each source has a single responsibility. **The Prompt Engine is the only place where the four dimensions are composed into a single prompt** — composition is the renderer's job, never the sources'. This is a design principle of AIEF, not an implementation detail: any future capability that blurs one dimension into another is, by this ADR, architecturally wrong regardless of how convenient it looks.
+
+**Profile vs AGENTS.md.** AGENTS.md is the constitution binding every assistant in every Change. A Profile shapes reasoning within those rules; it may narrow focus but never relaxes rules, gates or the human-approval boundary.
+
+**Profile vs Skill.** Skills are knowledge triggered by *project* signals — identical for every role working on the codebase. A Profile is chosen by the *human* and describes the actor's reasoning, not the codebase. Orthogonal by design: architect and developer on the same project receive the same Skills and different Profiles.
+
+**Profile vs Standard.** Standards are editable project property stating how work must be done *here*. Profiles are project-independent reasoning models. Standards constrain everyone; a Profile directs one role's thinking.
+
+**Where does the model live?** The **canonical structured definitions belong to AIEF** (role reasoning is project-independent; copying it into every adopted project would recreate the snapshot-drift problem observed with skills.md). Projects may *specialize* a profile, but any override is expressed against the structured model — the exact override mechanism (structured fragment vs rendered file) is an implementation decision deferred to the implementation Change, with one constraint fixed here: **Markdown may be a representation or an input, never the model**. Resolution order: project specialization if present → AIEF canonical definition → honest "no profile content defined".
+
+**Injected into prompts?** Yes. The **Prompt Engine transforms the structured model into natural-language instructions** — the same pipeline shape Skills already use (catalog fields → rendered prompt block). This is the architectural payoff of the structured model: composition, richer or assistant-specific renderings, and future evolution happen in the renderer, without touching the knowledge itself or committing it to any file format. The rendered block must stay small (a handful of lines; 0024 flagged prompt growth as a watch item) and honestly labeled, never a reference to a file that does not exist.
+
+**What never belongs in a Profile.** Permission to bypass AGENTS.md, verify or close gates; project-specific facts (Standards' job); technology knowledge (Skills' job); executable behavior or commands; identity or seniority claims about the human; tenant or environment configuration.
+
+**What real validation revealed.** Friction #8 (0020 product validation) and question 3 of the Claude Code validation on trk-orchestrator-portal: the prompt says "Act as the architect profile" but nothing defines what that means — adopted projects get only a `profiles/README.md` pointing vaguely at "the source AIEF repository". The assistant fell back to its own interpretation of "architect": it worked, but it is undefined behavior. The same validation showed standards + Skills compensate for most of the gap — so the fix is a small knowledge model plus rendering, not a new system.
+
+**Consequences if accepted.** The instruction hierarchy (`AGENTS.md → assistant file → profile → standards → skills → active Change`) becomes fully backed by content at every level; prompts stop referencing an empty concept; the detector/recommendation/content separation established for Skills (ADR-010) gains its reasoning-side counterpart; no new commands, no hidden state, no changes to Skills or Standards.
+
+**Next implementation Change (proposal).** `0025-operational-profiles`: define the structured model (goal, thinkingStyle, priorities, expectedOutputs, avoid) for the existing profile set as catalog-style data owned by AIEF; render it into `aief prompt` through the existing pipeline with the resolution order and honest fallback above; decide the project-specialization mechanism there; and — same area, pending backlog item #5 — default Analysis Changes to the architect profile. Acceptance must include re-validation on a real project, per ADR-008.
 
 ---
 
