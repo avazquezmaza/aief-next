@@ -1,6 +1,6 @@
-# AIEF to Specboot Mapping
+# AIEF to SpecBoot Mapping
 
-| AIEF | Specboot-style equivalent | Notes |
+| AIEF | SpecBoot-style equivalent | Notes |
 |---|---|---|
 | `AGENTS.md` | Universal agent rules | Source of truth. |
 | `CLAUDE.md` | Claude-specific instructions | Only differences from `AGENTS.md`. |

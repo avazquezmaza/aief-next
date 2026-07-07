@@ -1,8 +1,8 @@
 # The AIEF Workflow
 
-> Canonical description of how AIEF, OpenSpec, Specboot-style skills and AI assistants work together. Other documents summarize this one.
+> Canonical description of how AIEF, OpenSpec, SpecBoot-style skills and AI assistants work together. Other documents summarize this one.
 
-AIEF is an **AI Engineering Workflow Engine**. It does not replace OpenSpec, Specboot or your AI assistant — it coordinates the process, preserves context and guides the user.
+AIEF is an **AI Engineering Workflow Engine**. It does not replace OpenSpec, SpecBoot or your AI assistant — it coordinates the process, preserves context and guides the user.
 
 The full workflow has **three levels**:
 
@@ -56,7 +56,7 @@ The **verified official OpenSpec workflow** (Fission-AI/OpenSpec, documentation 
 Explore -> Propose -> Apply -> Archive
 ```
 
-driven by assistant slash commands (e.g. `/opsx:propose`). OpenSpec profiles and assistants may expose additional commands (e.g. `/opsx:verify`, `/opsx:new`), and teams often extend the cycle with **Specboot-style skills** such as *enrich-us* (refining user stories) or *adversarial review* (systematic critique). Those extensions are useful examples — **they are not part of the validated official OpenSpec workflow** and AIEF does not depend on them.
+driven by assistant slash commands (e.g. `/opsx:propose`). OpenSpec profiles and assistants may expose additional commands (e.g. `/opsx:verify`, `/opsx:new`), and teams often extend the cycle with **SpecBoot-style skills** such as *enrich-us* (refining user stories) or *adversarial review* (systematic critique). Those extensions are useful examples — **they are not part of the validated official OpenSpec workflow** and AIEF does not depend on them.
 
 Responsibilities at this level: turn ideas into proposals, organize specs/tasks when OpenSpec exists, assist implementation, review changes, archive within OpenSpec, prepare commits when the team decides so.
 
@@ -81,7 +81,7 @@ AIEF does not create commits and does not publish PRs — humans (or their tooli
 |---|---|---|
 | **AIEF** | Workflow orchestration: context, standards, Skills, prompts, evidence, governance | Generate specs, implement code, commit, archive in OpenSpec |
 | **OpenSpec** *(optional)* | Proposal → Spec → Tasks engine (Explore → Propose → Apply → Archive) | Project adoption, evidence, Change governance |
-| **Specboot** *(inspiration only)* | Conceptual source for standards, instruction hierarchy and skills | Nothing at runtime — AIEF copies no Specboot files and has no dependency on it |
+| **SpecBoot** *(inspiration only)* | Conceptual source for standards, instruction hierarchy and skills | Nothing at runtime — AIEF copies no SpecBoot files and has no dependency on it |
 | **AI assistants** | Analysis, implementation, review, documentation | Approve scope or releases (humans decide) |
 | **Skills** | Specialized knowledge injected into prompts as context | Execute anything — they are knowledge, not commands |
 
@@ -128,7 +128,7 @@ aief verify && aief close --yes      # AIEF governance (level 3)
 - It does not execute Skills — they are contextual knowledge in prompts.
 - It does not create commits, publish PRs or archive OpenSpec changes.
 - It does not keep hidden state — `change.md` is the only source of truth (no `active-change.json`).
-- It does not replace AGENTS.md, OpenSpec, Specboot or your AI assistant.
+- It does not replace AGENTS.md, OpenSpec, SpecBoot or your AI assistant.
 - It does not claim validation against an installed OpenSpec release until one is actually exercised.
 
 ## The Change lifecycle (all levels together)

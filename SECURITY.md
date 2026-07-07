@@ -8,10 +8,11 @@ Report security concerns privately to the maintainers.
 
 ## Scope
 
-AIEF is primarily documentation, templates, and examples.
+AIEF is a dependency-free Node.js CLI plus documentation, templates, and examples.
 
 Security issues may include:
 
+- vulnerabilities in the CLI (`cli/`), e.g. unsafe file handling or command execution,
 - secrets accidentally committed,
 - unsafe example code,
 - misleading security guidance,

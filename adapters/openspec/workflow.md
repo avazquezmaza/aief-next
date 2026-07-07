@@ -24,7 +24,7 @@ aief adopt / analyze / prompt          (level 1: AIEF context)
   -> aief verify -> aief close --yes   (level 3: AIEF governance)
 ```
 
-Profiles and assistants may expose additional commands (e.g. `/opsx:verify`, `/opsx:new`), and teams sometimes extend the cycle with Specboot-style skills such as *enrich-us* or *adversarial review*. Treat those as optional extensions — they are not part of the validated official OpenSpec workflow.
+Profiles and assistants may expose additional commands (e.g. `/opsx:verify`, `/opsx:new`), and teams sometimes extend the cycle with SpecBoot-style skills such as *enrich-us* or *adversarial review*. Treat those as optional extensions — they are not part of the validated official OpenSpec workflow.
 
 ## Human and AI Responsibilities
 

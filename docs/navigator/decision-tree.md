@@ -21,7 +21,7 @@ flowchart TD
 
     I -->|AIEF only| J[Use templates and CLI]
     I -->|AIEF + OpenSpec| K[Use OpenSpec for specs/tasks]
-    I -->|AIEF + OpenSpec + Specboot| L[Use OpenSpec plus Specboot-style agent instructions]
+    I -->|AIEF + OpenSpec + SpecBoot| L[Use OpenSpec plus SpecBoot-style agent instructions]
 
     J --> M{Which AI assistant?}
     K --> M

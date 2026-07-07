@@ -7,7 +7,7 @@ Use this path when your project needs the full workflow.
 ```text
 AIEF CLI
 OpenSpec
-Specboot-style agent instructions
+SpecBoot-style agent instructions
 AI assistant
 Git/GitHub
 Evidence

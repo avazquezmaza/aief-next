@@ -389,7 +389,7 @@ test("close works when change.md prose merely mentions \"## Status\"", () => {
 
 test("help covers every documented command with six fields", () => {
   const dir = makeProject();
-  for (const command of ["doctor", "status", "adopt", "analyze", "new-change", "propose", "prompt", "verify", "close", "release", "init", "use-profile", "help"]) {
+  for (const command of ["doctor", "status", "adopt", "analyze", "new-change", "propose", "prompt", "verify", "close", "release", "init", "use-profile", "help", "explain"]) {
     const { status, out } = aief(dir, ["help", command]);
     assert.equal(status, 0, `help ${command} must exit 0`);
     for (const field of ["Purpose", "When to use it", "Reads", "Writes", "Example", "Next step"]) {

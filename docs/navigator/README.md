@@ -5,12 +5,12 @@ Welcome to the AIEF Navigator.
 Use this section when you are asking:
 
 - What do I read first?
-- What do I copy?
+- What do I run?
 - What does the AI use?
 - What should I edit?
 - What should I avoid changing?
 - How do I use AIEF on Windows, Linux, or macOS?
-- How do OpenSpec and Specboot fit into AIEF?
+- How do OpenSpec and SpecBoot fit into AIEF?
 
 ## Start Here
 
@@ -44,7 +44,7 @@ Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
 ```text
 AIEF
   ├── OpenSpec   optional specification engine
-  ├── Specboot   optional agent instruction bootstrap
+  ├── SpecBoot   optional agent instruction bootstrap
   ├── AI tools   Claude, Gemini, Codex, Cursor, Copilot, ChatGPT
   └── Project    your actual source code and tests
 ```

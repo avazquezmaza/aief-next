@@ -1,4 +1,4 @@
-# Specboot Workflow with AIEF
+# SpecBoot Workflow with AIEF
 
 ## Simple workflow
 

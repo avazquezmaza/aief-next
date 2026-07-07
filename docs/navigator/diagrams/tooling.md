@@ -8,7 +8,7 @@ flowchart TD
 
     A --> E{Need agent bootstrap?}
     E -->|No| F[AGENTS.md]
-    E -->|Yes| G[Specboot-style files]
+    E -->|Yes| G[SpecBoot-style files]
 
     C --> H[Change]
     D --> H

@@ -1,12 +1,14 @@
 # macOS Setup
 
-Use this guide for macOS.
+Use this guide for macOS. Canonical install reference: [Bootstrap Experience](../../bootstrap.md).
 
 ## 1. Install Homebrew
 
 If Homebrew is not installed, install it from the official Homebrew site.
 
 ## 2. Install Git and Node.js
+
+Node >= 18 required:
 
 ```bash
 brew install git node
@@ -20,41 +22,46 @@ node --version
 npm --version
 ```
 
-## 3. Clone AIEF
+## 3. Clone and install AIEF
 
 ```bash
 git clone https://github.com/avazquezmaza/aief-next.git
 cd aief-next
+npm install     # no dependencies to download; validates the package
+npm link        # installs a global `aief` command
 ```
 
-## 4. Test the AIEF CLI
+## 4. Verify the CLI and your environment
 
 ```bash
-node cli/bin/aief.js help
+aief --help
+aief doctor     # required / recommended / optional tools
 ```
 
-Optional:
+Prefer not to link globally? Run it directly instead:
 
 ```bash
-chmod +x cli/bin/aief.js
+node cli/bin/aief.js <command>
 ```
 
-## 5. Create a project
+## 5. Initialize a project
 
 ```bash
-node cli/bin/aief.js init demo-project
-cd demo-project
-node ../cli/bin/aief.js new-change add-login
-node ../cli/bin/aief.js verify
+aief init my-project        # new project skeleton
+cd my-project
+aief new-change add-login
+aief verify
 ```
+
+Or, inside an existing project: `aief init` (no argument — visible structure only, application code untouched).
 
 ## 6. Optional: OpenSpec
 
 ```bash
-npm install -g @fission-ai/openspec
+npm install -g @fission-ai/openspec@latest
 ```
 
-## 7. Optional: Specboot
+## 7. Optional: SpecBoot
 
 ```bash
 npx @lidr/lidr-specboot

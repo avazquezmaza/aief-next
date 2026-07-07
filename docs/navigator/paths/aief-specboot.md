@@ -1,4 +1,4 @@
-# Path: AIEF + Specboot
+# Path: AIEF + SpecBoot
 
 Use this path when you need stronger agent instruction management.
 
@@ -8,7 +8,7 @@ Use this path when you need stronger agent instruction management.
 AGENTS.md
 assistant-specific files
 profiles/
-Specboot-style conventions
+SpecBoot-style conventions
 ```
 
 ## Best For
@@ -19,6 +19,6 @@ Specboot-style conventions
 
 ## Rule
 
-Specboot helps with agent instructions.
+SpecBoot helps with agent instructions.
 
 AIEF still owns the workflow.

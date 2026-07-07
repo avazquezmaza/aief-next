@@ -37,7 +37,7 @@
 ## Integrations
 
 - [OpenSpec Adapter](../adapters/openspec/README.md)
-- [Specboot Adapter](../adapters/specboot/README.md)
+- [SpecBoot Adapter](../adapters/specboot/README.md)
 
 ## Decisions and Status
 

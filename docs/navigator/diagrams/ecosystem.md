@@ -7,7 +7,7 @@ flowchart TD
     A --> D[Evidence]
 
     A --> E[OpenSpec]
-    A --> F[Specboot]
+    A --> F[SpecBoot]
     A --> G[AI Assistants]
     A --> H[CLI]
 

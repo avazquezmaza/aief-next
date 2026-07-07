@@ -6,7 +6,7 @@
 
 **AIEF coordinates the engineering workflow.**
 
-It does **not** replace OpenSpec, Specboot or your AI assistant.
+It does **not** replace OpenSpec, SpecBoot or your AI assistant.
 
 ## The flow
 

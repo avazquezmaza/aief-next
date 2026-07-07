@@ -210,6 +210,14 @@ const COMMAND_HELP = {
     writes: "Nothing.",
     example: "aief help adopt",
     next: "Run the command you just read about."
+  },
+  explain: {
+    purpose: "Alias of help: show detailed help for one command.",
+    when: "Anytime.",
+    reads: "Nothing.",
+    writes: "Nothing.",
+    example: "aief explain doctor",
+    next: "Run the command you just read about."
   }
 };
 function printCommandHelp(command) {

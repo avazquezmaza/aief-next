@@ -12,9 +12,9 @@ No. It works with Claude, Gemini, Codex, Cursor, ChatGPT, Copilot, or other assi
 
 No. AIEF can align with OpenSpec, but the starter workflow works without it.
 
-## Is Specboot required?
+## Is SpecBoot required?
 
-No. AIEF can align with Specboot, but `AGENTS.md` provides the minimum universal agent rules.
+No. AIEF can align with SpecBoot, but `AGENTS.md` provides the minimum universal agent rules.
 
 ## Do all changes need a design document?
 

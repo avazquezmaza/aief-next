@@ -68,7 +68,7 @@ Avoid:
 - moving all source code,
 - rewriting docs unnecessarily,
 - creating many empty folders,
-- forcing OpenSpec or Specboot before the team understands AIEF.
+- forcing OpenSpec or SpecBoot before the team understands AIEF.
 
 ## Recommended First Change
 

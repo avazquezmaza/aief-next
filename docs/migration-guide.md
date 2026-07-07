@@ -1,60 +1,60 @@
 # Migration Guide
 
-Use this guide to adopt AIEF in an existing project.
+Use this guide to adopt AIEF in an existing project. The CLI does the structural work; you keep full control of what changes.
 
-## Step 1: Add agent instructions
+## Principle
 
-Add:
+Do not reorganize the whole project on day one. Adopt AIEF gradually, starting with the next real piece of work.
 
-```text
-AGENTS.md
+## Step 1: Create a checkpoint
+
+```bash
+git add .
+git commit -m "checkpoint before adopting AIEF"
 ```
 
-Optional:
+## Step 2: Let the CLI adopt the project
 
-```text
-CLAUDE.md
-GEMINI.md
-CODEX.md
-CURSOR.md
+From your project's root ([install the CLI first](bootstrap.md)):
+
+```bash
+aief doctor    # environment + readiness report — writes nothing
+aief init      # or `aief adopt` — same logic, same guarantees
 ```
 
-## Step 2: Add a changes folder
+This creates everything the manual path used to require:
 
-```text
-changes/
-```
+- `AGENTS.md` (if missing) — the rules every assistant follows,
+- `changes/` with an adoption Change (evidence auto-generated),
+- `knowledge/standards/` starter standards matched to your stack,
+- `profiles/`.
+
+Guarantees: never modifies application code, never overwrites existing files, idempotent.
+
+Optional assistant files you can add yourself: `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md`.
 
 ## Step 3: Start with one Change
 
-Do not migrate everything.
+Do not migrate everything. Analyze first, then take the next real piece of work:
 
-Create one new Change for the next real piece of work.
-
-```text
-changes/0001-adopt-aief/
+```bash
+aief analyze                 # Analysis Change seeded with detected context
+aief prompt claude --profile architect
 ```
 
-## Step 4: Add evidence
+## Step 4: Close with evidence
 
-When the Change is complete, update:
+When a Change is complete, its `evidence.md` says what actually happened:
 
-```text
-evidence.md
+```bash
+aief verify
+aief close --yes
 ```
 
-## Step 5: Add knowledge over time
+## Step 5: Grow knowledge over time
 
-Add:
+Edit `knowledge/standards/` so the `(adapt)` markers match your project, and add decisions or lessons to `knowledge/` only when they are worth keeping.
 
-```text
-knowledge/
-```
+## Full lifecycle
 
-only when you have decisions or lessons worth keeping.
-
-## Recommendation
-
-Do not reorganize the whole project on day one.
-
-Adopt AIEF gradually.
+Stage-by-stage detail: [lifecycle.md](lifecycle.md) · Existing-project walkthrough: [navigator/existing-project.md](navigator/existing-project.md)

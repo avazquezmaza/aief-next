@@ -35,13 +35,13 @@ Idea
   -> Evidence
 ```
 
-## Level 3: AIEF + Specboot
+## Level 3: AIEF + SpecBoot
 
 Use this when you want stronger AI assistant instruction files.
 
 AIEF remains the workflow.
 
-Specboot-style files help AI assistants understand the repository.
+SpecBoot-style files help AI assistants understand the repository.
 
 ```text
 AGENTS.md
@@ -56,7 +56,7 @@ AGENTS.md
 AIEF
   ├── CLI for project/change automation
   ├── OpenSpec for structured specs
-  ├── Specboot for agent instruction bootstrap
+  ├── SpecBoot for agent instruction bootstrap
   └── AI assistant for implementation
 ```
 
@@ -64,4 +64,4 @@ AIEF
 
 Start with Level 1.
 
-Add OpenSpec or Specboot only when they solve a real problem.
+Add OpenSpec or SpecBoot only when they solve a real problem.

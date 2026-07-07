@@ -8,7 +8,7 @@ Recommended paths:
 - Existing project
 - AIEF only
 - AIEF + OpenSpec
-- AIEF + Specboot
+- AIEF + SpecBoot
 - Full AIEF stack
 
 Most users should start with the main Navigator README.

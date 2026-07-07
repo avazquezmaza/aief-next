@@ -1,12 +1,12 @@
-# Specboot Adapter
+# SpecBoot Adapter
 
-This adapter explains how AIEF can work with Specboot-style agent instructions.
+This adapter explains how AIEF can work with SpecBoot-style agent instructions.
 
-Specboot is optional.
+SpecBoot is optional.
 
 AIEF provides the project workflow and Change structure.
 
-Specboot-style files can help different AI tools understand how to work in the repository.
+SpecBoot-style files can help different AI tools understand how to work in the repository.
 
 ## Relationship
 
@@ -14,7 +14,7 @@ Specboot-style files can help different AI tools understand how to work in the r
 AIEF
   └── Change workflow, evidence, project structure
 
-Specboot
+SpecBoot
   └── Agent instruction files and tool-specific guidance
 ```
 
@@ -30,7 +30,7 @@ CODEX.md
 CURSOR.md
 ```
 
-Add Specboot-style conventions only when they improve your team's workflow.
+Add SpecBoot-style conventions only when they improve your team's workflow.
 
 ## Rule
 

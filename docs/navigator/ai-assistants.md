@@ -1,6 +1,6 @@
 # AI Assistants
 
-AIEF works with any AI assistant.
+AIEF works with any AI assistant. No assistant is required, none is special.
 
 ## Source of Truth
 
@@ -8,78 +8,34 @@ AIEF works with any AI assistant.
 AGENTS.md
 ```
 
-Assistant-specific files extend `AGENTS.md`.
+Assistant-specific files extend `AGENTS.md`. They should not duplicate it.
 
-They should not duplicate it.
+## Let AIEF compose the prompt
 
-## Claude Code
+You do not write assistant prompts by hand — the Prompt Engine composes one from the full context (AGENTS.md, the assistant file, the profile, your standards, the recommended Skills and the active Change):
 
-Use:
-
-```text
-AGENTS.md
-CLAUDE.md
-profiles/<role>.md
-changes/<active-change>/
+```bash
+aief prompt claude --profile developer     # or: architect, reviewer, ...
+aief prompt gemini
+aief prompt codex
+aief prompt cursor
 ```
 
-Suggested prompt:
+Each command selects the matching instruction file (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md`) when it exists. Unknown assistant names fail with guidance — never a silent fallback.
 
-```text
-Follow AGENTS.md and CLAUDE.md.
-Act as the Developer profile.
-Work only on changes/0001-add-login.
-```
+Paste the generated prompt into the assistant and let it work inside the Change.
 
-## Gemini
+## ChatGPT, Copilot or other assistants
 
-Use:
-
-```text
-AGENTS.md
-GEMINI.md
-profiles/<role>.md
-changes/<active-change>/
-```
-
-## Codex
-
-Use:
-
-```text
-AGENTS.md
-CODEX.md
-profiles/developer.md
-changes/<active-change>/
-```
-
-## Cursor
-
-Use:
-
-```text
-AGENTS.md
-CURSOR.md
-changes/<active-change>/
-```
-
-## ChatGPT or Other Assistants
-
-Use:
-
-```text
-AGENTS.md
-profiles/<role>.md
-change.md
-spec.md
-tasks.md
-```
+Run `aief prompt` (without an assistant, it includes `CLAUDE.md` if present, otherwise just the universal context) and paste the output — the generated prompt is plain text and works in any assistant. The universal rules in `AGENTS.md` apply to all of them.
 
 ## Common Rule
 
-The AI should always know:
+Whatever the assistant, the generated prompt always tells it:
 
 1. Which Change is active.
-2. Which profile it should follow.
-3. What the acceptance criteria are.
+2. Which profile to follow.
+3. Which standards and Skills apply.
 4. Where to write evidence.
+
+If you ever need to brief an assistant manually, give it the same files the Prompt Engine uses: `AGENTS.md`, the assistant file, `knowledge/standards/`, `knowledge/skills.md` and the active Change directory.

@@ -14,7 +14,7 @@ evidence.md
 ## Do Not Use Yet
 
 - OpenSpec
-- Specboot
+- SpecBoot
 - advanced profiles
 - CLI extensions
 

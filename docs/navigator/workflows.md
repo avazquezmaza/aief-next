@@ -37,7 +37,7 @@ OpenSpec proposal/spec/tasks
 AIEF evidence
 ```
 
-## Workflow C: AIEF + Specboot
+## Workflow C: AIEF + SpecBoot
 
 Best for:
 
@@ -66,7 +66,7 @@ Use:
 ```text
 AIEF CLI
 OpenSpec
-Specboot-style instructions
+SpecBoot-style instructions
 profiles
 evidence
 ```

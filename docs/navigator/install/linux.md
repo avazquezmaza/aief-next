@@ -1,10 +1,10 @@
 # Linux Setup
 
-Use this guide for Linux.
+Use this guide for Linux. Canonical install reference: [Bootstrap Experience](../../bootstrap.md).
 
 ## 1. Install Git and Node.js
 
-Debian/Ubuntu example:
+Debian/Ubuntu example (Node >= 18 required):
 
 ```bash
 sudo apt update
@@ -19,53 +19,46 @@ node --version
 npm --version
 ```
 
-## 2. Clone AIEF
+## 2. Clone and install AIEF
 
 ```bash
 git clone https://github.com/avazquezmaza/aief-next.git
 cd aief-next
+npm install     # no dependencies to download; validates the package
+npm link        # installs a global `aief` command
 ```
 
-## 3. Test the AIEF CLI
+## 3. Verify the CLI and your environment
 
 ```bash
-node cli/bin/aief.js help
+aief --help
+aief doctor     # required / recommended / optional tools
 ```
 
-Optional:
+Prefer not to link globally? Run it directly instead:
 
 ```bash
-chmod +x cli/bin/aief.js
+node cli/bin/aief.js <command>
 ```
 
-## 4. Create a project
+## 4. Initialize a project
 
 ```bash
-node cli/bin/aief.js init demo-project
-cd demo-project
-node ../cli/bin/aief.js new-change add-login
-node ../cli/bin/aief.js verify
-```
-
-## 5. Optional Alias
-
-```bash
-alias aief="node /home/$USER/PRS/claude-code/AIEF/aief-next/cli/bin/aief.js"
-```
-
-Then:
-
-```bash
+aief init my-project        # new project skeleton
+cd my-project
 aief new-change add-login
+aief verify
 ```
 
-## 6. Optional: OpenSpec
+Or, inside an existing project: `aief init` (no argument — visible structure only, application code untouched).
+
+## 5. Optional: OpenSpec
 
 ```bash
-npm install -g @fission-ai/openspec
+npm install -g @fission-ai/openspec@latest
 ```
 
-## 7. Optional: Specboot
+## 6. Optional: SpecBoot
 
 ```bash
 npx @lidr/lidr-specboot
