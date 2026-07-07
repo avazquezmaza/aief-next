@@ -10,12 +10,14 @@ Commands cover levels 1 (context: doctor/adopt/analyze/prompt) and 3 (governance
 
 Requires Node >= 18. No dependencies.
 
+From the repository root (the root `package.json` exposes the same binary):
+
 ```bash
-cd cli
+npm install
 npm link   # installs a global `aief` command
 ```
 
-Or run directly: `node cli/bin/aief.js <command>`.
+Linking from `cli/` also works. Or run directly: `node cli/bin/aief.js <command>`. See [docs/bootstrap.md](../docs/bootstrap.md).
 
 ## Existing project flow
 

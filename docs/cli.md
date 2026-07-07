@@ -4,11 +4,11 @@ Every command belongs to one level of the [three-level workflow](Workflow.md):
 
 | Level | Commands |
 |---|---|
-| 1 · Context | `doctor`, `adopt`, `analyze`, `new-change`, `propose`, `prompt`, `status` |
+| 1 · Context | `doctor`, `init`, `adopt`, `analyze`, `new-change`, `propose`, `prompt`, `status` |
 | 2 · Feature | none — the assistant (optionally with OpenSpec) does the work; AIEF only hands over the prompt |
 | 3 · Governance | `verify`, `close` |
 
-The CLI is self-explanatory.
+The CLI is self-explanatory. `aief --help` (or `-h`) shows usage; `aief --version` prints the version. See [bootstrap.md](bootstrap.md) for installation.
 
 Every command answers, via `aief help <command>`:
 
@@ -43,7 +43,7 @@ aief prompt claude --profile architect
 | `close` | Readiness checks (files, tasks, evidence); `--yes` marks the Change Closed | Only `change.md` Status, with `--yes` |
 | `propose` | Create/delegate proposal | Yes |
 | `release` | Create release notes | Yes (never overwrites) |
-| `init` | Create a new AIEF project | Yes |
+| `init` | No argument: initialize the current directory (reuses adopt; visible structure only). With a name: create a new project skeleton | Yes (never application code) |
 | `use-profile` | Print a role prompt header | No |
 
 ## Guarantees
@@ -82,8 +82,7 @@ Extend any of the three by editing the catalog; the engine (`cli/src/detect.js`)
 ## Testing
 
 ```bash
-cd cli
-npm test
+npm test        # from the repo root (delegates to cli/), or: cd cli && npm test
 ```
 
 Runs the CLI test suite (`node --test`, Node >= 18, no dependencies).

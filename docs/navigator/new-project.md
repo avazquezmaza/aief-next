@@ -6,18 +6,24 @@ Use this path when you are starting from zero.
 
 Create a new AIEF-compatible project quickly.
 
-## Option A: Use the CLI
+## Option A: Use the CLI (recommended)
 
-From the AIEF repository:
+Install once from the AIEF repository root ([bootstrap guide](../bootstrap.md)):
 
 ```bash
-node cli/bin/aief.js init my-project
-cd my-project
-node ../cli/bin/aief.js new-change my-first-change
-node ../cli/bin/aief.js verify
+npm install && npm link
 ```
 
-## Option B: Copy the starter project
+Then anywhere:
+
+```bash
+aief init my-project
+cd my-project
+aief new-change my-first-change
+aief verify
+```
+
+## Option B: Copy the starter project (manual alternative)
 
 ```bash
 cp -R starter-project my-project

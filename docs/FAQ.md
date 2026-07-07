@@ -2,7 +2,7 @@
 
 ## Is AIEF a programming framework?
 
-No. AIEF is a lightweight engineering workflow and starter kit.
+No. AIEF is an assistant-agnostic workflow engine for AI-assisted engineering: a dependency-free CLI plus visible conventions (Changes, AGENTS.md, evidence). See [VISION.md](VISION.md).
 
 ## Does AIEF require a specific AI model?
 

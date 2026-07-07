@@ -1,47 +1,55 @@
 # Getting Started
 
-AIEF is designed to be usable in minutes.
+AIEF is designed to be usable in minutes. Full install options: [bootstrap.md](bootstrap.md).
 
-## 1. Start from the project template
-
-```bash
-cp -R templates/project my-project
-cd my-project
-```
-
-## 2. Create your first Change
+## 1. Install the CLI
 
 ```bash
-mkdir -p changes/0001-my-first-change
-cp ../templates/change/* changes/0001-my-first-change/
+git clone https://github.com/avazquezmaza/aief-next.git
+cd aief-next
+npm install
+npm link        # installs a global `aief` command
+aief doctor     # check your environment
 ```
 
-## 3. Describe the Change
+## 2. Initialize your project
 
-Edit:
+```bash
+cd your-project
+aief init       # existing project — visible structure only, code untouched
+# or:
+aief init my-project && cd my-project   # new project skeleton
+```
+
+## 3. Create your first Change
+
+```bash
+aief new-change my-first-change
+```
+
+Then edit:
 
 ```text
-changes/0001-my-first-change/change.md
-changes/0001-my-first-change/spec.md
-changes/0001-my-first-change/tasks.md
+changes/0001-my-first-change/change.md   # why and what
+changes/0001-my-first-change/spec.md     # requirements and acceptance criteria
+changes/0001-my-first-change/tasks.md    # implementation checklist
 ```
 
-## 4. Ask your AI assistant to help
+## 4. Hand the context to your AI assistant
 
-Give the assistant:
-
-```text
-AGENTS.md
-changes/0001-my-first-change/spec.md
-changes/0001-my-first-change/tasks.md
+```bash
+aief prompt claude    # or: gemini, codex, cursor
 ```
 
-## 5. Verify and update evidence
+Paste the generated prompt — it already carries `AGENTS.md`, your standards and the active Change.
 
-Edit:
+## 5. Verify and close
 
-```text
-changes/0001-my-first-change/evidence.md
+```bash
+aief verify           # structure and evidence checks
+aief close --yes      # marks the Change Closed when everything is ready
 ```
 
-That is the minimum AIEF loop.
+That is the minimum AIEF loop. Stage-by-stage detail: [lifecycle.md](lifecycle.md).
+
+> Prefer to work without the CLI? The templates are still available for manual use: copy `templates/change/` into `changes/<id>-<name>/` and follow [AGENTS.md](../AGENTS.md).

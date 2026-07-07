@@ -54,7 +54,7 @@ AIEF
 1. Read this Navigator.
 2. Open [Decision Tree](decision-tree.md).
 3. Run the Todo example.
-4. Copy `starter-project/`.
-5. Create your first Change.
-6. Ask an AI assistant to help using `AGENTS.md`.
-7. Update `evidence.md`.
+4. Install the CLI and initialize a project: `npm install && npm link`, then `aief init` (or `aief init my-project`).
+5. Create your first Change: `aief new-change my-change`.
+6. Generate the assistant prompt: `aief prompt claude` (or gemini / codex / cursor).
+7. Update `evidence.md`, then `aief verify` and `aief close --yes`.

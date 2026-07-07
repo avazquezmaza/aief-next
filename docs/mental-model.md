@@ -1,5 +1,7 @@
 # AIEF Mental Model
 
+> Quick orientation. Canonical references: [architecture.md](architecture.md), [ecosystem.md](ecosystem.md), [lifecycle.md](lifecycle.md).
+
 ## One sentence
 
 **AIEF coordinates the engineering workflow.**
@@ -41,16 +43,23 @@ Merge / Release
 2. docs/learning-path.md
 3. examples/todo-app/
 
-## What do I copy?
+## What do I run?
 
-- starter-project/
-- templates/change/
+- `aief init` (existing project) or `aief init <name>` (new project)
+- `aief new-change <name>` for each unit of work
+- `aief prompt <assistant>` to hand context to the AI
+- `aief verify` and `aief close --yes` to govern the outcome
+
+(Manual alternative: copy `templates/change/` yourself.)
 
 ## What does the AI use?
 
+Everything `aief prompt` composes for it:
+
 - AGENTS.md
 - CLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md
-- profiles/
+- profile (`--profile`)
+- knowledge/standards/ and recommended Skills
 - active Change
 
 ## What do I edit?

@@ -8,8 +8,7 @@ Use only:
 
 ```text
 AGENTS.md
-changes/
-templates/change/
+changes/          (aief new-change, or copy templates/change/ manually)
 ```
 
 Best for:
@@ -24,7 +23,7 @@ Best for:
 Add:
 
 ```text
-starter-project/
+knowledge/standards/   (created by aief init / adopt)
 profiles/
 examples/
 ```

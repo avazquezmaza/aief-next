@@ -16,15 +16,18 @@ git add .
 git commit -m "checkpoint before adopting AIEF"
 ```
 
-## Step 2: Add agent instructions
+## Step 2: Let the CLI adopt the project
 
-Copy or create:
+From your project's root ([install the CLI first](../bootstrap.md)):
 
-```text
-AGENTS.md
+```bash
+aief doctor    # environment + readiness, writes nothing
+aief init      # or `aief adopt` — same guarantees
 ```
 
-Optional:
+This creates everything the manual path used to require — `AGENTS.md` (if missing), `changes/` with the adoption Change (evidence auto-generated), `knowledge/` with starter standards matched to your stack, `profiles/` — without touching application code and without overwriting anything.
+
+Optional assistant files you can add yourself:
 
 ```text
 CLAUDE.md
@@ -33,34 +36,24 @@ CODEX.md
 CURSOR.md
 ```
 
-## Step 3: Add Changes
+## Step 3: Verify and analyze
 
 ```bash
-mkdir -p changes
+aief verify    # confirm the structure
+aief analyze   # Analysis Change seeded with everything doctor detected
+aief prompt claude --profile architect   # hand the analysis to your assistant
 ```
 
-Create the first adoption Change:
+## Step 4: Grow the knowledge
 
-```text
-changes/0001-adopt-aief/
-├── change.md
-├── spec.md
-├── tasks.md
-└── evidence.md
-```
-
-## Step 4: Add Knowledge
-
-```bash
-mkdir -p knowledge
-```
-
-Use it for:
+`knowledge/` is yours to extend:
 
 - decisions,
 - constraints,
 - lessons learned,
 - recurring patterns.
+
+Edit the starter standards in `knowledge/standards/` — the `(adapt)` lines are meant to be replaced with your project's reality.
 
 ## Step 5: Use AIEF for the next real change
 

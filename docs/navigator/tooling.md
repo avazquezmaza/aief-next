@@ -11,13 +11,12 @@ You need:
 ```text
 AGENTS.md
 changes/
-templates/change/
 ```
 
-Use:
+Use ([install the CLI](../bootstrap.md)):
 
 ```bash
-node cli/bin/aief.js new-change add-login
+aief new-change add-login
 ```
 
 ## Level 2: AIEF + OpenSpec

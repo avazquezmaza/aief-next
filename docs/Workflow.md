@@ -31,7 +31,7 @@ doctor -> adopt -> verify -> analyze -> prompt
 AIEF prepares the project and the context:
 
 - detect the stack (with verifiable reasons),
-- adopt an existing project without touching application code,
+- adopt an existing project without touching application code (`aief adopt`, or `aief init` without arguments — same guarantees, same logic),
 - create the AIEF structure and editable project standards (`knowledge/standards/`),
 - seed the Analysis Change with detected signals, Skills, standards and inferred risks,
 - generate prompts that carry AGENTS.md, the assistant file, the profile, the standards and the recommended Skills.

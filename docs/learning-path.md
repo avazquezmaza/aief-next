@@ -7,7 +7,7 @@ Use this path if you are new to AIEF.
 Understand the basic idea:
 
 ```text
-Idea -> Spec -> Tasks -> Build -> Verify -> Evidence
+Idea -> Change -> Spec -> Tasks -> Build -> Verify -> Evidence
 ```
 
 ## 2. Open the Todo App example
@@ -22,41 +22,36 @@ Run:
 npm test
 ```
 
-## 3. Copy the starter project
+## 3. Install the CLI and initialize a project
 
 ```bash
-cp -R starter-project my-project
+cd aief-next && npm install && npm link
+aief init my-project && cd my-project     # or `aief init` inside an existing project
 ```
 
 ## 4. Create your first Change
 
-Create:
-
-```text
-changes/0001-my-first-change/
+```bash
+aief new-change my-first-change
 ```
 
-Add:
-
-```text
-change.md
-spec.md
-tasks.md
-evidence.md
-```
+Fill in `change.md`, `spec.md` and `tasks.md`.
 
 ## 5. Work with an AI assistant
 
-Give it:
-
-```text
-AGENTS.md
-profiles/developer.md
-changes/0001-my-first-change/
+```bash
+aief prompt claude    # or: gemini, codex, cursor
 ```
 
-## 6. Capture evidence
+The generated prompt gives the assistant `AGENTS.md`, your standards, the recommended Skills and the active Change.
 
-Update `evidence.md`.
+## 6. Capture evidence and close
 
-That is AIEF.
+Update `evidence.md`, then:
+
+```bash
+aief verify
+aief close --yes
+```
+
+That is AIEF. Next: [lifecycle.md](lifecycle.md) for the full stage-by-stage picture, [architecture.md](architecture.md) for how it works inside.

@@ -14,7 +14,17 @@
       "Read(//home/avazquez/PRS/claude-code/AIEF/examples/**)",
       "Bash(node cli/bin/aief.js new-change adoption-ux-quick-wins)",
       "Bash(node cli/bin/aief.js new-change prompt-lifecycle-guardrails)",
-      "Bash(node cli/bin/aief.js close --yes)"
+      "Bash(node cli/bin/aief.js close --yes)",
+      "Bash(npm install *)",
+      "Bash(npm link *)",
+      "Bash(aief --version)",
+      "Bash(aief --help)",
+      "Bash(aief doctor *)",
+      "Bash(rm -rf /tmp/claude-1000/-home-avazquez-PRS-claude-code-AIEF-aief-next/91c050a6-326e-490a-9137-c2081225e8d5/scratchpad/aief-bootstrap-test)",
+      "Bash(mkdir -p /tmp/claude-1000/-home-avazquez-PRS-claude-code-AIEF-aief-next/91c050a6-326e-490a-9137-c2081225e8d5/scratchpad/aief-bootstrap-test/src)",
+      "Bash(aief init *)",
+      "Bash(aief verify *)",
+      "Bash(aief close *)"
     ]
   }
 }

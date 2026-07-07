@@ -1,0 +1,18 @@
+{
+  "name": "aief-next",
+  "version": "0.1.0",
+  "description": "AIEF Next — Assistant-Agnostic AI Engineering Workflow Engine. Root bootstrap package; the CLI lives in cli/.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "aief": "cli/bin/aief.js"
+  },
+  "scripts": {
+    "start": "node cli/bin/aief.js",
+    "test": "npm --prefix cli test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

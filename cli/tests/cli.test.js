@@ -398,6 +398,83 @@ test("help covers every documented command with six fields", () => {
   }
 });
 
+test("--help and -h show usage and exit 0", () => {
+  const dir = makeProject();
+  for (const flag of ["--help", "-h"]) {
+    const { status, out } = aief(dir, [flag]);
+    assert.equal(status, 0, `${flag} must exit 0`);
+    assert.match(out, /AIEF CLI/);
+    assert.match(out, /Usage:/);
+    assert.match(out, /aief doctor/);
+    assert.match(out, /aief init/);
+  }
+});
+
+test("--version prints the CLI version", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["--version"]);
+  assert.equal(status, 0);
+  assert.match(out, /^aief \d+\.\d+\.\d+/);
+});
+
+test("doctor groups tools by level and never fails because of optional tools", () => {
+  const dir = makeProject();
+  const { out } = aief(dir, ["doctor"], { PATH: path.dirname(process.execPath) });
+  assert.match(out, /Core \(required\):/);
+  assert.match(out, /SDD \(recommended\):/);
+  assert.match(out, /Build tools \(optional\):/);
+  assert.match(out, /Assistants \(optional\):/);
+  assert.match(out, /Summary:/);
+  // With a stripped PATH the optional tools are absent — reported, not fatal.
+  assert.match(out, /○ (java|docker|claude): not detected \(optional\)/);
+});
+
+test("doctor reports missing required tools in the summary", { skip: !POSIX }, () => {
+  const dir = makeProject();
+  const emptyBin = path.join(dir, "emptybin");
+  fs.mkdirSync(emptyBin);
+  const { status, out } = aief(dir, ["doctor"], { PATH: emptyBin });
+  assert.equal(status, 1);
+  assert.match(out, /✗ git: not found \(required\)/);
+  assert.match(out, /Missing required tools: .*git/);
+});
+
+test("init without arguments initializes the current directory with visible structure only", () => {
+  const dir = makeProject({ "src/app.js": "console.log('app');" });
+  const { status, out } = aief(dir, ["init"], { PATH: path.dirname(process.execPath) });
+  assert.equal(status, 0);
+  assert.match(out, /AIEF Init/);
+  assert.match(out, /never modifies application code/);
+  assert.match(out, /Next steps:/);
+  assert.match(out, /Install OpenSpec if missing: npm install -g @fission-ai\/openspec@latest/);
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+  assert.ok(fs.existsSync(path.join(dir, "changes")));
+  assert.ok(fs.existsSync(path.join(dir, "knowledge")));
+  // ADR-009: no hidden state — init must never create a .aief/ directory.
+  assert.ok(!fs.existsSync(path.join(dir, ".aief")));
+  assert.equal(fs.readFileSync(path.join(dir, "src", "app.js"), "utf8"), "console.log('app');");
+});
+
+test("init without arguments is idempotent and reports what already exists", () => {
+  const dir = makeProject();
+  aief(dir, ["init"]);
+  const { status, out } = aief(dir, ["init"]);
+  assert.equal(status, 0);
+  assert.match(out, /✓ AGENTS\.md/);
+  assert.match(out, /✓ changes\//);
+  assert.match(out, /Adoption Change already exists/);
+});
+
+test("init with a name still creates a new project skeleton", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["init", "my-project"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created AIEF project/);
+  for (const entry of ["README.md", "AGENTS.md", "changes", "knowledge", "src", "tests"]) {
+    assert.ok(fs.existsSync(path.join(dir, "my-project", entry)), `my-project/${entry} expected`);
+  }
+});
+
 test("release reports honestly when notes already exist", () => {
   const dir = makeProject();
   const first = aief(dir, ["release", "0.9.0"]);
