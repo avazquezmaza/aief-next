@@ -4,6 +4,12 @@
 
 > **AIEF coordinates humans, AI assistants, specifications, implementation and evidence in one visible workflow. It orchestrates the tools you already use — it does not replace any of them.**
 
+## Current Status
+
+**AIEF is in pre-1.0 internal pilot.** It is ready for **guided internal use** and has been validated on **one greenfield** (Spring Boot + Camel + Java 21) and **one brownfield** (Next.js / Postgres / Cognito / multitenant) project. It is **not yet 1.0**, and is not approved for unsupervised delegated implementation or external stable publication.
+
+Start here: [docs/TEAM-USAGE-GUIDE.md](docs/TEAM-USAGE-GUIDE.md) · Path to 1.0: [docs/AIEF-1.0-READINESS.md](docs/AIEF-1.0-READINESS.md)
+
 ## What is AIEF?
 
 AIEF is a **workflow engine** for AI-assisted software engineering. It is a dependency-free Node.js CLI (`aief`) plus a set of visible conventions (`AGENTS.md`, `changes/`, `knowledge/`) that keep work consistent no matter which AI assistant does the implementation.
