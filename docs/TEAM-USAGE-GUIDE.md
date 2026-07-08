@@ -87,6 +87,23 @@ aief analyze     # create an Analysis Change seeded with what doctor detected
 
 ---
 
+## How to start a Change from a requirement source (Jira, Notion, GitHub Issues, or manual)
+
+Real work usually starts in a ticket, not in `aief new-change`. Use `aief enrich` instead when you have a source:
+
+```bash
+aief enrich manual TEST-001                            # human-provided requirement
+aief enrich jira ISSUE-123 --file requirements/jira/ISSUE-123.json   # Jira, read-only, local export
+```
+
+`aief enrich <provider> <source-id>` creates a Change seeded with the requirement, read-only (AIEF never writes back to the source), classified as Fact `[H]` / Inference `[I]` / Assumption `[S]`, with Open Questions and a **Requires Human Review** status. It never suggests implementing directly.
+
+**Required human review point:** review `spec.md`, answer or defer the Open Questions, approve or adjust the scope in `change.md`, then continue with `aief propose --change <the-change-id>` (adds `proposal.md` to the **same** Change — never a new one, never touching what `enrich` already recorded) or straight to `aief prompt`. `aief close --yes` refuses this Change while its Human Review tasks are unchecked — that gate is not optional.
+
+Only `manual` and `jira` (via a local export file, no network, no credentials) are implemented today; Notion, GitHub Issues and Azure DevOps are planned. Full model and provider table: [docs/requirement-sources.md](requirement-sources.md); full flow: [docs/enrichment-workflow.md](enrichment-workflow.md).
+
+---
+
 ## How to start a new Change
 
 ```bash
@@ -94,7 +111,7 @@ aief new-change add-login        # creates changes/<next-id>-add-login/
 aief status                      # confirm the active Change and ID
 ```
 
-Then fill in the skeleton **before** any implementation:
+Use this when you already have a scoped idea and no external requirement source to enrich from. Then fill in the skeleton **before** any implementation:
 
 - `change.md` — why and what (objective, scope, out of scope).
 - `spec.md` — requirements and acceptance criteria.
@@ -188,9 +205,10 @@ aief close --yes      # marks the Change Closed in change.md — only when all c
 A human **must** review and decide at each of these:
 
 1. **After adopt/analyze** — edit `knowledge/standards/` to match the real project; confirm the active Change.
-2. **Before implementation** — approve `change.md` scope and `spec.md` acceptance criteria.
-3. **On every assistant diff** — review the actual code changes.
-4. **Before close** — confirm acceptance criteria are met and evidence is honest.
-5. **Before commit / push** — humans create commits and pushes; AIEF never does.
+2. **After enrich** — review the Normalized Requirement and Open Questions; a requirement source Change stays `Requires Human Review` until you clear it.
+3. **Before implementation** — approve `change.md` scope and `spec.md` acceptance criteria.
+4. **On every assistant diff** — review the actual code changes.
+5. **Before close** — confirm acceptance criteria are met and evidence is honest.
+6. **Before commit / push** — humans create commits and pushes; AIEF never does.
 
 See [docs/DEVELOPER-CHECKLIST.md](DEVELOPER-CHECKLIST.md) for the one-page version.

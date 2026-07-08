@@ -353,6 +353,48 @@ test("propose without OpenSpec falls back loudly to a local Change", () => {
   assert.ok(fs.existsSync(path.join(dir, "changes", "0001-add-login", "proposal.md")));
 });
 
+test("propose --change continues an existing Change instead of creating a new one", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const changeMdBefore = fs.readFileSync(path.join(dir, "changes", "0001-manual-test-001", "change.md"), "utf8");
+  const specMdBefore = fs.readFileSync(path.join(dir, "changes", "0001-manual-test-001", "spec.md"), "utf8");
+  const { status, out } = aief(dir, ["propose", "--change", "0001-manual-test-001"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created changes\/0001-manual-test-001\/proposal\.md/);
+  const changes = fs.readdirSync(path.join(dir, "changes"));
+  assert.equal(changes.length, 1, "propose --change must not create a second Change directory");
+  assert.ok(fs.existsSync(path.join(dir, "changes", "0001-manual-test-001", "proposal.md")));
+  // Requirement Source, Normalized Requirement, [H]/[I]/[S] and Human Review must survive untouched.
+  assert.equal(fs.readFileSync(path.join(dir, "changes", "0001-manual-test-001", "change.md"), "utf8"), changeMdBefore);
+  assert.equal(fs.readFileSync(path.join(dir, "changes", "0001-manual-test-001", "spec.md"), "utf8"), specMdBefore);
+});
+
+test("propose --change never overwrites an existing proposal.md", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  aief(dir, ["propose", "--change", "0001-manual-test-001"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-manual-test-001", "proposal.md"), "# Proposal\n\nHand-edited content.\n", "utf8");
+  const { out } = aief(dir, ["propose", "--change", "0001-manual-test-001"]);
+  assert.match(out, /already exists — not overwritten/);
+  assert.match(fs.readFileSync(path.join(dir, "changes", "0001-manual-test-001", "proposal.md"), "utf8"), /Hand-edited content/);
+});
+
+test("propose --change fails loudly when no Change matches", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["propose", "--change", "9999-does-not-exist"]);
+  assert.equal(status, 1);
+  assert.match(out, /No Change found matching "9999-does-not-exist"/);
+});
+
+test("propose <idea> without --change still creates a new Change (unchanged behavior)", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const { status } = aief(dir, ["propose", "Something else entirely"], { PATH: path.dirname(process.execPath) });
+  assert.equal(status, 0);
+  const changes = fs.readdirSync(path.join(dir, "changes")).sort();
+  assert.deepEqual(changes, ["0001-manual-test-001", "0002-something-else-entirely"]);
+});
+
 test("propose warns when OpenSpec lacks a propose command", { skip: !POSIX }, () => {
   const dir = makeProject();
   const fakeBin = path.join(dir, "fakebin");
@@ -389,7 +431,7 @@ test("close works when change.md prose merely mentions \"## Status\"", () => {
 
 test("help covers every documented command with six fields", () => {
   const dir = makeProject();
-  for (const command of ["doctor", "status", "adopt", "analyze", "new-change", "propose", "prompt", "verify", "close", "release", "init", "use-profile", "help", "explain"]) {
+  for (const command of ["doctor", "status", "adopt", "analyze", "new-change", "enrich", "propose", "prompt", "verify", "close", "release", "init", "use-profile", "help", "explain"]) {
     const { status, out } = aief(dir, ["help", command]);
     assert.equal(status, 0, `help ${command} must exit 0`);
     for (const field of ["Purpose", "When to use it", "Reads", "Writes", "Example", "Next step"]) {
@@ -481,4 +523,121 @@ test("release reports honestly when notes already exist", () => {
   assert.match(first.out, /Created release notes/);
   const second = aief(dir, ["release", "0.9.0"]);
   assert.match(second.out, /already exist/);
+});
+
+test("enrich manual creates a Change with source metadata, read-only marker and Human Review", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["enrich", "manual", "TEST-001"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created Change: changes\/0001-manual-test-001/);
+  assert.match(out, /read-only; nothing was written back to manual/);
+  assert.match(out, /requires human review before any implementation/);
+  const changeDir = path.join(dir, "changes", "0001-manual-test-001");
+  const changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  assert.match(changeMd, /## Type\n\nEnrichment/);
+  assert.match(changeMd, /## Requirement Source/);
+  assert.match(changeMd, /\*\*Provider:\*\* manual/);
+  assert.match(changeMd, /\*\*Source ID:\*\* TEST-001/);
+  assert.match(changeMd, /Read-only:\*\* yes/);
+  assert.match(changeMd, /## Review Status\n\nRequires Human Review/);
+  const specMd = fs.readFileSync(path.join(changeDir, "spec.md"), "utf8");
+  assert.match(specMd, /\[H\] Facts/);
+  assert.match(specMd, /\[I\] Inferences/);
+  assert.match(specMd, /\[S\] Assumptions/);
+  assert.match(specMd, /## Open Questions/);
+  const evidenceMd = fs.readFileSync(path.join(changeDir, "evidence.md"), "utf8");
+  assert.match(evidenceMd, /Generated by AIEF during enrichment/);
+});
+
+test("enrich requires a source id and a known, implemented provider", () => {
+  const dir = makeProject();
+  const missingId = aief(dir, ["enrich", "manual"]);
+  assert.equal(missingId.status, 1);
+  assert.match(missingId.out, /Source ID is required/);
+  const unknown = aief(dir, ["enrich", "trello", "X-1"]);
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.out, /Unknown or missing provider "trello"/);
+  const notImplemented = aief(dir, ["enrich", "notion", "X-1"]);
+  assert.equal(notImplemented.status, 1);
+  assert.match(notImplemented.out, /not implemented yet/);
+});
+
+test("enrich never creates a duplicate Change for the same provider/source-id", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const { status, out } = aief(dir, ["enrich", "manual", "TEST-001"]);
+  assert.equal(status, 0);
+  assert.match(out, /already exists/);
+  assert.match(out, /Not creating a duplicate/);
+  const changes = fs.readdirSync(path.join(dir, "changes"));
+  assert.equal(changes.filter((c) => c.includes("manual-test-001")).length, 1);
+});
+
+test("enrich jira without a local export creates an honest placeholder Change (no network, no credentials)", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["enrich", "jira", "ISSUE-999"]);
+  assert.equal(status, 0);
+  assert.match(out, /No local Jira export found/);
+  const changeDir = path.join(dir, "changes", "0001-jira-issue-999");
+  const specMd = fs.readFileSync(path.join(changeDir, "spec.md"), "utf8");
+  assert.match(specMd, /No local Jira export found/);
+});
+
+test("enrich jira normalizes a local export file into the Normalized Requirement", () => {
+  const dir = makeProject({
+    "requirements/jira/ISSUE-42.json": JSON.stringify({
+      fields: {
+        summary: "Intelligent Support Assistant",
+        description: "Build an assistant for support tickets.",
+        status: { name: "In Progress" },
+        priority: { name: "High" },
+        reporter: { displayName: "Alice" },
+        labels: ["ai", "support"]
+      }
+    })
+  });
+  const { status, out } = aief(dir, ["enrich", "jira", "ISSUE-42"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /No local Jira export found/);
+  const specMd = fs.readFileSync(path.join(dir, "changes", "0001-jira-issue-42", "spec.md"), "utf8");
+  assert.match(specMd, /Intelligent Support Assistant/);
+  assert.match(specMd, /\*\*Title:\*\* Intelligent Support Assistant/);
+  assert.match(specMd, /\*\*Status \(source\):\*\* In Progress/);
+  assert.match(specMd, /\*\*Priority:\*\* High/);
+});
+
+test("verify does not require README.md while only Discovery/Enrichment Changes exist", () => {
+  const dir = makeProject({ "AGENTS.md": "x" });
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0);
+  assert.match(out, /README\.md: not required yet/);
+  assert.match(out, /Result: PASS/);
+});
+
+test("verify still requires README.md once a non-Enrichment Change exists", () => {
+  const dir = makeProject({ "AGENTS.md": "x" });
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  aief(dir, ["new-change", "implement-feature"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 1);
+  assert.match(out, /Missing: README\.md/);
+});
+
+test("close refuses an Enrichment Change until Human Review tasks are checked off", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const refused = aief(dir, ["close", "--yes"]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.out, /Not closed/);
+});
+
+test("prompt on an Enrichment Change tells the assistant not to implement and to respect Human Review", () => {
+  const dir = makeProject();
+  aief(dir, ["enrich", "manual", "TEST-001"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /This is an Enrichment Change/);
+  assert.match(out, /Do not implement application code/);
+  assert.match(out, /Do not modify the external requirement source/);
+  assert.match(out, /never marking Human Review tasks done yourself/);
 });

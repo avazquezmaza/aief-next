@@ -110,6 +110,17 @@ aief close --yes                         # 6. readiness checks pass -> Change ma
 
 The generated prompt carries `AGENTS.md`, the assistant file, the profile, your project standards and the recommended Skills — the assistant starts with the full context, not a blank chat. After adoption you will typically have two open Changes (`adopt-aief` and the Analysis); that is normal — the latest open Change is automatically the active one.
 
+## Start from a Requirement Source (Jira, Notion, GitHub Issues, manual)
+
+Real work usually starts in a ticket, not in `aief new-change`. `aief enrich <provider> <source-id>` reads a requirement **read-only** (AIEF never writes back to Jira, Notion or any other tool) and creates a Change seeded with it — classified as Fact `[H]` / Inference `[I]` / Assumption `[S]`, with Open Questions and a `Requires Human Review` status:
+
+```bash
+aief enrich manual TEST-001                                          # human-provided
+aief enrich jira ISSUE-123 --file requirements/jira/ISSUE-123.json   # Jira, local export, no network
+```
+
+Every provider produces the same Normalized Requirement, so the workflow does not change as sources change. Only `manual` and `jira` (local-export placeholder) are implemented today; Notion, GitHub Issues and Azure DevOps are planned. `aief close --yes` refuses this Change until its Human Review tasks are checked off. After Human Review, `aief propose --change <the-change-id>` continues the **same** Change (adds `proposal.md`, never forks a new one) — plain `aief propose "<idea>"` still creates a new Change as before. Full model: [docs/requirement-sources.md](docs/requirement-sources.md) · full workflow: [docs/enrichment-workflow.md](docs/enrichment-workflow.md).
+
 ## How AIEF relates to OpenSpec, SpecBoot and assistants
 
 All integrations are optional. AIEF works standalone and announces every fallback explicitly — never silently.
@@ -152,7 +163,8 @@ aief init [name]      # initialize current directory, or create a new project sk
 aief adopt            # adopt AIEF in an existing project
 aief analyze          # create an Analysis Change
 aief new-change <name>
-aief propose "<idea>" # delegates to OpenSpec when available
+aief enrich manual|jira <source-id> [--file path]  # requirement source -> Change, read-only
+aief propose "<idea>" [--change id] # delegates to OpenSpec, or continues an existing Change
 aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change id]
 aief verify           # check AIEF structures
 aief close [--yes]    # readiness checks; --yes marks the Change Closed

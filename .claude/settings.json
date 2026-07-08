@@ -24,7 +24,12 @@
       "Bash(mkdir -p /tmp/claude-1000/-home-avazquez-PRS-claude-code-AIEF-aief-next/91c050a6-326e-490a-9137-c2081225e8d5/scratchpad/aief-bootstrap-test/src)",
       "Bash(aief init *)",
       "Bash(aief verify *)",
-      "Bash(aief close *)"
+      "Bash(aief close *)",
+      "Bash(node --check cli/src/cli.js)",
+      "Bash(node --check cli/src/requirement.js)",
+      "Bash(node --check cli/src/requirement-providers/manual.js)",
+      "Bash(node --check cli/src/requirement-providers/jira.js)",
+      "Bash(node --check cli/src/requirement-providers/index.js)"
     ]
   }
 }

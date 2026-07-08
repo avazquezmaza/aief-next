@@ -9,7 +9,11 @@ The full workflow has **three levels**:
 ```mermaid
 flowchart TD
     subgraph L1["1 · AIEF Context Workflow"]
-        A1[aief doctor] --> A2[aief adopt] --> A3[aief verify] --> A4[aief analyze] --> A5[aief prompt]
+        A1[aief doctor] --> A2[aief adopt] --> A3[aief verify]
+        A3 --> A4[aief analyze]
+        A3 --> A4c[aief enrich]
+        A4 --> A5[aief prompt]
+        A4c -->|Human Review| A5
     end
     subgraph L2["2 · OpenSpec / Assistant Feature Workflow"]
         B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]
@@ -26,6 +30,7 @@ flowchart TD
 
 ```text
 doctor -> adopt -> verify -> analyze -> prompt
+doctor -> adopt -> verify -> enrich -> prompt      (starting from a Requirement Source instead)
 ```
 
 AIEF prepares the project and the context:
@@ -34,6 +39,7 @@ AIEF prepares the project and the context:
 - adopt an existing project without touching application code (`aief adopt`, or `aief init` without arguments — same guarantees, same logic),
 - create the AIEF structure and editable project standards (`knowledge/standards/`),
 - seed the Analysis Change with detected signals, Skills, standards and inferred risks,
+- or seed a Change from an external **Requirement Source** instead — Jira, Notion, GitHub Issues, Azure DevOps, Markdown or a manually entered requirement (`aief enrich <provider> <source-id>`), always read-only, always requiring human review before continuing,
 - generate prompts that carry AGENTS.md, the assistant file, the profile, the standards and the recommended Skills.
 
 **This level never implements functional code.**
@@ -45,6 +51,12 @@ After `adopt` + `analyze` you will normally have two Changes: `0001-adopt-aief` 
 - You do **not** need to close the adoption Change first.
 - The latest open Change is automatically the active one, so `prompt` and `close` target the Analysis Change.
 - Close the adoption Change whenever its remaining human tasks are done (adapt the standards, run verify): `aief close --yes --change adopt-aief` — before or after the Analysis, the order does not affect AIEF.
+
+### Starting from a Requirement Source
+
+`aief enrich <provider> <source-id>` (e.g. `aief enrich manual TEST-001` or `aief enrich jira ISSUE-123 --file ...`) is an alternative entry into Level 1, alongside `analyze` and `new-change`: instead of seeding a Change from the codebase, it seeds one from an external, read-only requirement. The resulting Change carries a `Requires Human Review` status and cannot proceed to implementation until a human clears it — `aief close --yes` refuses while its Human Review tasks are unchecked, and `aief prompt` tells the assistant not to implement or touch the source. Once reviewed, continue with `aief propose --change <id>` (adds `proposal.md` to the same Change, without touching what `enrich` already recorded) or `aief prompt` directly, then Level 2 as usual.
+
+Full model, provider table and command detail: [docs/requirement-sources.md](requirement-sources.md), [docs/enrichment-workflow.md](enrichment-workflow.md).
 
 ## Level 2 — OpenSpec / Assistant Feature Workflow
 
@@ -134,8 +146,10 @@ aief verify && aief close --yes      # AIEF governance (level 3)
 ## The Change lifecycle (all levels together)
 
 ```text
-Idea
-  -> aief new-change / analyze            (level 1: context)
+Idea, or an external Requirement Source (Jira, Notion, GitHub Issues, ...)
+  -> aief new-change / analyze / enrich   (level 1: context)
+  -> [enrich only] Human Review required before continuing
+  -> aief propose [--change <id>]         (level 1/2 bridge: new idea, or continue an enriched Change)
   -> aief prompt -> assistant works       (level 2: feature, with or without OpenSpec)
   -> evidence.md completed                (level 2 output)
   -> aief verify -> aief close --yes      (level 3: governance)
