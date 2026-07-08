@@ -109,11 +109,29 @@ Evidence is also how AIEF itself evolves: product improvements must trace to val
 
 ## Verify
 
-`aief verify` (level 3, read-only) checks: required files (`README.md`, `AGENTS.md`, `changes/`), each Change's four files present and non-empty, and evidence completeness — then prints PASS/FAIL with the next recommended step. It is the pre-close and pre-commit gate.
+`aief verify` (level 3, read-only) checks: required files (`README.md`, `AGENTS.md`, `changes/`), each Change's four files present and non-empty, evidence completeness, and (for Enrichment Changes) the Requirement Source/Human Review rules — then prints PASS/FAIL with the next recommended step. It is the pre-close and pre-commit gate.
 
 ## Close
 
 `aief close` runs readiness checks (files present, tasks checked, evidence completed) and reports. Only `close --yes`, with all checks passing, writes the single thing the governance level ever writes: a dated `## Status / Closed` section inside the Change's own `change.md`. Closing a Change automatically promotes the next open one to active. `aief close` is not OpenSpec `/archive` — each governs its own artifact ([ADR-011](../knowledge/decisions.md), [comparison](Workflow.md#aief-close-vs-openspec-archive)).
+
+### Verification internals
+
+The rules behind `verify` and `close` live outside `cli.js`, in a small internal core:
+
+```text
+cli/src/core/
+  domain/
+    change.js               Change model: loadChange(dir) + the content predicates it derives from
+                             (closed, type, evidence-placeholder, open-task count)
+    verification-report.js  VerificationReport: { lines, errors, warnings, passed, next }
+  services/
+    change-verifier.js      verifyProject() (used by `verify`) and checkChangeReadiness()
+                             (used by `close`) — both read the same Change fields, so there
+                             is exactly one implementation of each rule, not two
+```
+
+`cli.js` itself only resolves arguments, locates the Change directory, loads it via `loadChange`, calls the verifier, and renders the result — it holds no verification logic. This is an internal refactor: no command, output format, or `changes/<id>/` structure changed.
 
 ## Bootstrap and distribution
 
