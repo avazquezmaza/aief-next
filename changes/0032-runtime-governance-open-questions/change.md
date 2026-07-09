@@ -37,3 +37,7 @@ Capture, as formal open questions in an architecture document, the three tension
 - `docs/runtime-governance-open-questions.md` exists, covers only the three tensions, is explicit about which hypotheses require validation, and ends with the required five-column table.
 - The document maintains the ADR-008 posture throughout: no implementation authorized; the cheapest experiment is named before any structure (manual convention before tooling).
 - No executable file changed; `aief verify` PASS; no other document modified.
+
+## Status
+
+Closed (2026-07-09)

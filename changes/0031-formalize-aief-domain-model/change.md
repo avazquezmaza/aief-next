@@ -31,3 +31,7 @@ Document AIEF's conceptual domain model as product architecture — its ubiquito
 - `docs/domain-model.md` exists, is internally consistent with the accepted ADRs (does not contradict ADR-009, ADR-010, ADR-012 in particular), and reads as product/conceptual architecture rather than an implementation reference.
 - No CLI behavior, folder structure, or existing documentation changed.
 - `npm test` still green (no executable file was touched).
+
+## Status
+
+Closed (2026-07-09)
