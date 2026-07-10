@@ -10,7 +10,13 @@ What was actually done?
 
 ## Verification
 
-How was it verified? Include actual results.
+How was it verified? Include actual results — real commands and outputs, never secrets.
+
+<!--
+Optional (docs/governance-conventions.md), add only when they apply:
+  ## Validation Harness  — Bootstrap / Build / Lint / Test / Runtime validation / Teardown (run by the project, not AIEF)
+  ## Increments          — one entry per increment with its own PASS; an increment PASS is not a Change closure
+-->
 
 ## Findings
 
