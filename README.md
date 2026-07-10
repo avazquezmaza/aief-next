@@ -108,7 +108,7 @@ aief verify                              # 5. check structures and evidence
 aief close --yes                         # 6. readiness checks pass -> Change marked Closed
 ```
 
-The generated prompt carries `AGENTS.md`, the assistant file, the profile, your project standards and the recommended Skills — the assistant starts with the full context, not a blank chat. After adoption you will typically have two open Changes (`adopt-aief` and the Analysis); that is normal — the latest open Change is automatically the active one.
+The generated prompt carries `AGENTS.md`, the assistant file, the profile, your project standards and the recommended Skills — the assistant starts with the full context, not a blank chat. After adoption you will typically have two open Changes (`adopt-aief` and the Analysis); that is normal — with more than one Change open, `prompt`/`close` ask you to name the target with `--change <id>` instead of guessing (with exactly one open, `--change` is optional).
 
 ## Start from a Requirement Source (Jira, Notion, GitHub Issues, manual)
 

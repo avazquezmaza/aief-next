@@ -49,7 +49,7 @@ AIEF prepares the project and the context:
 After `adopt` + `analyze` you will normally have two Changes: `0001-adopt-aief` (evidence auto-generated) and `0002-analyze-current-architecture`. This is correct and requires no special handling:
 
 - You do **not** need to close the adoption Change first.
-- The latest open Change is automatically the active one, so `prompt` and `close` target the Analysis Change.
+- With more than one Change open, commands that act on a Change (`prompt`, `close`, `verify --change`) ask you to name the target explicitly with `--change <id>` — nothing is selected implicitly (Flux Portal dogfooding showed implicit "latest open" selection picks the wrong Change too easily). With exactly one Change open, `--change` stays optional.
 - Close the adoption Change whenever its remaining human tasks are done (adapt the standards, run verify): `aief close --yes --change adopt-aief` — before or after the Analysis, the order does not affect AIEF.
 
 ### Starting from a Requirement Source

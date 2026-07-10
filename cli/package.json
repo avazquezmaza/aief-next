@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node bin/aief.js",
-    "test": "node --test tests/detect.test.js tests/cli.test.js tests/requirement-providers.test.js tests/change-verifier.test.js"
+    "test": "node --test tests/detect.test.js tests/cli.test.js tests/requirement-providers.test.js tests/change-verifier.test.js tests/change-selection.test.js"
   },
   "engines": {
     "node": ">=18"

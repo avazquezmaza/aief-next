@@ -35,6 +35,30 @@ export function countOpenTasks(tasksMd) {
   return (tasksMd.match(/^\s*- \[ \]/gm) || []).length;
 }
 
+// The single shared implementation of Change selection (Flux Portal dogfooding
+// finding: per-command substring matching silently picked the wrong Change).
+// Deterministic tiers — first tier with matches wins:
+//   1. exact basename ("0002-add-login")
+//   2. exact numeric ID ("0002" or "2")
+//   3. substring of the basename ("add-login")
+// Returns every match in the winning tier; the caller decides how to treat
+// zero (not found) or many (ambiguous — never "last one wins").
+export function matchChanges(selector, dirs) {
+  const value = String(selector || "").trim();
+  if (!value) return [];
+  const pairs = dirs.map((dir) => [dir, path.basename(dir)]);
+  const exact = pairs.filter(([, base]) => base === value);
+  if (exact.length) return exact.map(([dir]) => dir);
+  if (/^\d+$/.test(value)) {
+    const byId = pairs.filter(([, base]) => {
+      const m = base.match(/^(\d+)-/);
+      return m && Number(m[1]) === Number(value);
+    });
+    if (byId.length) return byId.map(([dir]) => dir);
+  }
+  return pairs.filter(([, base]) => base.includes(value)).map(([dir]) => dir);
+}
+
 // Loads a Change from its directory: raw file contents plus every flag
 // verification needs, computed once so verifyProject() and
 // checkChangeReadiness() (used by `verify` and `close` respectively) read

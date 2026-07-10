@@ -119,7 +119,8 @@ test("prompt references knowledge/skills.md and keeps Skills as context, not com
   const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
   aief(dir, ["adopt"]);
   aief(dir, ["analyze"]);
-  const { out } = aief(dir, ["prompt", "--profile", "architect"]);
+  // adopt + analyze leaves two open Changes, so the target is named explicitly.
+  const { out } = aief(dir, ["prompt", "--profile", "architect", "--change", "0002-analyze-current-architecture"]);
   assert.match(out, /- knowledge\/skills\.md/);
   assert.match(out, /included as context, not executed/);
   const changeMd = fs.readFileSync(path.join(dir, "changes", "0002-analyze-current-architecture", "change.md"), "utf8");
@@ -166,7 +167,7 @@ test("prompt includes standards and Skill context honestly", () => {
   const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
   aief(dir, ["adopt"]);
   aief(dir, ["analyze"]);
-  const { out } = aief(dir, ["prompt", "--profile", "architect"]);
+  const { out } = aief(dir, ["prompt", "--profile", "architect", "--change", "0002-analyze-current-architecture"]);
   assert.match(out, /Project standards to follow/);
   assert.match(out, /knowledge\/standards\/base-standards\.md/);
   assert.match(out, /included as context, not executed/);
