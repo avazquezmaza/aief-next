@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { detectProject, recommendSkills } from "./detect.js";
 import { PROVIDERS, providerList } from "./requirement.js";
 import { retrieveRequirement, hasAdapter, implementedProviders } from "./requirement-providers/index.js";
-import { loadChange, isClosedContent, changeTypeFromContent, isEvidencePlaceholderContent } from "./core/domain/change.js";
-import { verifyProject, checkChangeReadiness } from "./core/services/change-verifier.js";
+import { loadChange, isClosedContent, changeTypeFromContent, isEvidencePlaceholderContent, matchChanges } from "./core/domain/change.js";
+import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
 
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
 const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "testing-standards.md", "security-standards.md"];
@@ -50,7 +50,7 @@ function getChangeDirs() {
 // there is no separate state file.
 // Thin wrappers over the core/domain/change.js content predicates: they read
 // the file cli.js's own way (via read()/cwd()) and delegate the actual rule
-// to the single implementation in the domain layer, so latestChangeDir(),
+// to the single implementation in the domain layer, so openChangeDirs(),
 // prompt() and the verification service all agree on one definition.
 function isClosed(changeDir) {
   return isClosedContent(read(path.join(changeDir, "change.md")));
@@ -58,9 +58,39 @@ function isClosed(changeDir) {
 function changeType(changeDir) {
   return changeTypeFromContent(read(path.join(changeDir, "change.md")));
 }
-function latestChangeDir() {
-  const open = getChangeDirs().filter((dir) => !isClosed(dir));
-  return open.length ? open[open.length - 1] : null;
+function openChangeDirs() {
+  return getChangeDirs().filter((dir) => !isClosed(dir));
+}
+// Change selection (Flux Portal dogfooding, ROADMAP-TO-1.0 workstream 1):
+// one shared implementation for every command that operates on a Change.
+// Explicit `--change` resolves through matchChanges() and fails loudly on
+// no match or an ambiguous match — never "last match wins", never a silent
+// fallback to the latest open Change. Without `--change`, exactly one open
+// Change keeps the classic ergonomics; more than one is an actionable error
+// for mutating/composing commands. No session state is stored (ADR-009):
+// resolution is derived from the files on every invocation.
+function resolveExplicitChange(selector) {
+  const matches = matchChanges(selector, getChangeDirs());
+  if (!matches.length) {
+    const open = openChangeDirs();
+    console.error(`No Change found matching "${selector}".${open.length ? `\n\nOpen Changes:\n\n${open.map((d) => `- ${path.basename(d)}`).join("\n")}` : ""}`);
+    process.exitCode = 1;
+    return null;
+  }
+  if (matches.length > 1) {
+    console.error(`Ambiguous --change "${selector}" — ${matches.length} Changes match:\n\n${matches.map((d) => `- ${path.basename(d)}`).join("\n")}\n\nUse a more specific value (full ID or full name).`);
+    process.exitCode = 1;
+    return null;
+  }
+  return matches[0];
+}
+function resolveImplicitChange(commandExample) {
+  const open = openChangeDirs();
+  if (!open.length) { console.error("No open Change found."); process.exitCode = 1; return null; }
+  if (open.length === 1) return open[0];
+  console.error(`Multiple open Changes (${open.length}) — not selecting one implicitly:\n\n${open.map((d) => `- ${path.basename(d)}`).join("\n")}\n\nSelect one explicitly:\n\n  ${commandExample} --change <id>`);
+  process.exitCode = 1;
+  return null;
 }
 function printNext(...commands) {
   console.log("\nNext:");
@@ -124,12 +154,12 @@ const COMMAND_HELP = {
     next: "aief adopt (existing project) or aief init <name> (new project)."
   },
   status: {
-    purpose: "Show current AIEF adoption status and recent Changes.",
-    when: "When you want to know where the project stands.",
+    purpose: "Show current AIEF adoption status, recent Changes and all open Changes.",
+    when: "When you want to know where the project stands, or which Change to select with --change.",
     reads: "Project structure, package.json and changes/.",
     writes: "Nothing.",
     example: "aief status",
-    next: "aief prompt if a Change is active, otherwise aief analyze."
+    next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
   adopt: {
     purpose: "Prepare an existing project to use AIEF without changing application code.",
@@ -173,26 +203,26 @@ const COMMAND_HELP = {
   },
   prompt: {
     purpose: "Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or ChatGPT.",
-    when: "After creating a Change.",
-    reads: "AGENTS.md, assistant files, profiles and the active (or selected) Change.",
+    when: "After creating a Change. With several open Changes, name the target with --change <id>.",
+    reads: "AGENTS.md, assistant files, profiles and the selected Change (implicit only when exactly one Change is open).",
     writes: "Nothing.",
-    example: "aief prompt gemini --profile architect   (or: aief prompt --assistant gemini)",
+    example: "aief prompt gemini --profile architect --change 0002-add-login   (single open Change: aief prompt gemini)",
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
-    purpose: "Verify required AIEF files and Change structures.",
-    when: "Before commit or after adoption.",
+    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change.",
+    when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified.",
     reads: "README.md, AGENTS.md, changes/, knowledge/.",
     writes: "Nothing.",
-    example: "aief verify",
+    example: "aief verify   (or: aief verify --change 0002-add-login)",
     next: "Fix reported gaps, then aief close."
   },
   close: {
-    purpose: "Check that the active Change is ready (files, tasks, evidence) and mark it Closed.",
-    when: "After evidence is complete, before commit.",
-    reads: "Latest open (or selected) Change: change.md, tasks.md, evidence.md.",
+    purpose: "Check that a Change is ready (files, tasks, evidence) and mark it Closed.",
+    when: "After evidence is complete, before commit. With several open Changes, --change <id> is required — close never picks one implicitly.",
+    reads: "The selected Change (implicit only when exactly one is open): change.md, tasks.md, evidence.md.",
     writes: "A Status section in change.md — only with --yes and only when all checks pass. Without --yes it writes nothing.",
-    example: "aief close --yes",
+    example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)",
     next: "Commit your work, then aief status."
   },
   release: {
@@ -245,7 +275,7 @@ function printCommandHelp(command) {
 function help(topic) {
   if (topic) return printCommandHelp(topic);
   console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief init                 (initialize the current directory)\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
-              (long form: --assistant gemini)\n  aief verify\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
+              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -307,7 +337,7 @@ function createChange(name, options = {}) {
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
-function newChange(args) { const parsed = parseArgs(args); const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", "aief prompt"); }
+function newChange(args) { const parsed = parseArgs(args); const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
 
 // Requirement Sources / Enrichment: real work starts in Jira, Notion, GitHub
 // Issues or a document, not in `aief new-change`. Every provider is read-only
@@ -388,7 +418,7 @@ function enrich(args) {
   console.log(`Created Change: ${name}`);
   console.log(`Source: ${provider}:${sourceId} (read-only; nothing was written back to ${provider}).`);
   console.log("\nThis Change requires human review before any implementation.");
-  printNext(`review ${name}/spec.md and answer its Open Questions`, `approve or adjust scope in ${name}/change.md`, `then: aief propose --change ${path.basename(changeDir)} (or aief prompt)`);
+  printNext(`review ${name}/spec.md and answer its Open Questions`, `approve or adjust scope in ${name}/change.md`, `then: aief propose --change ${path.basename(changeDir)} (or aief prompt --change ${path.basename(changeDir)})`);
 }
 // Visible Skills: the recommended Skills become a readable artifact in the
 // adopted project. The catalog stays the technical source; this file is the
@@ -501,7 +531,7 @@ function runAdoption() {
     artifacts.push(`changes/${id}-adopt-aief/ (this Change)`);
     writeFile(path.join(dir, "change.md"), files["change.md"]);
     writeFile(path.join(dir, "spec.md"), files["spec.md"]);
-    writeFile(path.join(dir, "tasks.md"), `# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/, knowledge/ and profiles/.\n- [x] Create knowledge/standards/ starter standards.\n- [x] Generate this Change's evidence automatically.\n- [ ] Edit knowledge/standards/ so the "(adapt)" lines match this project.\n- [ ] Run aief verify, then close this Change: aief close --yes --change adopt-aief\n\nNote: this Change can be closed before or after the Analysis Change. The Analysis Change becomes the active Change automatically.\n`);
+    writeFile(path.join(dir, "tasks.md"), `# Tasks\n\n- [x] Create or preserve AGENTS.md.\n- [x] Create changes/, knowledge/ and profiles/.\n- [x] Create knowledge/standards/ starter standards.\n- [x] Generate this Change's evidence automatically.\n- [ ] Edit knowledge/standards/ so the "(adapt)" lines match this project.\n- [ ] Run aief verify, then close this Change: aief close --yes --change adopt-aief\n\nNote: this Change can be closed before or after the Analysis Change. With more than one Change open, name the target explicitly: aief prompt --change <id> / aief close --yes --change <id>.\n`);
     writeFile(path.join(dir, "evidence.md"), adoptionEvidence(project, skills, artifacts));
     console.log(`✓ Created changes/${id}-adopt-aief (evidence generated automatically)`);
   } else console.log("✓ Adoption Change already exists");
@@ -512,13 +542,16 @@ function analyze(args) {
   console.log("Purpose: create an Analysis Change seeded with the project context doctor already detects.\nWrites only under changes/<id>-<name>/.\n");
   const project = detectProject();
   const context = { project, skills: recommendSkills(project), standards: listStandards(), skillsDocPresent: exists("knowledge/skills.md") };
-  createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis", context });
+  const dir = createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis", context });
   if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
-  printNext("aief prompt claude --profile architect");
+  // Explicit selection in the hint: after adoption there are typically two
+  // open Changes (adopt-aief + this Analysis), so the suggested command must
+  // name its target instead of relying on implicit "latest open".
+  printNext(dir ? `aief prompt claude --profile architect --change ${path.basename(dir)}` : "aief prompt claude --profile architect");
 }
 const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
 function prompt(args) {
-  const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer"; let changeDir = latestChangeDir();
+  const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer";
   // Assistant selection: positional (aief prompt gemini) or --assistant; the
   // explicit flag wins when both are given. Unknown values are a hard error —
   // never a silent fallback.
@@ -531,9 +564,14 @@ function prompt(args) {
   }
   if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project${exists("CLAUDE.md") ? "; including CLAUDE.md instead" : ""}.`);
   const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
-  if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
-  if (!changeDir) { console.error("No open Change found."); printNext("aief new-change <name>", "aief analyze"); process.exitCode = 1; return; }
+  // Shared selection: composing a prompt for the wrong Change is a mutation of
+  // the workflow in practice, so with multiple open Changes the selection must
+  // be explicit — never the chronologically latest one by accident.
+  const changeDir = typeof parsed.change === "string"
+    ? resolveExplicitChange(parsed.change)
+    : resolveImplicitChange(`aief prompt${assistant ? ` ${assistant}` : ""}`);
+  if (!changeDir) { printNext("aief status (list open Changes)", "aief new-change <name>", "aief analyze"); return; }
   const changeName = path.relative(process.cwd(), changeDir);
   // CRLF/LF tolerant, via the shared changeType() helper — a Change written on
   // Windows must still be recognized as Analysis/Enrichment.
@@ -576,9 +614,12 @@ function close(args) {
   const parsed = parseArgs(args);
   section("AIEF Close");
   console.log("Purpose: check that the active Change is ready and, with --yes, mark it Closed in change.md.\n");
-  let changeDir = latestChangeDir();
-  if (typeof parsed.change === "string") { const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(parsed.change)); if (matches.length) changeDir = matches[matches.length - 1]; }
-  if (!changeDir) { console.error("No open Change found."); printNext("aief new-change <name>"); process.exitCode = 1; return; }
+  // Closing is the most destructive workflow command: with multiple open
+  // Changes it never picks one implicitly — selection must be explicit.
+  const changeDir = typeof parsed.change === "string"
+    ? resolveExplicitChange(parsed.change)
+    : resolveImplicitChange("aief close --yes");
+  if (!changeDir) { printNext("aief status (list open Changes)", "aief new-change <name>"); return; }
   const name = path.relative(process.cwd(), changeDir);
   const change = loadChange(changeDir);
   if (change.closed) { console.log(`${name} is already closed.`); return; }
@@ -594,18 +635,7 @@ function close(args) {
   console.log(`\n✓ Closed ${name}.`);
   printNext("git status", "aief status");
 }
-function verify() {
-  section("AIEF Verify");
-  console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n");
-  const changes = getChangeDirs().map(loadChange);
-  const report = verifyProject({
-    hasReadme: exists("README.md"),
-    hasAgents: exists("AGENTS.md"),
-    hasChangesDir: exists("changes"),
-    hasKnowledge: exists("knowledge"),
-    changes,
-    cwd: process.cwd()
-  });
+function renderReport(report) {
   for (const line of report.lines) {
     if (line.level === "error") console.error(line.text);
     else if (line.level === "warn") console.warn(line.text);
@@ -615,7 +645,53 @@ function verify() {
   if (!report.passed) process.exitCode = 1;
   printNext(...report.next);
 }
-function status(project = detectProject(), showNext = true) { section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n"); const required = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Changes", exists("changes")]]; for (const [n, ok] of required) console.log(`${ok ? "✓" : "!"} ${n}`); const optional = [["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]]; for (const [n, ok] of optional) console.log(ok ? `✓ ${n}` : `· ${n}: not present (optional)`); const changes = getChangeDirs(); console.log(`\nChanges: ${changes.length}`); for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`); console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`); if (showNext) printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : changes.length ? "aief prompt" : "aief analyze"); }
+function verify(args = []) {
+  const parsed = parseArgs(args);
+  section("AIEF Verify");
+  console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n");
+  // `--change <id>` verifies exactly one Change (and says which); the default
+  // remains the whole project — both share the same rules in change-verifier.
+  if (typeof parsed.change === "string") {
+    const changeDir = resolveExplicitChange(parsed.change);
+    if (!changeDir) { printNext("aief status (list open Changes)"); return; }
+    renderReport(verifyChange(loadChange(changeDir), process.cwd()));
+    return;
+  }
+  const changes = getChangeDirs().map(loadChange);
+  const report = verifyProject({
+    hasReadme: exists("README.md"),
+    hasAgents: exists("AGENTS.md"),
+    hasChangesDir: exists("changes"),
+    hasKnowledge: exists("knowledge"),
+    changes,
+    cwd: process.cwd()
+  });
+  renderReport(report);
+}
+function status(project = detectProject(), showNext = true) {
+  section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n");
+  const required = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Changes", exists("changes")]];
+  for (const [n, ok] of required) console.log(`${ok ? "✓" : "!"} ${n}`);
+  const optional = [["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]];
+  for (const [n, ok] of optional) console.log(ok ? `✓ ${n}` : `· ${n}: not present (optional)`);
+  const changes = getChangeDirs();
+  console.log(`\nChanges: ${changes.length}`);
+  for (const d of changes.slice(-5)) console.log(`- ${path.relative(process.cwd(), d)}`);
+  // Open Changes are listed explicitly; with more than one, none is presented
+  // as "active" — selection must be explicit (--change).
+  const open = openChangeDirs();
+  if (open.length) {
+    console.log(`\nOpen Changes: ${open.length}`);
+    for (const d of open) console.log(`- ${path.basename(d)}`);
+    if (open.length > 1) console.log("\nMultiple Changes in progress — commands that act on a Change need an explicit --change <id>.");
+  }
+  console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`);
+  if (!showNext) return;
+  if (!exists("AGENTS.md") || !exists("changes")) printNext("aief adopt");
+  else if (!changes.length) printNext("aief analyze");
+  else if (open.length > 1) printNext("aief prompt --change <id>", "aief close --yes --change <id>");
+  else printNext("aief prompt");
+}
 function toolVersion(command, args = ["--version"]) {
   const result = run(command, args);
   if (result.status !== 0) return "";
@@ -740,9 +816,9 @@ function propose(args) {
   }
 }
 function proposeForChange(changeId, idea) {
-  const matches = getChangeDirs().filter((dir) => path.basename(dir).includes(changeId));
-  if (!matches.length) { console.error(`No Change found matching "${changeId}".`); printNext("aief status"); process.exitCode = 1; return; }
-  const changeDir = matches[matches.length - 1];
+  // Same shared resolver as prompt/verify/close — never "last match wins".
+  const changeDir = resolveExplicitChange(changeId);
+  if (!changeDir) { printNext("aief status"); return; }
   const name = path.relative(process.cwd(), changeDir);
   const proposalPath = path.join(changeDir, "proposal.md");
   const title = idea || path.basename(changeDir).replace(/^\d+-/, "");
@@ -758,4 +834,4 @@ function printVersion() {
   const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"));
   console.log(`aief ${pkg.version}`);
 }
-export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}
+export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

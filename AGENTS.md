@@ -96,6 +96,17 @@ adr.md
 notes.md
 ```
 
+### Tasks and gates
+
+Ordinary `- [ ]` tasks in `tasks.md` may be checked by whoever does the work. Two labels mark checkboxes an assistant must **not** check on its own:
+
+```markdown
+- [ ] (human) Human-only approval — only a human may check this
+- [ ] (review) Independent review — by someone other than the implementer
+```
+
+Both stay blocking for `aief close` while unchecked. Full conventions (deferred work, increments, checkpoints, OpenSpec↔AIEF): [docs/governance-conventions.md](docs/governance-conventions.md).
+
 ---
 
 ## Required Completion Checklist

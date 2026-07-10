@@ -51,9 +51,9 @@ aief prompt claude --profile architect
 - `adopt` uses the next free Change ID; it never collides with existing Changes and is idempotent.
 - Skill recommendations always explain why they fired (detector, evidence, signal strength).
 - OpenSpec delegation is validated at runtime; failures fall back loudly to local Change generation (see `adapters/openspec/README.md`).
-- No hidden state: the active Change is the latest one not marked Closed in its own `change.md` (override with `--change`). `verify` reports in-progress Changes calmly (`○ in progress`) and only warns when a *closed* Change lacks completed evidence.
+- No hidden state: Change selection is derived from the files on every invocation (a Change is open until its own `change.md` says Closed). With exactly one open Change, commands target it implicitly; with more than one, `prompt`/`close` require an explicit `--change <id>` and list the candidates instead of guessing — one shared resolver (exact name, then numeric ID, then unique slug fragment; ambiguous or unknown values fail loudly). `verify` reports in-progress Changes calmly (`○ in progress`), only warns when a *closed* Change lacks completed evidence, and accepts `--change <id>` to verify a single Change and say exactly which one it checked.
 - Every command ends with a unified `Next:` hint pointing to the recommended next step.
-- After adoption, having `0001-adopt-aief` open alongside the Analysis Change is normal: the Analysis Change becomes the active one automatically, and the adoption Change can be closed before or after it — the order does not affect AIEF.
+- After adoption, having `0001-adopt-aief` open alongside the Analysis Change is normal: with both open, name the target explicitly (`aief prompt --change <analysis-id>`, `aief close --yes --change adopt-aief`) — the order of closing does not affect AIEF.
 - `prompt` is re-run-safe: when a Change's evidence already has real content, the generated prompt instructs the assistant to amend rather than overwrite (and to report a re-verification when nothing changed). It also states where results belong (project evidence vs AIEF/tooling feedback) and, for Analysis Changes, that tasks.md is marked by humans unless explicitly delegated.
 
 ## Detectors, Skill recommendations and Skill content

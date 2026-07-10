@@ -54,32 +54,59 @@ export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledg
   else addLine(report, "warn", "! Recommended but missing: knowledge/");
 
   for (const change of changes) {
-    const name = path.relative(cwd, change.dir);
-    if (!change.missing.length && !change.empty.length) {
-      const enrichmentProblems = change.type === "enrichment" ? checkEnrichmentChange(change) : [];
-      if (enrichmentProblems.length) {
-        for (const p of enrichmentProblems) addLine(report, "error", `✗ ${name}: ${p}`);
-      } else if (!change.evidencePlaceholder) {
-        addLine(report, "ok", `✓ ${name}${change.closed ? " (closed)" : ""}`);
-      } else if (change.closed) {
-        addLine(report, "warn", `! ${name} is closed but evidence.md was never completed`);
-      } else {
-        addLine(report, "info", `○ ${name} — in progress (evidence not completed yet; expected until the Change is closed)`);
-      }
-    } else {
-      for (const f of change.missing) addLine(report, "error", `✗ ${name}/${f} missing`);
-      for (const f of change.empty) addLine(report, "error", `✗ ${name}/${f} empty`);
-    }
+    addChangeLines(report, change, cwd);
   }
 
   if (!report.passed) {
     setNext(report, "fix the issues above, then run aief verify again");
   } else {
     const open = changes.filter((c) => !c.closed);
-    const activeChange = open.length ? open[open.length - 1] : null;
-    if (!activeChange) setNext(report, "no open Change — aief new-change <name> or aief analyze");
-    else if (activeChange.evidencePlaceholder) setNext(report, `aief prompt (work the active Change: ${activeChange.basename}), then aief close`);
-    else setNext(report, `aief close --yes (active Change ${activeChange.basename} looks ready)`);
+    if (!open.length) setNext(report, "no open Change — aief new-change <name> or aief analyze");
+    else if (open.length === 1) {
+      const activeChange = open[0];
+      if (activeChange.evidencePlaceholder) setNext(report, `aief prompt (work the active Change: ${activeChange.basename}), then aief close`);
+      else setNext(report, `aief close --yes (active Change ${activeChange.basename} looks ready)`);
+    } else {
+      // Multiple open Changes: never present one as "the active Change" —
+      // selection must be explicit (Flux Portal dogfooding finding).
+      setNext(report, `${open.length} open Changes — select explicitly: aief prompt --change <id> / aief close --yes --change <id>`);
+    }
   }
+  return report;
+}
+
+// One Change's report lines — shared verbatim between the whole-project mode
+// and the single-Change mode (`aief verify --change <id>`), so both print the
+// same judgment for the same Change.
+function addChangeLines(report, change, cwd) {
+  const name = path.relative(cwd, change.dir);
+  if (!change.missing.length && !change.empty.length) {
+    const enrichmentProblems = change.type === "enrichment" ? checkEnrichmentChange(change) : [];
+    if (enrichmentProblems.length) {
+      for (const p of enrichmentProblems) addLine(report, "error", `✗ ${name}: ${p}`);
+    } else if (!change.evidencePlaceholder) {
+      addLine(report, "ok", `✓ ${name}${change.closed ? " (closed)" : ""}`);
+    } else if (change.closed) {
+      addLine(report, "warn", `! ${name} is closed but evidence.md was never completed`);
+    } else {
+      addLine(report, "info", `○ ${name} — in progress (evidence not completed yet; expected until the Change is closed)`);
+    }
+  } else {
+    for (const f of change.missing) addLine(report, "error", `✗ ${name}/${f} missing`);
+    for (const f of change.empty) addLine(report, "error", `✗ ${name}/${f} empty`);
+  }
+}
+
+// Single-Change verification (`aief verify --change <id>`): judges exactly one
+// Change with the same rules as verifyProject and names it explicitly, so the
+// output always states which Change was verified.
+export function verifyChange(change, cwd) {
+  const report = createVerificationReport();
+  addLine(report, "info", `Verified Change: ${path.relative(cwd, change.dir)}`);
+  addChangeLines(report, change, cwd);
+  if (!report.passed) setNext(report, "fix the issues above, then run aief verify again");
+  else if (change.closed) setNext(report, "aief status");
+  else if (change.evidencePlaceholder) setNext(report, `aief prompt --change ${change.basename}, then aief close --change ${change.basename}`);
+  else setNext(report, `aief close --yes --change ${change.basename}`);
   return report;
 }
