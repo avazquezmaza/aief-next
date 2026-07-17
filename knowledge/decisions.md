@@ -4,6 +4,83 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-015: The usability study freezes the simplification
+
+**Status: Accepted (2026-07-17), by the project owner.**
+
+**Decision.** Until the AIEF 2.0 usability study ([Change 0042](../changes/0042-usability-validation-protocol/)) is run and its evidence consolidated, the following are **frozen** — no execution, no modification:
+
+- **Candidate DELETE / ARCHIVE** artifacts (R10/R11/R13/R14/R12 and the rest of the Change 0038 map).
+- **Type ↔ Track** ([Change 0039](../changes/0039-type-track-derivation-design/)) — design only, no implementation.
+- **Onboarding.**
+- **New commands.**
+- **Documentation simplification** (the merges in the Change 0038 map).
+
+**Reason.** An artifact that looks dead to a maintainer can become **evidence of a discoverability problem** the moment a fresh participant reaches for it during the study. Deleting, merging or renaming it first destroys that evidence before it can be collected. **The study has priority over the simplification.**
+
+**Consequences.**
+
+- The simplification map is a **classification, not a work order** (reinforces ADR-014). It is a frozen queue.
+- No AIEF change may be made *from an individual observation* during the study. Redesign begins only after the full evidence is consolidated (Change 0042's consolidation format).
+- The success criterion of AIEF 2.0 is restated: **not fewer files, but a completely new person completing the main flow with the fewest possible blocks, decisions and external consultations.** File reduction is downstream of that, and subordinate to it.
+- The thaw is a separate, later, explicit decision — it does not happen automatically when the study ends; it happens when a human reads the consolidation and says so.
+
+---
+
+## ADR-014: DELETE is a consensus state, never an initial one
+
+**Status: Accepted (2026-07-17), by the project owner.**
+
+**Decision.** The classification map (Change 0038) is a **map, not an authorization to delete**. No artifact is removed on a single reviewer's verdict. The lifecycle of a removal is:
+
+```text
+Candidate DELETE → second independent review → consensus → Approved DELETE → execution
+```
+
+Rules:
+
+- **While there is no consensus, the artifact stays.**
+- **Doubt favors KEEP.**
+- The second reviewer works **without** the first reviewer's package and builds its own reasoning from the repository.
+- `DELETE` requires **positive evidence**, not merely absence of use: zero live references, zero tests, zero contracts, zero ADR dependency, zero dependent workflows, and a complete replacement.
+- **"Zero observed uses in a project" is never sufficient** (the rule ADR-002/`aief propose` established: absence of use ≠ absence of dependency).
+- A prior architectural decision prevails until explicitly superseded.
+
+**Context.** The first-pass map proposed 16 deletions. Independent review overturned 11; a second independent reader then found **0 of 6** of the R1–R6 items deletable, and surfaced a coupling (`aief doctor` depends on `docs/navigator/`) the first reviewer missed. Two reviewers, each finding real dependencies the other did not, is the evidence for making two-reviewer consensus the rule rather than a courtesy.
+
+**Consequences.** DELETE stops being a state an item is born into. Execution of any removal cluster (Change 0038's Stage D) is gated on this flow. The map's DELETE column is a queue of *candidates*, not a work order.
+
+---
+
+## ADR-013: AIEF 2.0 is a redesign — no capability enters the core without removing an equivalent
+
+**Status: Accepted (2026-07-17), by the project owner.**
+
+**Decision.**
+
+> **No new capability enters AIEF's core unless it first removes, merges or replaces an equivalent capability.**
+
+Three corollaries, adopted with it:
+
+- **AIEF 2.0 is a redesign, not an expansion.** The objective is to reorganize, simplify and make evident what already exists.
+- **Backward compatibility is not a goal in itself.** Experience of use outranks it.
+- **Success is not measured by feature count.** It is measured by one thing: a developer who never participated in Flux Portal starts a project correctly in **under 15 minutes, following only the main flow**.
+
+**Context.** The audit of Change 0037 established that AIEF's problem was never missing capability. On Flux Portal — a real, successful migration — the CLI ran once, on day 0, and never again; 9,011 lines of governance were then written by hand. `verify` was built, correct, and never invoked. 18 of 36 components had zero observed use. The repository carried an **8:1 ratio of Markdown to production code** — the exact v4 failure mode (documentation growing faster than validated capability, ADR-001/ADR-008) reappearing inside the repository founded to escape it.
+
+The danger this ADR addresses is specific and predictable: AIEF 2.0 ships *on top of* AIEF 1.x, every existing surface survives "for compatibility", the framework grows, and v4 happens again under a new name. Good intentions do not prevent this; an accounting rule does.
+
+**Consequences.**
+
+- Every proposal must name what it removes. A proposal that removes nothing is incomplete, not merely ambitious.
+- The rule applies to the **core**. ADVANCED and OPTIONAL capabilities off the main path are governed by ADR-008's evidence gate as before.
+- The rule **forces latent collisions into the open** rather than letting them accumulate. The first is already visible: `Track` (Basic/Standard/Migration) may not enter beside `## Type` (General/Analysis/Enrichment) — a Change may not carry two classification axes. See Change 0038 §4.
+- **Roles and Tracks stay separate concepts**, permanently: a Role (ADR-012's Profile) answers *how should I reason?*; a Track answers *what kind of work is this?*. Tracks are never called Profiles.
+- Removal requires proof, not preference: what replaces it, where the information lands, and why no capability is lost. The classification map (Change 0038) is the instrument.
+- This ADR narrows nothing retroactively. Where it collides with an accepted ADR (ADR-006's teaching mechanism, ADR-010's standards, ADR-011's three levels, ADR-012's Profiles), the collision is raised as a decision — never resolved by implication.
+
+---
+
 ## ADR-012: Operational Profiles
 
 **Status: Accepted (2026-07-05). Proposed 2026-07-04; revised twice after review (structured model; orthogonality principle). Acceptance of this ADR is the milestone — implementation (0025) is a separate decision, not yet started.**

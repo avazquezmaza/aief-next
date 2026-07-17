@@ -1,0 +1,35 @@
+# AIEF governance gate — written by `aief adopt`, never overwritten.
+#
+# Runs `aief verify` on every push and pull request. `aief verify` reads the
+# repository and writes nothing; it exits non-zero when a Change is structurally
+# incomplete (a missing change.md / spec.md / tasks.md / evidence.md) or when a
+# Change declares a status that cannot be interpreted.
+#
+# Why this file exists (Flux Portal dogfooding, finding F2): on a real migration
+# `aief verify` would have FAILED from Change 0008 onward — two days before the
+# production cutover — and nobody ever ran it. The signal existed and went unseen.
+# Governance nobody executes is decoration.
+#
+# NOT on GitHub Actions? The gate is one command. Run it wherever your CI runs:
+#
+#     npx aief verify
+#
+# The workflow is a convenience for the common case, not the mechanism. Any CI
+# that can fail a build on a non-zero exit code is enough.
+name: AIEF
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    name: aief verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: AIEF verify
+        run: npx --yes aief verify

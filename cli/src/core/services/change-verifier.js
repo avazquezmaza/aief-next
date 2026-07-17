@@ -21,14 +21,34 @@ function checkEnrichmentChange(change) {
   return problems;
 }
 
+// The one place that phrases an uninterpretable status (finding F1). A status
+// that was declared but could not be read is an ERROR, never a silent "open":
+// the message quotes what was found and names what is accepted, so the author
+// can fix the file instead of wondering why nothing happened.
+function statusProblem(change) {
+  if (change.statusState !== "unknown") return null;
+  const raw = String(change.statusRaw || "").trim();
+  const seen = raw ? `"${raw.length > 60 ? `${raw.slice(0, 60)}…` : raw}"` : "(empty)";
+  return `status is declared but not understood: ${seen} — use CLOSED (or run aief close), or one of: Open, Proposed, Draft, In Progress. Two disagreeing Status declarations are also reported here.`;
+}
+
 // The readiness rules `aief close` reports before marking a Change Closed —
 // same underlying Change fields `verifyProject` uses, formatted as the
 // short human-readable problem strings close() has always printed.
+// Evidence blocks unless it is "complete": placeholder and partial still block
+// (the safety property — nobody closes on an empty template), while residual
+// "Pending." markers inside real evidence no longer do (finding F3).
 export function checkChangeReadiness(change) {
+  const evidenceProblem =
+    change.evidenceState === "placeholder" ? "evidence.md has not been completed yet"
+      : change.evidenceState === "partial" ? "evidence.md is only partially completed (placeholders still dominate)"
+        : null;
+  const status = statusProblem(change);
   return [
     ...change.missing.map((f) => `${f} is missing`),
     ...change.empty.map((f) => `${f} is empty`),
-    ...(change.evidencePlaceholder ? ["evidence.md has not been completed yet"] : []),
+    ...(status ? [status] : []),
+    ...(evidenceProblem ? [evidenceProblem] : []),
     ...(change.openTasksCount ? [`${change.openTasksCount} unchecked task(s) in tasks.md`] : [])
   ];
 }
@@ -64,8 +84,11 @@ export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledg
     if (!open.length) setNext(report, "no open Change — aief new-change <name> or aief analyze");
     else if (open.length === 1) {
       const activeChange = open[0];
-      if (activeChange.evidencePlaceholder) setNext(report, `aief prompt (work the active Change: ${activeChange.basename}), then aief close`);
-      else setNext(report, `aief close --yes (active Change ${activeChange.basename} looks ready)`);
+      // Follow the evidence classification, not a placeholder count: a Change
+      // whose evidence is complete must be pointed at `close`, never back at
+      // `prompt` (finding F3 — the hint used to send finished work to be redone).
+      if (activeChange.evidenceState === "complete") setNext(report, `aief close --yes (active Change ${activeChange.basename} looks ready)`);
+      else setNext(report, `aief prompt (work the active Change: ${activeChange.basename}), then aief close`);
     } else {
       // Multiple open Changes: never present one as "the active Change" —
       // selection must be explicit (Flux Portal dogfooding finding).
@@ -82,12 +105,20 @@ function addChangeLines(report, change, cwd) {
   const name = path.relative(cwd, change.dir);
   if (!change.missing.length && !change.empty.length) {
     const enrichmentProblems = change.type === "enrichment" ? checkEnrichmentChange(change) : [];
+    // An uninterpretable status is reported before anything else: while it
+    // stands, every other judgment about this Change rests on a guess (F1).
+    const status = statusProblem(change);
+    if (status) addLine(report, "error", `✗ ${name}: ${status}`);
     if (enrichmentProblems.length) {
       for (const p of enrichmentProblems) addLine(report, "error", `✗ ${name}: ${p}`);
-    } else if (!change.evidencePlaceholder) {
+    } else if (status) {
+      // already reported
+    } else if (change.evidenceState === "complete") {
       addLine(report, "ok", `✓ ${name}${change.closed ? " (closed)" : ""}`);
     } else if (change.closed) {
       addLine(report, "warn", `! ${name} is closed but evidence.md was never completed`);
+    } else if (change.evidenceState === "partial") {
+      addLine(report, "info", `○ ${name} — in progress (evidence partially completed; placeholders still dominate)`);
     } else {
       addLine(report, "info", `○ ${name} — in progress (evidence not completed yet; expected until the Change is closed)`);
     }
@@ -106,7 +137,7 @@ export function verifyChange(change, cwd) {
   addChangeLines(report, change, cwd);
   if (!report.passed) setNext(report, "fix the issues above, then run aief verify again");
   else if (change.closed) setNext(report, "aief status");
-  else if (change.evidencePlaceholder) setNext(report, `aief prompt --change ${change.basename}, then aief close --change ${change.basename}`);
+  else if (change.evidenceState !== "complete") setNext(report, `aief prompt --change ${change.basename}, then aief close --change ${change.basename}`);
   else setNext(report, `aief close --yes --change ${change.basename}`);
   return report;
 }

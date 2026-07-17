@@ -9,6 +9,11 @@ import { loadChange, isClosedContent, changeTypeFromContent, isEvidencePlacehold
 import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
 
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
+const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "ci", "aief-verify.yml");
+// The canonical AGENTS.md. Adoption previously wrote a 14-line inline string that
+// carried 7 of ~40 rules and none of the (human)/(review) gates, so adopted
+// projects never received the governance AIEF documents for itself (Change 0040).
+const AGENTS_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "agents", "AGENTS.md");
 const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "testing-standards.md", "security-standards.md"];
 
 function cwd(...parts) { return path.resolve(process.cwd(), ...parts); }
@@ -131,6 +136,19 @@ function createStandards(project) {
     if (writeFile(cwd("knowledge", "standards", file), fs.readFileSync(template, "utf8"))) created.push(file);
   }
   return created;
+}
+// The governance gate (Flux Portal dogfooding, finding F2): adoption used to
+// deliver structure but no enforcement, so `aief verify` — which already exits
+// non-zero on FAIL — was simply never run. On that migration it would have
+// FAILED from Change 0008 through the cutover, unseen. This adds NO core
+// capability: it is a workflow file plus documentation. Visible (no hidden
+// state, ADR-009) and never overwritten, like every other adoption artifact.
+// Not on GitHub Actions? The gate is one command: `npx aief verify`
+// (docs/ci-gate.md).
+function createCiGate() {
+  if (!fs.existsSync(CI_TEMPLATE)) return null;
+  const created = writeFile(cwd(".github", "workflows", "aief-verify.yml"), fs.readFileSync(CI_TEMPLATE, "utf8"));
+  return created ? ".github/workflows/aief-verify.yml" : null;
 }
 function listStandards() {
   const dir = cwd("knowledge", "standards");
@@ -513,7 +531,7 @@ function runAdoption() {
   const signalIds = project.signals.map((s) => s.id);
   console.log(`\nDetected: ${signalIds.length ? signalIds.join(", ") : "no strong signals"} (details: aief doctor, knowledge/skills.md)`);
   if (!exists("AGENTS.md")) {
-    writeFile(cwd("AGENTS.md"), `# Project Agent Instructions\n\nAI assists. Humans decide.\n\n## Rules\n\n- Read the active Change before editing.\n- Read spec.md before implementation.\n- Read tasks.md before changing files.\n- Keep changes small.\n- Do not modify unrelated files.\n- Update evidence.md before completion.\n\nIf present, also read CLAUDE.md, GEMINI.md, CODEX.md, or CURSOR.md.\n`); console.log("✓ Created AGENTS.md"); artifacts.push("AGENTS.md");
+    writeFile(cwd("AGENTS.md"), fs.readFileSync(AGENTS_TEMPLATE, "utf8")); console.log("✓ Created AGENTS.md"); artifacts.push("AGENTS.md");
   } else console.log("✓ AGENTS.md already exists");
   fs.mkdirSync(cwd("changes"), { recursive: true }); fs.mkdirSync(cwd("knowledge"), { recursive: true }); fs.mkdirSync(cwd("profiles"), { recursive: true });
   if (writeFile(cwd("knowledge", "README.md"), "# Knowledge\n\nCapture decisions, lessons learned, constraints and project context here.\n")) artifacts.push("knowledge/README.md");
@@ -523,6 +541,9 @@ function runAdoption() {
   if (!createdStandards.length) console.log("✓ knowledge/standards/ already present (nothing overwritten)");
   if (writeFile(cwd("knowledge", "skills.md"), skillsDoc(project, skills))) { console.log("Skills documented: knowledge/skills.md"); artifacts.push("knowledge/skills.md"); }
   else console.log("Skills documentation already exists: knowledge/skills.md");
+  const ciGate = createCiGate();
+  if (ciGate) { console.log(`✓ Created ${ciGate} — CI gate: runs aief verify on every push/PR`); artifacts.push(ciGate); }
+  else console.log("✓ CI gate already present (nothing overwritten): .github/workflows/aief-verify.yml");
   if (!getChangeDirs().some((dir) => path.basename(dir).includes("adopt-aief"))) {
     // Use the next free ID so adoption never collides with existing Changes.
     const id = nextChangeId();
