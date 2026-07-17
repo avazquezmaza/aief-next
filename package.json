@@ -1,6 +1,6 @@
 {
   "name": "aief-next",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "AIEF Next — Assistant-Agnostic AI Engineering Workflow Engine. Root bootstrap package; the CLI lives in cli/.",
   "private": true,
   "type": "module",
