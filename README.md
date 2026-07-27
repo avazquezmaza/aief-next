@@ -40,6 +40,11 @@ AIEF deliberately does **not**:
 
 ## How does it work?
 
+![AIEF Core 3.0 Workflow](docs/images/workflow.svg)
+
+<details>
+<summary>Canonical Mermaid Workflow Source</summary>
+
 ```mermaid
 flowchart LR
     subgraph L1["Level 1: Context & Setup"]
@@ -66,6 +71,7 @@ flowchart LR
     F --> G
     I -.->|Next Change| C
 ```
+</details>
 
 Every Change gets this skeleton:
 
