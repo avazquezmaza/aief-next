@@ -187,11 +187,12 @@ export function matchChanges(selector, dirs) {
   return pairs.filter(([, base]) => base.includes(value)).map(([dir]) => dir);
 }
 
-// Loads a Change from its directory: raw file contents plus every flag
-// verification needs, computed once so verifyProject() and
-// checkChangeReadiness() (used by `verify` and `close` respectively) read
-// the same derived values instead of recomputing them differently.
-export function loadChange(changeDir) {
+// Reads the four required Change files and reports which are missing or
+// empty. Extracted from loadChange() (Change 0043 review finding H1) so the
+// optional-manifest loader (change-loader.js) can report the same presence
+// facts instead of silently claiming nothing is missing — a manifest does
+// not exempt a Change from carrying these four files (spec.md R7).
+export function readChangeFiles(changeDir) {
   const files = {};
   const missing = [];
   const empty = [];
@@ -203,6 +204,15 @@ export function loadChange(changeDir) {
     if (!fileExists) missing.push(file);
     else if (!content.trim()) empty.push(file);
   }
+  return { files, missing, empty };
+}
+
+// Loads a Change from its directory: raw file contents plus every flag
+// verification needs, computed once so verifyProject() and
+// checkChangeReadiness() (used by `verify` and `close` respectively) read
+// the same derived values instead of recomputing them differently.
+export function loadChange(changeDir) {
+  const { files, missing, empty } = readChangeFiles(changeDir);
   const status = parseChangeStatus(files["change.md"]);
   const evidenceState = classifyEvidence(files["evidence.md"]);
   return {

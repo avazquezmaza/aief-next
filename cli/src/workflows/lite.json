@@ -1,0 +1,13 @@
+{
+  "schema": "aief.workflow/v1",
+  "track": "lite",
+  "stages": [
+    { "id": "work" },
+    { "id": "verify", "gateIds": ["readiness"] },
+    { "id": "close" }
+  ],
+  "transitions": [
+    { "from": "work", "to": "verify" },
+    { "from": "verify", "to": "close" }
+  ]
+}

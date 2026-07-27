@@ -107,7 +107,7 @@ Ordinary `- [ ]` tasks in `tasks.md` may be checked by whoever does the work. Tw
 - [ ] (review) Independent review — by someone other than the implementer
 ```
 
-Both stay blocking for `aief close` while unchecked. Full conventions (deferred work, increments, checkpoints, OpenSpec↔AIEF): [governance conventions](https://github.com/avazquezmaza/aief-next/blob/main/docs/governance-conventions.md).
+Both stay blocking for `aief close` while unchecked. Full conventions (deferred work, increments, checkpoints, OpenSpec↔AIEF): [governance conventions](https://github.com/avazquezmaza/aief-next/blob/main/docs/history/governance-conventions.md).
 
 ---
 

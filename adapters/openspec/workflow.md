@@ -1,6 +1,6 @@
 # OpenSpec Workflow with AIEF
 
-This document details level 2 of the [three-level AIEF workflow](../../docs/Workflow.md).
+This document details level 2 of the [three-level AIEF workflow](../../docs/workflow.md).
 
 ## AIEF-native path (without OpenSpec — normal, fully supported)
 

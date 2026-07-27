@@ -1,0 +1,169 @@
+# Workflow
+
+The canonical description of how AIEF, OpenSpec, and your AI assistant work together, and how a
+Change moves from idea to closed. Vocabulary used here (Change, Track, Gate, Skill, Hook,
+Verification Rule) is defined in [Concepts](concepts.md).
+
+## The three levels
+
+```mermaid
+flowchart TD
+    subgraph L1["1 . Context (AIEF)"]
+        A1[doctor] --> A2[init / adopt] --> A3[verify] --> A4[analyze / new-change / enrich] --> A5[prompt]
+    end
+    subgraph L2["2 . Feature (assistant, optionally OpenSpec)"]
+        B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]
+    end
+    subgraph L3["3 . Governance (AIEF)"]
+        C1[verify] --> C2[close --yes]
+    end
+    A5 -->|paste prompt into assistant| L2
+    L2 -->|work done, evidence.md written| L3
+    C2 -->|next Change| A4
+```
+
+- **Level 1 — Context.** AIEF prepares the ground: detects the stack, adopts an existing project
+  without touching application code, creates a Change, and composes a context-complete prompt.
+  This level never implements functional code.
+- **Level 2 — Feature.** The engineering itself, done by your AI assistant, optionally structured
+  by OpenSpec (Explore → Propose → Apply → Archive). AIEF does not implement, generate specs, or
+  duplicate this level.
+- **Level 3 — Governance.** AIEF checks the result and closes the loop: `verify` reports
+  structure and (optionally) requirement compliance; `close --yes` marks the Change Closed.
+
+A Change that opts into a `track` (see [Tracks](#tracks)) gets additional stage/gate narration
+inside levels 1 and 3, but the three-level shape never changes.
+
+## The Change lifecycle end to end
+
+```text
+Idea, or an external Requirement Source (Jira, manual, ...)
+  -> aief new-change / analyze / enrich        (level 1: create the Change)
+  -> [enrich only] Human Review required before continuing
+  -> aief propose [--change <id>]              (new idea, or continue an enriched Change)
+  -> aief prompt -> assistant works            (level 2: implementation)
+  -> evidence.md completed
+  -> aief verify [--requirements]              (level 3: structural + optional requirement check)
+  -> aief close --yes                          (level 3: Change marked Closed)
+  -> aief status --next                        (what to do next)
+```
+
+## Tracks
+
+A Change with no `manifest.json`, or a manifest with no `track`, follows the classic path above —
+untouched, and that is the vast majority of Changes. Declaring a `track` in `manifest.json` adds a
+named sequence of stages and gates that `aief status` narrates:
+
+| Track | Stages | When to use |
+|---|---|---|
+| `lite` | work → verify → close | Small, low-risk changes — a docs fix, a small bugfix. |
+| `standard` | work → verify → review → close | The common case — a feature that benefits from an independent review before closing. |
+| `governed` | approval → work → verify → security_review → review → close | High-risk or compliance-sensitive changes that need sign-off before work starts and a dedicated security pass before review. |
+
+Each stage may declare a `gateIds` list. A **gate** is `pending` until satisfied, then `passed`; an
+unsatisfied gate on the current stage is a **blocker** — `aief status --change <id>` always shows
+blockers separately from merely-pending gates, and never reports a transition as available while a
+gate blocks it. Gates are read-only narration: nothing in AIEF auto-advances a stage or waits on a
+gate to unblock a command. `aief close` still runs its own readiness checks regardless of track.
+
+### Checking where a Change stands
+
+```bash
+aief status --change 0002-add-login          # deep view: track, stage, gates, SDD readiness
+aief status --change 0002-add-login --next   # compact view: the one next action to take
+aief status --next                           # same, with exactly one open Change
+```
+
+## Starting from a Requirement Source
+
+Real work often starts in a ticket, not in `aief new-change`. `aief enrich <provider>
+<source-id>` reads a requirement **read-only** — AIEF never writes back to Jira or any other
+system — and creates a Change seeded with it, classified as Fact `[H]` / Inference `[I]` /
+Assumption `[S]`, with a `Requires Human Review` status:
+
+```bash
+aief enrich manual TEST-001
+aief enrich jira ISSUE-123 --file requirements/jira/ISSUE-123.json   # local export, no network
+```
+
+`aief close --yes` refuses this Change until every Human Review task is checked off by a human —
+an assistant must never check one itself. Once reviewed, `aief propose --change <id>` continues the
+**same** Change (adds `proposal.md`, never forks a new one), or go straight to `aief prompt`. Only
+`manual` and `jira` (local-export) are implemented today; Notion, GitHub Issues and Azure DevOps
+are defined in the same contract but not yet built — requesting one fails loudly, never silently.
+
+## Skills Runtime
+
+`aief prompt --skill <id>` attaches one registered Skill's output to the generated prompt, after
+every other context block. A Skill reports one of seven statuses; only `ready` carries real
+instructions — every other status (`not_applicable`, `blocked`, `unsupported`, `completed`) is
+rendered as one honest line, and `invalid`/`failed` stop the command before any prompt is printed.
+List what's registered:
+
+```bash
+aief prompt --list-skills
+```
+
+Every shipped Skill is instructions-only: it hands the assistant guidance to follow, it never
+writes a file, runs a command, or calls the network on its own — following the instructions is not
+by itself evidence the described work happened.
+
+## Hooks Runtime
+
+Two lifecycle events exist today: `prompt.prepared` (fires at the end of `aief prompt`, after every
+other context block) and `verify.completed` (fires after `aief verify` has already printed its
+PASS/FAIL and set its exit code). A Hook observing either event can only append an additional,
+clearly labeled section — it cannot influence the exit code, block the command, or write a file. No
+Hook is user-facing to configure yet; the runtime exists so future reactive behavior has one shared
+extension point.
+
+## Verification
+
+`aief verify` always runs **Structural Verification** first: are the Change's required files
+present, is the manifest (if any) consistent, is evidence classified as more than a placeholder, how
+many tasks are still open. This is unconditional and unchanged regardless of any flag.
+
+`aief verify --change <id> --requirements` additionally runs **Requirement Verification**: for
+every requirement the Change's SDD artifacts declare, each applicable Verification Rule produces a
+deterministic verdict grounded in already-produced evidence (an SDD artifact's own state, or a
+file that must exist) — never AI, never a test execution, never a network call. Results aggregate
+to one of `PASS`, `INCOMPLETE`, `FAIL`, `INVALID`, `ERROR` (fixed precedence, `ERROR` highest;
+missing evidence is `INCOMPLETE`, never rounded up to `PASS`). A Change with no declared
+requirements reports that honestly instead of a false pass.
+
+Requirement Verification is informational this release: it does not feed into `aief close`'s
+readiness check or into any Workflow gate. It is the report you read before deciding a Change is
+really done — the machinery to make it load-bearing is deliberately not wired in yet.
+
+## `aief close` vs OpenSpec `/archive`
+
+They sound similar but govern different artifacts:
+
+| | `aief close --yes` | OpenSpec `/archive` |
+|---|---|---|
+| Level | 3 — AIEF Governance | 2 — Feature Workflow |
+| Acts on | The AIEF Change (`changes/<id>/change.md`) | The OpenSpec change (`openspec/changes/<name>/`) |
+| Checks | Files present, tasks checked, evidence complete | OpenSpec's own workflow state |
+| Writes | A dated `## Status / Closed` section | Moves the change into OpenSpec's archive |
+
+If you use both tools, do both — neither replaces the other.
+
+## Responsibilities
+
+| Actor | Responsibility | Never does |
+|---|---|---|
+| **AIEF** | Context, standards, Skills, prompts, evidence, governance, Workflow/SDD/Verification narration | Generate specs, implement code, commit, archive in OpenSpec |
+| **OpenSpec** *(optional)* | Proposal → Spec → Tasks (Explore → Propose → Apply → Archive) | Project adoption, evidence, Change governance |
+| **SpecBoot** *(conceptual source)* | Inspiration for standards and instruction hierarchy | Nothing at runtime — no files vendored, no dependency |
+| **AI assistant** *(any)* | Implementation, refactoring, tests, review | Approve scope or releases |
+| **Humans** | Scope, trade-offs, `(human)`/`(review)` approvals, release decisions | — |
+
+## What AIEF does not do
+
+- Generate proposals, specs or task content — OpenSpec or a human does.
+- Implement, refactor, test or review code — the AI assistant does.
+- Execute a Skill's instructions, run a command, or reach the network from a Skill or Hook.
+- Keep hidden state — `change.md` / `manifest.json` are the only source of truth.
+- Auto-advance a Workflow stage, unblock a gate, or mark `close` ready — those stay human/assistant
+  decisions the CLI only reports on.
+- Create commits, publish PRs, or approve releases.

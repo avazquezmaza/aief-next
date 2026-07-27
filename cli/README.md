@@ -4,7 +4,7 @@ The AIEF CLI is a guided workflow tool.
 
 It explains what each command does, what it reads, what it writes, and what to do next: `aief help <command>`.
 
-Commands cover levels 1 (context: doctor/adopt/analyze/prompt) and 3 (governance: verify/close) of the [three-level AIEF workflow](../docs/Workflow.md); level 2 (the feature work) happens in your assistant, optionally with OpenSpec.
+Commands cover levels 1 (context: doctor/adopt/analyze/prompt) and 3 (governance: verify/close) of the [three-level AIEF workflow](../docs/workflow.md); level 2 (the feature work) happens in your assistant, optionally with OpenSpec.
 
 ## Install
 
@@ -17,7 +17,7 @@ npm install
 npm link   # installs a global `aief` command
 ```
 
-Linking from `cli/` also works. Or run directly: `node cli/bin/aief.js <command>`. See [docs/bootstrap.md](../docs/bootstrap.md).
+Linking from `cli/` also works. Or run directly: `node cli/bin/aief.js <command>`. See [docs/getting-started.md](../docs/getting-started.md).
 
 ## Existing project flow
 

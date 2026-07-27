@@ -1,146 +1,161 @@
-# AIEF Architecture
+# Architecture
 
-> Canonical description of the implemented architecture. The conceptual v1 specs under [specs/](../specs/) are historical reference; this document describes what exists today. Decisions behind this architecture: [knowledge/decisions.md](../knowledge/decisions.md).
+The implemented architecture, as it exists today. There is no daemon, no database, no hidden
+state — the repository *is* the runtime state, and the CLI is a stateless function of the files on
+disk each time it runs.
 
-## Conceptual model
-
-AIEF is a **workflow engine**: a dependency-free CLI that operates on visible files. There is no daemon, no database, no hidden state — the repository *is* the runtime state.
+## Layers
 
 ```mermaid
 flowchart TD
-    subgraph Engine["AIEF (cli/)"]
-        WE[Workflow Engine<br/>cli/src/cli.js]
-        PE[Prompt Engine<br/>aief prompt]
-        DE[Detection Engine<br/>cli/src/detect.js + skills-catalog.json]
+    CLI["cli.js — command dispatcher\n(parses args, resolves the target Change, renders output)"]
+    subgraph Domain["Domain models — pure, no I/O beyond parsing"]
+        CH[change.js / change-loader.js / change-manifest.js]
+        WD[workflow-definition.js]
+        SD[sdd-model.js]
+        SK[skill.js]
+        HK[hook.js]
+        VR[verification-rule.js]
     end
-    subgraph Knowledge["Visible knowledge (in the adopted project)"]
-        AG[AGENTS.md<br/>inviolable rules]
-        PR[Profiles<br/>how to reason]
-        ST[Standards<br/>knowledge/standards/]
-        SK[Skills<br/>knowledge/skills.md]
-        CH[Changes<br/>changes/&lt;id&gt;/]
+    subgraph Services["Services — orchestration, one rule implemented once"]
+        WS[workflow-service.js\ngate-evaluator.js / transition-engine.js]
+        SDR[sdd-provider-resolver.js]
+        SKS[skill-service.js / skill-context.js]
+        HKS[hook-service.js / hook-context.js]
+        VS[verification-service.js\nverification-context.js / verification-evidence.js]
+        CVS[change-verifier.js]
     end
-    DE -->|detects stack, recommends| SK
-    WE -->|creates, verifies, closes| CH
-    WE -->|creates on adopt| AG & ST & SK
-    AG & PR & ST & SK & CH -->|composed by| PE
-    PE -->|one ready-to-paste prompt| AS[AI assistant<br/>implements inside the Change]
-    AS -->|work + evidence.md| CH
+    subgraph Registries["Registries — static, statically imported, no plugin loader"]
+        WF[workflows/*.json\nlite, standard, governed]
+        SDP[sdd-providers/\nlocal, openspec]
+        SKR[skills/]
+        HKR[hooks/]
+        VRR[verification-rules/]
+        RP[requirement-providers/\nmanual, jira]
+    end
+    CLI --> Domain
+    CLI --> Services
+    Services --> Domain
+    Services --> Registries
 ```
 
-Two engines and one composition rule:
+Every subsystem follows the same three-layer split: a **domain model** owns the shape and pure
+validation of a concept (never touches the filesystem beyond parsing a string it's handed); a
+**service** orchestrates domain models against real Change directories; a **registry** is a plain,
+statically-imported object mapping an id to an implementation — adding a new Skill, Hook,
+Verification Rule, SDD provider, or Requirement provider means adding one file and one registry
+entry, never touching a caller.
 
-- The **Workflow Engine** owns the Change lifecycle (create → work → verify → close) and project adoption.
-- The **Prompt Engine** is the *only* place where the knowledge dimensions are composed into a prompt ([ADR-012](../knowledge/decisions.md)) — sources never compose each other.
-- The **Detection Engine** is data-driven: detectors, recommendations and Skill content are catalog entries ([ADR-007](../knowledge/decisions.md)); the engine knows nothing about specific technologies.
+## The Change model
+
+A Change is a directory (`changes/<id>-<slug>/`) of plain files. `change.js` derives everything
+about it from those files — closed/open, type (general/analysis/enrichment), evidence
+placeholder-or-not, open task count — by reading `change.md`/`evidence.md`/`tasks.md` directly,
+never from a separate index. `change-loader.js` adds the optional `manifest.json` on top: when
+present and valid, it is authoritative for the fields it declares (never merged with `change.md`'s
+own prose); when absent, invalid, or silent on a field, nothing changes from the classic behavior.
+An invalid manifest is a distinct, visible state (`aief status` reports it explicitly) — never
+silently treated as "no manifest."
 
 ## Workflow Engine
 
-Implemented in [cli/src/cli.js](../cli/src/cli.js) as three levels ([canonical workflow](Workflow.md), [ADR-011](../knowledge/decisions.md)):
+`workflow-definition.js` loads one of three static JSON files (`cli/src/workflows/{lite,standard,
+governed}.json`) — each a `{ stages, transitions }` graph with optional `gateIds` per stage.
+`gate-evaluator.js` evaluates each declared gate against the Change's own facts (never against
+network or command output); `transition-engine.js` resolves the current stage and the legal next
+transition from those results. `workflow-service.js` is the single place that composes
+load → evaluate → resolve into the `nextAction()`/`explain()` calls every CLI command
+(`status`, `prompt`, `verify`) shares — there is exactly one implementation of "what stage is this
+Change in," not one per command.
 
-| Level | Commands | Owns |
-|---|---|---|
-| 1 · Context | `doctor`, `init`, `adopt`, `analyze`, `new-change`, `propose`, `prompt`, `status` | Preparing project + context |
-| 2 · Feature | *(none — assistant + optionally OpenSpec)* | The engineering work itself |
-| 3 · Governance | `verify`, `close` | Structure checks and Change closure |
+## SDD Provider
 
-Key mechanics:
+`sdd-model.js` defines the provider-neutral `Requirement`/`Task`/`Readiness` shapes. Two providers
+implement them (`sdd-providers/local.js`, `sdd-providers/openspec.js`); `sdd-provider-resolver.js`
+picks one from `manifest.json`'s `sdd.provider` field and hands back a resolved provider bound to
+the Change. No command reads an OpenSpec or local artifact file directly — every read goes through
+the provider's own `resolveChange()`/`validate()` methods, so the file layout a provider reads is
+that provider's private concern.
 
-- **A Change is the unit of work**: `changes/<id>-<slug>/` with `change.md`, `spec.md`, `tasks.md`, `evidence.md`. IDs are sequential; `adopt` always takes the next free ID.
-- **The active Change is derived**, never stored: the latest Change whose `change.md` has no `## Status / Closed` section, overridable with `--change` ([ADR-009](../knowledge/decisions.md)).
-- **Adoption is safe by contract**: `init`/`adopt` never modify application code, never overwrite existing files, and are idempotent ([ADR-005](../knowledge/decisions.md)). These guarantees are covered by the test suite.
-- **Every command is guided**: purpose, reads, writes, example and next step via `aief help <command>` ([ADR-006](../knowledge/decisions.md)).
+## Skills Runtime
 
-## Prompt Engine and Context Composition
+`skill.js` defines the descriptor shape (id, version, `capabilities`, `appliesTo()`, optional
+`buildInstructions()`), a closed capability vocabulary, and the seven-status result vocabulary.
+`skills/index.js` is the static registry; `skill-service.js` resolves an id, builds a
+`skill-context.js` (the Change + project facts a Skill is allowed to see), and calls the Skill,
+translating any thrown error into a reportable `failed` status rather than crashing the CLI.
+Three capabilities (`writeFiles`, `executeCommands`, `network`) cannot be declared `true` by any
+Skill this release — a Skill attempting to register with one of them fails registration outright,
+so the restriction cannot be bypassed by an unreviewed edit.
 
-`aief prompt [assistant] [--profile X] [--change id]` composes one ready-to-paste prompt from the four knowledge dimensions plus the active Change. Composition is the renderer's job — no source file references another ([ADR-012](../knowledge/decisions.md)).
+## Hooks Runtime
+
+`hook.js` defines a closed, two-event catalog (`prompt.prepared`, `verify.completed`) and the same
+descriptor/capability discipline as Skills. `hooks/index.js` is the static registry;
+`hook-service.js` evaluates every registered Hook against a built `hook-context.js` for the fired
+event and collects `matched` results with real content into one additional, clearly labeled output
+section. A Hook's declared capabilities can never include `writeFiles`/`executeCommands`/`network`
+either, and — unlike a Skill — a Hook has no path back into the exit code or file state at all: it
+is purely observational by construction, not merely by convention.
+
+## Verification Engine
+
+`verification-rule.js` defines the Verification Rule contract (scope, capabilities, `appliesTo()`,
+`evaluate()`) and a six-type Evidence vocabulary, of which only `artifact_state` (an SDD provider's
+own normalized state) and `file_assertion` (a path-contained filesystem check) are supported this
+release. `verification-rules/index.js` is the static registry (`requirement-has-traceability`,
+`evidence-reference-integrity` today); `verification-service.js` resolves applicable rules per
+requirement and aggregates per-rule verdicts into one five-state result
+(`ERROR > INVALID > FAIL > INCOMPLETE > PASS`, fixed precedence — never a boolean reduction).
+`change-verifier.js` (Structural Verification) is untouched by any of this: the two layers compose
+in `cli.js`, they do not call into each other.
+
+## Prompt composition
+
+`aief prompt` is the only place the knowledge dimensions are composed into one prompt — no source
+file references another:
 
 ```mermaid
 flowchart LR
     AG[AGENTS.md] --> P
-    AF[Assistant file<br/>CLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md] --> P
-    PRO[Profile name<br/>--profile] --> P
-    STD[Standards<br/>knowledge/standards/*.md] --> P
-    SKL[Skill content<br/>from the catalog] --> P
-    CHG[Active Change<br/>change.md / spec.md / tasks.md] --> P
-    P((Prompt Engine)) --> OUT[One prompt<br/>pasted into the assistant]
+    AF["Assistant file\nCLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md"] --> P
+    PRO["Profile\n--profile"] --> P
+    STD["Standards\nknowledge/standards/*.md"] --> P
+    SKL["Recommended Skills\n(Skill Catalog)"] --> P
+    WFB["Workflow / SDD context\n(if the Change opted in)"] --> P
+    SKR["Skill Runtime output\n(--skill id, if requested)"] --> P
+    HKB["Hook output\n(prompt.prepared)"] --> P
+    CHG["Active Change\nchange.md / spec.md / tasks.md"] --> P
+    P((Prompt composition)) --> OUT[One ready-to-paste prompt]
 ```
 
-The composed prompt also carries lifecycle guardrails learned from real validations: re-run safety (existing real evidence must be amended, not overwritten), where results belong (project evidence vs tooling feedback), and Analysis-specific constraints (no source-code modification).
+Each block is additive and independently silent when it doesn't apply — a Change with no `track`
+produces byte-identical output to before any Core 3.0 subsystem existed. Assistant selection is
+explicit and fails loudly on an unknown name; there is no per-assistant branch anywhere else in the
+engine.
 
-Assistant selection is explicit and fails loudly: unknown assistant names produce guidance, never a silent fallback.
+## Detection
 
-## The knowledge dimensions
-
-Each layer answers one orthogonal question ([ADR-012](../knowledge/decisions.md)); none may absorb another.
-
-### AGENTS.md — *What rules must never be violated?*
-
-The constitution binding every assistant in every Change ([ADR-004](../knowledge/decisions.md)). Created by `init`/`adopt` if missing; assistant files extend it and must not contradict it. It holds inviolable rules only — it must never become a knowledge base.
-
-### Profiles — *How should I reason?*
-
-Selected explicitly by the human per Change (`--profile architect|developer|...`), never detected from the project. **Implementation status (honest):** today the profile is injected as a named role ("Act as the architect profile"); the structured operational model (goal, thinkingStyle, priorities, expectedOutputs, avoid) is accepted architecture ([ADR-012](../knowledge/decisions.md)) whose implementation Change has not started yet.
-
-### Standards — *How should this project be built?*
-
-Editable project property under `knowledge/standards/` ([ADR-010](../knowledge/decisions.md)). `adopt` creates starters (base, documentation, testing, security — plus frontend/backend when signals fire) from [cli/templates/standards/](../cli/templates/standards/), marked with `(adapt)` lines for the team to make their own. Never overwritten on re-adoption.
-
-### Skills — *What should I know?*
-
-Specialized technology/domain knowledge, recommended when detection signals fire. Three distinct concepts live in [cli/src/skills-catalog.json](../cli/src/skills-catalog.json) ([ADR-007](../knowledge/decisions.md), [ADR-010](../knowledge/decisions.md)):
-
-1. **Detectors** — fire on project signals (strong = dependencies/files; weak = documented keywords, word-boundary matched).
-2. **Recommendations** — map detectors to Skills, always with a stated reason.
-3. **Skill content** — operational knowledge (promptContext, commonRisks, standardsToRead, evidenceExpectations) injected into prompts *as context*. Skills are never executed.
-
-`adopt` renders the recommendations into `knowledge/skills.md` so the project owns a readable view.
-
-## Evidence
-
-`evidence.md` is the Change's proof: what changed, how it was verified, what remains, what was learned. The system treats it as load-bearing:
-
-- `adopt` generates its own adoption evidence (never placeholder).
-- `prompt` guards existing real evidence against blind overwrites.
-- `verify` reports placeholder evidence calmly for open Changes and warns for closed ones.
-- `close` refuses to close a Change whose evidence is incomplete.
-
-Evidence is also how AIEF itself evolves: product improvements must trace to validated adoption findings ([ADR-008](../knowledge/decisions.md)).
-
-## Verify
-
-`aief verify` (level 3, read-only) checks: required files (`README.md`, `AGENTS.md`, `changes/`), each Change's four files present and non-empty, evidence completeness, and (for Enrichment Changes) the Requirement Source/Human Review rules — then prints PASS/FAIL with the next recommended step. It is the pre-close and pre-commit gate.
-
-## Close
-
-`aief close` runs readiness checks (files present, tasks checked, evidence completed) and reports. Only `close --yes`, with all checks passing, writes the single thing the governance level ever writes: a dated `## Status / Closed` section inside the Change's own `change.md`. Closing a Change automatically promotes the next open one to active. `aief close` is not OpenSpec `/archive` — each governs its own artifact ([ADR-011](../knowledge/decisions.md), [comparison](Workflow.md#aief-close-vs-openspec-archive)).
-
-### Verification internals
-
-The rules behind `verify` and `close` live outside `cli.js`, in a small internal core:
-
-```text
-cli/src/core/
-  domain/
-    change.js               Change model: loadChange(dir) + the content predicates it derives from
-                             (closed, type, evidence-placeholder, open-task count)
-    verification-report.js  VerificationReport: { lines, errors, warnings, passed, next }
-  services/
-    change-verifier.js      verifyProject() (used by `verify`) and checkChangeReadiness()
-                             (used by `close`) — both read the same Change fields, so there
-                             is exactly one implementation of each rule, not two
-```
-
-`cli.js` itself only resolves arguments, locates the Change directory, loads it via `loadChange`, calls the verifier, and renders the result — it holds no verification logic. This is an internal refactor: no command, output format, or `changes/<id>/` structure changed.
+`detect.js` plus `skills-catalog.json` drive `doctor`/`adopt`/`analyze`'s project detection: strong
+signals (dependencies, files) and weak signals (documented keywords, word-boundary matched) map to
+recommended Skills, always with a stated reason. This is the **Skill Catalog** — static,
+unexecuted, contextual recommendation data — distinct from the Skills Runtime above, which is a
+registered, invocable contract. No engine code branches on a specific technology; adding one means
+editing the catalog.
 
 ## Bootstrap and distribution
 
-AIEF ships as a root npm package exposing the `aief` binary from [cli/bin/aief.js](../cli/bin/aief.js) (`npm install && npm link` from the repo root; no dependencies; Node >= 18). `aief doctor` verifies the environment in levels (required / recommended / optional) and `aief init` initializes projects — details in [bootstrap.md](bootstrap.md).
+AIEF ships as a root npm package exposing the `aief` binary from `cli/bin/aief.js`. No runtime
+dependencies. `aief doctor` checks the environment in three levels (required / recommended /
+optional); `aief init`/`aief adopt` create only visible structure, never application code, and are
+idempotent. See [Getting Started](getting-started.md).
 
 ## What is deliberately absent
 
-- No hidden `.aief/` directory, state files or databases ([ADR-009](../knowledge/decisions.md); reaffirmed in Changes 0017 and 0025).
-- No spec generation ([ADR-001](../knowledge/decisions.md), [ADR-002](../knowledge/decisions.md)).
-- No vendored SpecBoot files ([ADR-003](../knowledge/decisions.md)).
-- No assistant-specific logic in the engine — assistant differences end at the instruction-file name.
-- No technology knowledge in engine code — it lives in the catalog ([ADR-007](../knowledge/decisions.md)).
+- No hidden `.aief/` directory, state files, or database.
+- No spec generation inside AIEF's own core — OpenSpec or a human owns that.
+- No vendored SpecBoot files.
+- No assistant-specific logic — differences end at the instruction-file name.
+- No technology-specific knowledge in engine code — it lives in the Skill Catalog.
+- No plugin loader for Skills/Hooks/Verification Rules/SDD providers — every registry is a static,
+  reviewed, statically-imported object.
