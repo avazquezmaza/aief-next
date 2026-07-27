@@ -4,6 +4,317 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-021: Verification splits into Structural (existing) and Requirement (new, evidence-based, deterministic) layers; evidence is consumed and normalized, never generated; `close()` and Workflow-gate integration are deferred
+
+**Status: Accepted (2026-07-27)** — status line updated by [Change 0051](../changes/0051-core3-documentation-rebuild/) to reflect [Change 0049](../changes/0049-core3-verification-engine/)'s own closure record (`change.md`: "Status: Closed (2026-07-27)"); the decision text below is unchanged. Proposed alongside the rest of Change 0049's planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation completed and the Change closed the following day, per that Change's own evidence.
+
+**Decision.**
+
+> **Verification** (AIEF Core 3.0, Entrega 7) splits explicitly into two layers that were previously conflated under `aief verify`: **Structural Verification** (`change-verifier.js`, unchanged — repository/Change file integrity, manifest consistency, evidence-classification heuristic, open-task count) and **Requirement Verification** (new — for each requirement a Change's SDD artifacts declare, a deterministic, evidence-grounded verdict). Requirement Verification never uses AI, never executes a test or a command, never reaches the network, and never invents a requirement↔task/test linking convention this repository does not already, verifiably, use. A **Verification Rule** is a plain, statically-registered object (no class) — `id`/`version`/`title`/`description`/`scope`/`capabilities`/`appliesTo(context, requirement)`/`evaluate(context, requirement, evidence)` — evaluated against pre-resolved **Evidence** (six named types; only `artifact_state`, reusing the SDD Provider's own normalized states, and `file_assertion`, a path-contained filesystem check, are SUPPORTED this Entrega; `test`/`manual_attestation` are DEFINED but never sufficient alone; `command_result`/`external_reference` are REJECTED, requiring execution/network). Per-rule results use seven statuses (`passed`/`failed`/`not_applicable`/`blocked`/`unsupported`/`invalid`/`error`) — `failed` (a real, evaluated non-compliance verdict) is kept structurally distinct from `error` (an engine fault) and `invalid` (a bad input), a three-way distinction no prior Entrega's capability needed since none of them render a pass/fail verdict about anything. Aggregation is a five-state, fixed-precedence policy (`ERROR > INVALID > FAIL > INCOMPLETE > PASS`) — never a boolean reduction, and missing evidence is `INCOMPLETE`, never silently rounded to `PASS`. `aief verify` gains exactly one new, opt-in flag (`--requirements`); its default (no-flag) output and exit code are byte-identical to Entrega 6's. `verify.completed`'s existing Hook contract (`operation.result` = the legacy structural report) is unchanged, with or without the flag. Workflow-gate and `close()` integration are evaluated and explicitly deferred — no `"verification"` gate id is added anywhere, even prepared-inert; `close()`/`markClosed()`/`checkChangeReadiness()` gain zero diff lines.
+
+**Why this needs its own ADR.** This is the sixth new architectural boundary/stable-internal-interface this project has introduced (ADR-016 through ADR-020) — the same instruction that produced each of those records this one for the same reason: a new boundary (Structural/Requirement split), a new Evidence Model with an explicit supported/unsupported/rejected typology, a new capability model, a new five-state aggregation policy distinct from every prior Entrega's own result vocabulary, and a decision about `aief verify`'s own long-standing default behavior are each independently listed as ADR triggers, and this Entrega introduces all five.
+
+**The Evidence Model is grounded in what this repository can already prove, not in an invented authoring convention.** Inspection found the SDD Provider's own `Requirement`/`Task` contracts (`sdd-model.js`, Entrega 3) explicitly document that `Task.requirements` is **always `[]`** — "no Change in this repository links a task to a requirement id in any machine-checkable way" (SDD-R21). Any rule assuming such a link exists would be inventing a convention with zero real adoption and would misjudge every Change closed before this Entrega by a rule that didn't exist when they were written — exactly the failure mode ADR-008's evidence discipline exists to prevent. The one convention that genuinely *does* exist, organically, across every `verification.md` this session's own Entregas 2–6 produced, is a scenario-table column citing `spec.md` requirement ids — this is the real signal `requirement-has-traceability` (this Entrega's first rule) checks, and it is scoped honestly: it proves a requirement was *considered* in verification planning, explicitly never that it was *satisfied*.
+
+**Why Requirement Verification stays out of `close()` and Workflow gates this Entrega.** `close()` is this codebase's one write-critical command outside Change-creation; Entrega 6 already deferred Hook integration there for the same reason, and nothing about a two-rule Requirement Verification layer — whose `requirement-has-traceability` rule would report `failed` for every requirement not yet cited in `verification.md`, a real but potentially disruptive finding for Changes written before this convention existed — changes that risk calculus. No `"verification"` Workflow gate id is added even as a prepared-inert slot (a stronger deferral than Entrega 3's own `specification` gate, which *was* added inert) — no consumer or design exists yet for how a Workflow stage should react to an `INCOMPLETE`/`FAIL` verdict, and preparing an unused slot without one would be speculative.
+
+**What routes through the boundary.** Any Requirement Verification need for Change/Workflow/SDD facts — via Verification Context, which reuses `workflow-service.js`'s `explain()` (the exact call `verify()` already makes since Entrega 6, for the Post-Verify Hook — zero new calls) and adds exactly one new, safe, fixed-filename read (`verification.md`, under the already-trusted Change directory — no user-controlled path component, no new class of symlink/traversal risk).
+
+**What does not route through it.** `close()`'s write path (unchanged); the Workflow Engine's gate/transition authority (no Verification Rule or Service function can approve a gate, change `track`/`stage`, or execute a transition — enforced by absence, the same discipline ADR-018/020 already used); `evidence.md` as a per-requirement evidence source (confirmed by inspection to be narrative, human-authored, whole-document-heuristic-classified — `classifyEvidence()`, Change 0043 — never structured; this Entrega does not make it authoritative and does not introduce a parallel structured evidence file, Option A of three evaluated: consume, validate, normalize — never generate, never modify).
+
+**Relationship to ADR-019/020.** Verification Rules mirror the exact plain-module, capability-gated, frozen-input, Service-owns-the-identity-fields pattern Skills and Hooks already established — including proactively applying the `appliesTo()` non-applicable-status whitelist fix Entrega 5's adversarial review found reactively for Skills (SK-R20-equivalent) and Entrega 6 applied proactively for Hooks (HK-R31) — designed in from the start here (VR-R29) rather than left for a third review to find again. No Verification Rule invokes the Skill Service or the Hook Service, and neither of those invokes Verification — no new coupling direction is introduced beyond CLI → Verification Service → Verification Registry → Rule.
+
+**Alternatives considered.**
+
+- **Invent a requirement↔task/test linking convention and retrofit it onto Changes 0043–0048.** Rejected — would misrepresent already-closed Changes as non-compliant by a rule that postdates them (ADR-008's evidence discipline).
+- **A structured `evidence.json`/`evidence.yaml` file (Evidence Model Option B).** Rejected this Entrega — no real authoring gap justifies a new persistence surface yet; `verification.md`'s existing citation pattern already provides real signal without a new format or migration.
+- **Wire `--requirements` results into `close()`'s readiness check, or add a `"verification"` Workflow gate.** Rejected — same write-critical-path caution Entrega 6 already applied to `close.requested`.
+- **A class-based `VerificationRule` interface.** Rejected — zero classes exist anywhere in `cli/src/`; Verification Rules mirror the same plain-module pattern as `requirement-providers/`/`sdd-providers/`/`skills/`/`hooks/`.
+
+**Consequences.**
+
+- `change-verifier.js`, `close()`, `markClosed()`, `checkChangeReadiness()`, `status`, `propose`, Skills Runtime, Hooks Runtime, WorkflowService, SDD Provider, `gate-evaluator.js`, and every workflow definition JSON are untouched by this Entrega — zero diff lines.
+- `aief verify` without `--requirements` is byte-identical to Entrega 6's output, including exit code; `verify.completed`'s Hook contract is unchanged either way.
+- `command_result`/`external_reference` evidence and `writeFiles`/`executeCommands`/`network`/`assistantRequired` capabilities cannot be registered this Entrega — any future Change proposing them must first amend or supersede this ADR.
+- No new persisted state; no new write path; no new command verb; no existing exit code changes outside `--requirements`'s own new, opt-in policy.
+- If accepted, this ADR authorizes Change 0049 to proceed from planning to a full implementation phase (staged, adversarially reviewed before close, per Changes 0043–0048's established discipline) — implementation remains a separate, later, explicit approval, not authorized by acceptance alone.
+
+---
+
+## ADR-020: A Hook is a versioned, capability-gated, closed-catalog-event observer; blocking authority is contractually reserved but structurally inert this Entrega, effects deferred
+
+**Status: Accepted (2026-07-26), by the project owner.** Accepted alongside the rest of [Change 0048](../changes/0048-core3-hooks-runtime/)'s planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation begins immediately after acceptance, per the project owner's explicit instruction. Confirmed at acceptance: no prior `hook`/`callback`/`middleware`/`lifecycle`/`listener` mechanism exists anywhere in `cli/src/` (grep-confirmed).
+
+**Decision.**
+
+> A **Hook** (AIEF Core 3.0, Entrega 6) is a plain, statically-registered object — never a class — that subscribes to one or more events from a **closed, two-event catalog** (`prompt.prepared`, `verify.completed` — both `phase: "post"`, both with a confirmed, inspected CLI emission point), declares an explicit `capabilities` set (default-denied), implements a deterministic `appliesTo(event, context)`, and, for every Hook this Entrega ships, a pure `evaluate(event, context)` that never writes a file, executes a command, or reaches the network — structurally impossible, since `writeFiles`/`executeCommands`/`network: true` cannot be registered, identical mechanism to ADR-019's `FORBIDDEN_CAPABILITIES`. `capabilities.block`/`blocking`/`blockers` exist in the contract's vocabulary (so a future pre-event Hook needs no contract change) but are structurally inert this Entrega — the Hook Service only ever honors `blocking: true` for a `phase: "pre"` event, and no such event exists in this Entrega's catalog. A Hook Context is assembled by a thin, **non-fetching** normalizer that accepts already-computed `project`/`change`/`workflow`/`sdd`/`skill`/`operation` values from the calling operation (`prompt()`/`verify()`) — deliberately asymmetric with Skills' own Context Builder, which does fetch, because both of this Entrega's events fire from inside a command that already computed those facts for its own rendering; a Hook Context Builder that re-fetched would recreate Change 0043's B1 "two callers assumed to agree" risk one layer up. A Hook Registry mirrors `requirement-providers/index.js`/`sdd-providers/index.js`/`skills/index.js` exactly. Every invocation produces one normalized result with six distinguishable `status` values (`matched`, `not_applicable`, `blocked`, `unsupported`, `invalid`, `failed` — no `completed` analog, since a Hook observes rather than executes). A Hook may invoke the Skill Service (Entrega 5) only if it declares `capabilities.invokeSkill: true` and only for an id present in its own descriptor-level `allowedSkills` array — never a Skill module directly, and the Skill Service never calls back into the Hook Service, making Hook→Skill→Hook recursion structurally impossible. `prompt`/`verify` gain one emission point each — no new command verb (ADR-015 unmodified, Change 0042 untouched).
+
+**Why this needs its own ADR.** This is the fifth new architectural boundary/stable-internal-interface this project has introduced (ADR-016: Workflow Engine; ADR-017: SDD Provider boundary; ADR-018: User Workflow application layer; ADR-019: Skills Runtime) — the same instruction that produced each of those records this one for the same reason: a new boundary, a new closed event catalog, a new capability/blocking-authority model, and a new inter-boundary call direction (Hook Service → Skill Service, one-directional) are each independently listed as ADR triggers, and this Entrega introduces all four again.
+
+**The event catalog is closed and evidence-based, not adopted from the vision document.** `docs/aief-core-3-claude-code-prompt.md` §13 sketches Workflow-*stage*-shaped events (`before_work`/`after_review`/etc.) — none of these has a real CLI-observable emission point in this codebase today (`canTransition()`, Entrega 4, only ever answers whether a transition *would be* legal; nothing executes one yet). Inspection instead found three real, inspectable phase boundaries — inside `close()`, `verify()`, and `prompt()` (`cli.js`, see `design.md` §1) — and this ADR adopts events for exactly two of them, both `post`-phase: `prompt.prepared` (after every existing context block is computed, before the final render) and `verify.completed` (after the `report` object exists, before `renderReport()` prints it). `close.requested` (a real point exists — immediately after `checkChangeReadiness()`'s `problems` is computed, before any write) and `change.closed`/`change.created`/`change.inspected` (real points exist too) are explicitly **not** adopted this Entrega — documented as identified-not-wired, the same "prepared, not enabled" precedent Entrega 3 used for the Workflow Engine's `specification` gate.
+
+**Why `close()` integration is deferred, not merely unstarted.** `close()` is this codebase's only Change-lifecycle command with a write path outside Change-creation (`adopt`/`enrich`/`propose`/`new-change`). Even a strictly read-only, non-blocking Hook attached to it changes the trust profile of the one command where a mistake is hardest to reverse — and a Close Readiness Guard Hook's only justified content (restating `checkChangeReadiness()`'s `problems`) is already fully visible in `close()`'s own dry-run output today, so no information would actually be gained. `close()` gains zero diff lines this Entrega.
+
+**Why Model B's blocking authority is kept in the contract, unexercised, rather than omitted.** Same reasoning as ADR-019 gave Skills' `deterministicExecution`: a future `phase: "pre"` event (if `close.requested` is ever wired by a later, separately-approved Change) must not require a contract-shape change. The Hook Service's own enforcement — `blocking` is forced `false` for any event whose `phase !== "pre"`, regardless of what a Hook's `evaluate()` returns — is what keeps this inert rather than a convention a Hook author could violate.
+
+**What routes through the boundary.** Any Hook's need for Change/Workflow/SDD/project/already-computed-operation facts — via the Hook Context normalizer, populated by whichever command emits the event. Any Hook's need to consult a Skill — via the Hook Service calling the Skill Service's `runSkill()`, gated by the Hook's own `allowedSkills`.
+
+**What does not route through it.** `close()`'s write path (unchanged, no event); the Workflow Engine's gate/transition authority (a Hook can read `workflow.state.blockers`/`warnings` but has no method that could approve a gate or execute a transition — same absence-based enforcement ADR-018 already used for Skills); the Skill Service's own internal enforcement (a Hook receives the Skill Service's *already-normalized* result, never a raw Skill module).
+
+**Relationship to ADR-013.** This Entrega **merges**: `prompt()`'s bespoke-block pattern (four independent bodies stacked across Entregas 4/5) does not grow a sixth here — a Hook's `prompt.prepared` result is rendered by the same shared-renderer discipline `renderSkillSection()` already established, generalized rather than duplicated. `verify()` gains its first-ever additive render line through the same mechanism, not a bespoke one-off.
+
+**Relationship to ADR-019.** The Hook Service is a consumer of the Skill Service, never a peer that redefines Skill semantics: a Skill's `ready` result is never re-labeled `completed` by a Hook (the same distinction SK-R24 enforces is preserved, not re-derived, when a Hook embeds a `skillResults` entry); a Hook cannot alter the context a Skill was evaluated against or substitute a different result object. This Entrega also proactively applies the fix Entrega 5's own adversarial review had to find after the fact — a Hook's `appliesTo()` may only select `not_applicable`/`blocked`/`unsupported` as its non-applicable status, never spoof `matched`/`invalid`/`failed` — designed in from the start (HK-R31) rather than discovered again by a future review.
+
+**Relationship to ADR-015.** Unmodified, still Accepted, still frozen pending Change 0042. This Entrega proposes zero new command verbs — `prompt`/`verify` gain an internal emission point each, not a flag, not a verb.
+
+**Alternatives considered.**
+
+- **Adopt the vision document's stage-based event names (`before_work`/`after_review`/etc.) literally.** Rejected — no CLI-observable emission point exists for any of them today; adopting them now would be inventing events the codebase cannot honestly fire.
+- **A general async Event Bus with subscriber registration.** Rejected — no evidence of a need for asynchronous reactions, background work, or third-party subscribers (ADR-008's evidence discipline); `evaluateEvent()` is a synchronous, pure function instead.
+- **Wiring `close.requested` anyway, read-only.** Considered; rejected — even non-blocking observation changes the write-critical command's trust profile for zero content its own dry-run doesn't already show.
+- **A class-based `Hook` interface.** Rejected — zero classes exist anywhere in `cli/src/` (confirmed again, including the one violation Change 0047's own review found and fixed); Hooks mirror the same plain-module pattern as `requirement-providers/`/`sdd-providers/`/`skills/`.
+- **Letting a Hook import a Skill module directly.** Rejected — recreates exactly the coupling ADR-019 already forbade for the CLI layer; a Hook goes through the Skill Service, gated by its own declared allowlist, full stop.
+
+**Consequences.**
+
+- `close()`, `status`, `status --next`, `propose` are untouched by this Entrega — zero diff lines.
+- `prompt`/`verify` gain one internal emission point each; their output is byte-identical for every
+  Change without an applicable Hook result (100% of this repository today, since none carries `sdd`).
+- `writeFiles`/`executeCommands`/`network: true` cannot be registered this Entrega — any future
+  Change proposing a Model-C Hook must first amend or supersede this ADR.
+- `capabilities.block` cannot be honored this Entrega regardless of what any Hook declares — any
+  future Change wiring a `phase: "pre"` event activates already-built, already-tested enforcement
+  logic rather than requiring new machinery.
+- No new persisted state; no new write path; no new command verb; no existing exit code changes.
+- If accepted, this ADR authorizes Change 0048 to proceed from planning to a full implementation
+  phase (staged, adversarially reviewed before close, per Changes 0043–0047's established
+  discipline) — implementation remains a separate, later, explicit approval, not authorized by
+  acceptance alone.
+
+---
+
+## ADR-019: A Skill is a versioned, internally-registered, capability-gated contract; instructions-only and a narrow deterministic-execution slice this Entrega, effects deferred
+
+**Status: Accepted (2026-07-26), by the project owner.** Accepted alongside the rest of [Change 0047](../changes/0047-core3-skills-runtime/)'s planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation begins immediately after acceptance, per the project owner's explicit instruction.
+
+**Terminology, fixed by the acceptance instruction itself, used consistently in code/docs from here on:** "**Skill Catalog**" = the existing, unchanged, static recommendation mechanism (`cli/src/skills-catalog.json`, `recommendSkills()`, `skillsBlock`, ADR-010). "**Skills Runtime**" = this ADR's new contract (descriptor, capabilities, context, applicability, normalized result — `cli/src/skills/`). A Skill Catalog entry never auto-registers as a Skills Runtime Skill; the two contracts are never mixed in one object or one registry.
+
+**Decision.**
+
+> A **Skill** (AIEF Core 3.0, Entrega 5) is a plain, statically-registered object — never a class — declaring an explicit `capabilities` set (default-denied: absent means `false`), a deterministic `appliesTo(context)` check, and, for every Skill this Entrega ships, a `buildInstructions(context, input)` method that returns text and nothing else. `capabilities.deterministicExecution`/`execute()` exist in the contract's vocabulary for a future narrow, pure Model-B Skill, but neither of this Entrega's two initial Skills uses them. `capabilities.writeFiles`/`executeCommands`/`network: true` **cannot be registered** this Entrega — the Skill Registry rejects any descriptor claiming one of them, structurally, not by convention. A Skill Context is built by calling `workflow-service.js`'s `explain()` (Entrega 4) exactly once per Change per invocation, plus `detectProject()`'s existing output — never re-deriving Change/Workflow/SDD facts a second way. A Skill Registry mirrors `requirement-providers/index.js`/`sdd-providers/index.js` exactly: a static object of statically-imported modules, `hasSkill`/`getSkill`/`skillIds`, duplicate/invalid descriptors rejected at load. Every invocation produces one normalized result shape with seven distinguishable `status` values (`ready`, `completed`, `not_applicable`, `blocked`, `unsupported`, `invalid`, `failed`) — `ready` (instructions built) and `completed` (execution ran) are never conflated, enforced by the Skill Service itself, not by each Skill's own discipline. `prompt` gains two additive flags, `--list-skills`/`--skill <id>` — no new command verb (ADR-015 unmodified, Change 0042 untouched).
+
+**Why this needs its own ADR.** This is the fourth new architectural boundary/stable-internal-interface this project has introduced in as many Entregas (ADR-016: Workflow Engine; ADR-017: SDD Provider boundary; ADR-018: User Workflow application layer) — the same instruction that produced each of those records this one for the same reason: a new boundary, a new registry-selection policy, a new normalized-result model, and (uniquely to this ADR) an explicit capability/permissions model are each independently listed as ADR triggers, and this Entrega introduces all four again, plus a fifth: a direct naming collision with an already-Accepted ADR (ADR-010).
+
+**The ADR-010 collision, resolved explicitly (not by implication, per ADR-013's own consequence clause).** `cli/src/skills-catalog.json` + `detect.js`'s `recommendSkills()` already use the word "Skill" for a purely static, unexecuted, contextual-knowledge concept (ADR-010: "Skills are contextual knowledge... included as context, never claimed to be executed"). This ADR does not rename or replace that concept — it is cited, by the vision document itself (`docs/aief-core-3-claude-code-prompt.md` §12: "Actualmente las skills pueden actuar principalmente como contexto. Evoluciónalas...") and by the commissioning instruction that produced this Change, as the thing this contract *evolves*. Concretely: `cli/src/skills-catalog.json`, `recommendSkills()`, `knowledge/skills.md` generation, and `prompt()`'s existing `skillsBlock` are **untouched** by this Entrega — zero diff lines. A catalog entry is, informally, already a valid instance of this Entrega's contract in its degenerate form (`capabilities: {instructions: true}` only, unconditional applicability) — this Entrega does not perform that migration, and does not require it. Two entries are added to `docs/domain-model.md`'s ubiquitous-language table, not one merged entry, so "Skill" (this ADR's contract) and "the Skills catalog" (ADR-010, unchanged) stay distinguishable to a future reader.
+
+**Why Model C (write/execute/network effects) is deferred, not merely discouraged.** The vision document's fuller sketch (§12: `skill.yaml` with `permissions.filesystem.write`, `verification.checks` of `type: command` running arbitrary commands, `type: agent` delegating to an assistant) has no cited evidence in this codebase today — no Skill-shaped code writes a file or runs a command anywhere in `cli/src/`, and Hooks (the natural trigger for that fuller model) do not exist yet. Rather than leave this as a documented preference a future Skill author could quietly violate, the Skill Registry **structurally rejects** any descriptor claiming `writeFiles`/`executeCommands`/`network: true` — registration fails at module-load time. This is deliberately stronger than "built but unused" (the treatment given to `deterministicExecution`/`execute()`, kept in the contract's vocabulary since a narrow, pure, read-only deterministic-execution Skill already has cited precedent in this codebase — `checkChangeReadiness()`, `requirementFactsAndAssumptions()`). The falsifiable condition for revisiting Model C is recorded in `design.md` §2: a concrete, cited use case that cannot be expressed via `close`'s existing write path or a future Hooks event, with an evidenced security/confirmation/rollback design.
+
+**What routes through the boundary.** Any Skill's need for Change/Workflow/SDD/project facts — for both of this Entrega's initial Skills, uniformly, via one Skill Context Builder call to `explain()` (never re-implemented) plus `detectProject()`.
+
+**What does not route through it.** `close`'s write to `change.md` (unchanged); `status`'s existing Workflow/SDD sections (Entrega 2/3/4, unwired to Skills this Entrega — `status` gains no new flag here); Hooks' own (undesigned) event/trigger/confirmation model, which this ADR's Skill Service is built to be *callable from* later (`design.md` §15) but does not itself define.
+
+**Relationship to ADR-013.** This Entrega **merges**: `prompt()`'s four independent, hand-written inline context blocks (`standardsBlock`/`skillsBlock`/`workflowBlock`/`sddBlock`) collapse into one general mechanism (Skill Service → normalized result → one shared renderer) any future context type can join without `prompt()` growing a fifth bespoke block — the existing four are not rewritten to use it this Entrega (additive-and-dormant, the same pattern Changes 0043–0046 each used), recording that consolidation as a deferred obligation rather than performing it silently. The ADR-010 collision above is this ADR's other explicit, not-resolved-by-implication concession to ADR-013.
+
+**Relationship to ADR-015.** Unmodified, still Accepted, still frozen pending Change 0042. This Entrega proposes zero new command verbs — `--list-skills`/`--skill <id>` are additive flags on the existing `prompt` command, mirroring exactly the Path B precedent ADR-018 established for `status`.
+
+**Alternatives considered.**
+
+- **Adopt the vision document's `skill.yaml`/`SKILL.md`/`permissions`/`verification.checks` contract literally.** Rejected for this Entrega: no cited evidence supports `type: command`/`type: agent`/filesystem `permissions` yet. Recorded as the explicit future evolution target (`design.md` §14/§15), not discarded.
+- **A class-based `Skill` interface.** Rejected — zero classes exist anywhere in `cli/src/`; both existing registry precedents (`requirement-providers/`, `sdd-providers/`) are plain module maps. Same reasoning ADR-016/017 already used.
+- **Rename the new concept to avoid the ADR-010 collision (e.g., "Capability").** Considered and rejected: both the vision document and the commissioning instruction use "Skill" for exactly this evolution; renaming would create a third term for the same idea instead of resolving the collision the codebase already has.
+- **A full plugin/marketplace/remote-loading registry.** Rejected — same reasoning ADR-017 used to reject it for SDD providers: a small number of known, internal, versioned Skills, one static registry object.
+
+**Consequences.**
+
+- `cli/src/skills-catalog.json`, `recommendSkills()`, `knowledge/skills.md` generation, and `prompt()`'s existing `skillsBlock` are unmodified by this Entrega — the ADR-010 concept and this ADR's concept coexist, explicitly distinguished, not merged.
+- `writeFiles`/`executeCommands`/`network: true` cannot be registered this Entrega — any future Change proposing a Model-C Skill must first amend or supersede this ADR, not merely add a Skill module.
+- `prompt` gains two additive flags; every other command (`status`, `verify`, `close`, `propose`) is untouched.
+- No new persisted state; no new write path beyond `close`'s existing one; no existing exit code changes.
+- If accepted, this ADR authorizes Change 0047 to proceed from planning to a full implementation phase (staged, adversarially reviewed before close, per Changes 0043–0046's established discipline) — implementation remains a separate, later, explicit approval, not authorized by acceptance alone.
+
+---
+
+## ADR-018: User Workflow is a thin application layer; "what's next" has one canonical source; exposure is gated by ADR-015
+
+**Status: Accepted (2026-07-26), by the project owner.**
+
+**Selected path: Path B** — zero new public command verbs. Entrega 4 is implemented entirely as
+compatible evolution of existing commands: `aief status --change <id>`, `aief status --next`,
+`aief prompt` (extended). No `start`, `next`, or `work` verb is introduced.
+
+**How Path B relates to ADR-015 (recorded explicitly, not by implication).** ADR-015 remains
+**Accepted, unmodified, not thawed, not suspended**. Path B is accepted as a compatible,
+conservative reading of its literal text: ADR-015 freezes *new commands*; this Entrega adds *flags*
+to commands that already exist (`status`, `prompt`) and *consolidates* internal logic
+(`workflow-service.js`) — neither is a new command. This is not a declaration that `start`/`next`/
+`work` will never become real, separate command verbs: that naming question is explicitly deferred,
+to be revisited **only after Change 0042 (the usability study) is consolidated**. Whatever
+public-command surface is decided then may keep today's flags as-is, alias them, or replace them —
+this ADR commits to none of those outcomes now. This Change does not close or modify Change 0042;
+the study continues unaffected by this Entrega's internal consolidation work.
+
+**Decision (four bundled, tightly-coupled sub-decisions — see "Why bundled" below).**
+
+**§1 — A `workflow-service.js` application-layer facade is justified and introduced**, as plain
+functions (not a class — no class exists anywhere in `cli/src/`, same reasoning ADR-017 already
+established for `SddProvider`). It does not add new capability; it consolidates a real,
+already-existing inconsistency: `status()` (`cli.js`) currently computes "what's next" **two
+different, disagreeing ways in the same function** — a per-Change `Workflow status` block (added in
+Change 0044) that renders `resolveState()`'s derived `nextAction`, and a completely separate,
+older, static heuristic at the bottom of `status()` (`printNext("aief adopt")` /
+`printNext("aief prompt")` / etc., predating the Workflow Engine, never updated to consult it). For
+a single open Change with a `track`, `status` can print two different "next" answers in the same
+invocation. `workflow-service.js` gives every caller — `status`'s own bottom line, and any future
+`next`-shaped surface — exactly one function to ask.
+
+**§2 — "What's next" stays fully derived; nothing new is persisted.** Change 0044 (ADR-016) already
+decided `track` is the only new persisted fact and everything else — stage, gates, blockers,
+`next_action` — is recomputed on every call. This Entrega does not revisit that decision; it reuses
+it. No "active Change" is persisted either (no session file, no `.aief/` state, no environment
+variable) — selection stays exactly what ADR-009 and Change 0043's `resolveExplicitChange()`/
+`resolveImplicitChange()` already established: explicit `--change`, or a deterministic single-open-
+Change inference, every time, from the files on disk.
+
+**§3 — A normalized action/read-vs-write contract is defined, distinct from `GateResult`.** An
+"action" answers "what should the user do," not "is this one condition satisfied" (`GateResult`'s
+job, unchanged). The two are never merged (the same discipline that kept SDD readiness and gate
+readiness separate in ADR-017, applied one level up). Every read-oriented operation this Entrega
+adds or extends is **exit-code 0 whenever it successfully answers the question it was asked**,
+matching the existing, real precedent in `close()` (`cli.js`): `close` without `--yes` reports
+unresolved readiness problems and still exits `0` — reporting a blocker is a successful query, not
+a failure. `close --yes` only sets exit `1` when it *attempted* the write and could not complete it.
+Exit `1` is reserved, across every command this Entrega touches, for the query itself failing
+(Change not found, ambiguous selection, invalid manifest, provider unavailable) — never for an
+honestly-reported blocked/pending answer. No new exit codes (2/3/4) are introduced: this
+repository's entire CLI, today, uses only `0`/`1` (confirmed by inspection — no other value appears
+anywhere in `cli.js`), and a query-vs-attempt split using the existing two values is sufficient and
+consistent with `close`'s own precedent, rather than the vision document's untested 5-value sketch.
+
+**§4 — Resolved: Path B.** ADR-015 (Accepted, 2026-07-17) freezes "new commands" until the AIEF 2.0
+usability study ([Change 0042](../changes/0042-usability-validation-protocol/)) is consolidated —
+confirmed still `Open`, not consolidated, as of this ADR. Entregas 1–3 avoided this collision
+entirely (zero new commands — purely additive, dormant machinery). Entrega 4's own premise
+(`aief start`/`next`/`work`) would, taken literally, be new commands. Two paths were designed (see
+`design.md` §4); the project owner selected **Path B**, 2026-07-26:
+
+- **Path A — new commands** (`aief next`, evolving `aief prompt` toward `work`, no separate
+  `start`). Would have required an explicit, recorded decision that Core 3.0's User Workflow
+  surface is out of ADR-015's scope, or an explicit partial thaw. **Not selected.**
+- **Path B — new flags on existing commands** (`aief status --change <id>`, `aief status --next`,
+  `aief prompt` gaining Workflow/SDD context blocks — zero new command verbs). **Selected.** A
+  compatible, conservative reading of ADR-015's literal text (it freezes commands, not flags).
+  Definitive command naming is deferred until Change 0042's consolidation; today's flags may become
+  aliases, be replaced, or remain, decided then — not committed here.
+
+**Why bundled.** §1–§3 are one coherent decision — the facade exists specifically to give the
+action/exit-code contract (§3) and the derivation discipline (§2) a single implementation, and
+none of the three makes sense evaluated alone. §4 is bundled because it gates whether §1–§3 are
+ever reachable from the CLI at all — separating it into its own ADR would let a reader accept the
+internal design without noticing the external exposure question is still open.
+
+**Context.** `docs/aief-core-3-claude-code-prompt.md` §10 sketches `start`/`work`/`next` with
+capabilities (SDD provider selection, profile/standards/skills selection, manifest creation) this
+repository does not yet have wired to any command — `new-change` already handles id/slug/type
+creation; Skills/Hooks execution is explicitly out of scope for this Entrega and the vision
+document's own §21. The sketch is a destination, not a contract to adopt literally (the same stance
+Change 0043 took toward the vision document's `class SddProvider`).
+
+**Consequences.**
+
+- `status()`'s bottom-line suggestion and its per-Change `Workflow status` block both route through
+  `workflow-service.js` once implemented — for a track-carrying Change, they can no longer disagree
+  with each other, because there is only one computation.
+- `close()`'s write path and gating (`checkChangeReadiness()`) are **not** touched — the
+  commissioning instruction is explicit that consolidation happens only where a real User Workflow
+  operation cannot be implemented correctly without it, and no operation this Entrega designs
+  writes anything beyond what `close`/`markClosed()` already do.
+- `propose()` remains untouched and separate (ADR-017's own deferred obligation, restated, not
+  re-opened here) — `start`/its Path-B equivalent never creates a Change; creation stays
+  `new-change`/`propose`'s exclusive job, avoiding two contradictory public paths to begin one.
+- Path B selected: no ADR-015 exception was needed. The flags' discoverability during the ongoing
+  usability study remains a human judgment call (not testable), noted in `verification.md`'s
+  "Manual checks."
+- Definitive public-command naming (whether `status --next` ever becomes `aief next`, etc.) is
+  explicitly deferred to a future Change, after Change 0042's consolidation — not decided here, and
+  not assumed to default to Path A's shape when that time comes.
+- ADR-015 itself is unmodified by this decision: still `Accepted`, still governing until Change
+  0042 is consolidated. Change 0042 itself is neither closed nor modified by this Entrega.
+
+---
+
+## ADR-017: SDD access goes through a provider boundary; the Core never reads a provider's native files
+
+**Status: Accepted (2026-07-25), by the project owner.** Accepted alongside the rest of [Change 0045](../changes/0045-core3-sdd-provider/)'s planning artifacts; implementation begins immediately after acceptance, per the project owner's explicit instruction.
+
+**Decision.**
+
+> Every place AIEF's Core needs to know about a Change's specification-driven-development (SDD) artifacts — where they live, whether they exist, what they contain, whether they're ready — goes through one function-module boundary (`sdd-provider.js`'s resolver, `OpenSpecProvider`, `LocalSddProvider`), never through a path literal, a shelled-out command, or a format assumption written directly into `cli.js`, the Change loader, or the Workflow Engine. A provider returns a normalized result (artifact presence/validity, requirements, tasks, readiness); it never returns OpenSpec's or AIEF's own native shapes to a caller that didn't ask for them by name.
+
+**Why this needs its own ADR.** ADR-002 already decided the *policy* — OpenSpec preferred, local fallback, optional, fail loudly, never silently — and that policy is unchanged here. What has no prior decision is the *code shape* of that policy: today it lives entirely inside `propose()` (`cli.js`), as inline `commandExists`/`exists`/`spawnSync` calls with no reusable interface. Change 0044 already established the precedent (ADR-016) that introducing a stable internal boundary — even one that doesn't yet enforce anything — is exactly the kind of decision this project records explicitly rather than lets happen by accretion. This ADR is that record for the SDD side, per the same instruction that produced ADR-016: a new architectural boundary, a new stable internal interface, a provider-selection policy, and a normalized artifact model are each independently listed as ADR triggers, and this Change introduces all four.
+
+**Why the boundary is necessary, not just tidy.** Two real couplings exist today and are cited as evidence, not assumed: `propose()` (`cli.js`) is the only code that knows OpenSpec's CLI contract (`--version`, `--help`, `propose <idea>`) — that knowledge cannot be reused by `status`, `verify`, or the Workflow Engine without duplicating it. Nothing in the codebase today reads OpenSpec's actual artifact files (`openspec/changes/<name>/proposal.md`, `specs/<capability>/spec.md`, `tasks.md` — documented in `adapters/openspec/mapping.md`, never implemented in code) — so there is, today, no working example of "AIEF reads an OpenSpec Change's requirements." Building that without a boundary would put OpenSpec's directory shape directly into whatever caller needed it first (most likely the Workflow Engine's `specification` gate) — exactly the coupling direction §"Principio arquitectónico" of this Entrega's commissioning instruction forbids.
+
+**What routes through the boundary.** Any question of the form "does this Change's SDD artifact X exist / what does it say / is it ready" — for both providers, uniformly. `LocalSddProvider` is not a stub; it is the *existing* AIEF-native Change shape (`change.md`/`spec.md`/`tasks.md`/`evidence.md`), wrapped so it answers the same questions `OpenSpecProvider` does, through the same shape.
+
+**What does not route through it.** `close`'s write to `change.md` (Change 0043's B1 boundary, unchanged), the Workflow Engine's structural `readiness` gate (still wraps `checkChangeReadiness()` directly — a provider-readiness question and a file-completeness question are related but not the same question, and conflating them was the exact mistake this ADR's normalized-result design avoids by keeping `SddProvider.validate()`'s output and `GateEvaluator`'s output as two distinct, sequential contracts rather than one merged one). `aief propose`'s actual OpenSpec delegation (`spawnSync("openspec", ["propose", idea])`) is not rewired to go through the new provider in this Entrega — see "Consequences" below.
+
+**Relationship to ADR-013.** Unlike Change 0044's Workflow Engine (genuinely new capability — gates and tracks did not exist in any form before), most of what `OpenSpecProvider`/`LocalSddProvider` do in this Entrega is give an existing name to logic that already exists in scattered form (`openspecInfo()`, the `propose()` fallback branch, the Change domain model's own file reads) or is currently undocumented-in-code (OpenSpec artifact resolution, real today only as Markdown in `adapters/openspec/mapping.md`). This is closer to ADR-013's "reorganize, simplify, make evident what already exists" than Entrega 2 was — but the reorganization is not completed by this Entrega alone: `propose()` keeps its own inline OpenSpec-detection code, unrefactored, so the consolidation ADR-013 asks for is *prepared*, not *finished*, exactly as ADR-016 left the Workflow Engine's own merge unfinished. The obligation to actually retire `propose()`'s inline logic in favor of calling the new provider is recorded here, for whichever later Change does it.
+
+**Alternatives considered.**
+
+- **No boundary; let the Workflow Engine's future `specification` gate call OpenSpec detection directly.** Rejected: recreates the coupling direction this Entrega exists to prevent, and gives the Workflow Engine a second, format-specific readiness concept alongside its own structural one.
+- **A class-based `SddProvider` interface** (as sketched in `docs/aief-core-3-claude-code-prompt.md`). Rejected as literal adoption: zero classes exist anywhere in `cli/src/` today (confirmed by inspection) — every existing "provider" concept (`requirement-providers/{manual,jira}.js`) is a plain module exporting functions, registered in a plain object (`requirement-providers/index.js`'s `ADAPTERS`). `SddProvider` follows that exact, already-proven, already-tested shape instead — a new class-based pattern would be the only one of its kind in the codebase.
+- **A full plugin/marketplace registry for third-party SDD providers.** Rejected — explicitly out of scope per the vision document (`docs/aief-core-3-claude-code-prompt.md` §21) and per this Entrega's own commissioning ("no crees un sistema de plugins completo"). Two providers, one static registry object.
+
+**Consequences.**
+
+- `propose()`'s existing inline OpenSpec logic is **not** refactored to call the new provider in this Entrega — the provider is built, tested, and left unwired to any command's write path, matching Change 0043/0044's "additive and dormant" introduction pattern. A later Change completes the wiring and, with it, ADR-013's merge obligation for this subsystem.
+- `manifest.sdd` (accepted, unvalidated since Entrega 1) gains real, optional validation — additive, since no manifest in this repository sets it today (confirmed: zero-drift regression corpus has no `sdd` field anywhere).
+- The Workflow Engine's `specification` gate concept is designed in this Entrega's `design.md` but is **not** added to any of the three shipped workflow definitions (`lite.json`/`standard.json`/`governed.json`) — it stays fully inert until a later Entrega enables it, so no existing gate result can newly become blocking as a side effect of this Change.
+- If accepted, this ADR authorizes Change 0045 to proceed from planning to a full `spec.md`/`design.md`/`tasks.md`/`verification.md` — implementation remains a separate, later, explicit approval.
+
+---
+
+## ADR-016: The Workflow Engine governs transitions and gates; only non-inferable facts are persisted
+
+**Status: Accepted (2026-07-25), by the project owner.** Accepted alongside the rest of [Change 0044](../changes/0044-core3-workflow-engine/)'s planning artifacts (`proposal.md`, `spec.md`, `design.md`, `tasks.md`, `verification.md`); implementation begins immediately after acceptance, per the project owner's explicit instruction.
+
+**Decision.**
+
+> A **Workflow Engine** may compute, on every invocation and from scratch, whether a Change's requested transition is legal for its track, which gates apply, which are satisfied, and what the next valid action is. It may never persist a transition log, a cached "current stage," or a gate result as authoritative. The only new persisted fact this introduces beyond [Change 0043](../changes/0043-core3-change-foundation/)'s manifest is `track` itself (already accepted, newly given meaning) — every other output (gate status, blockers, warnings, `next_action`) is derived fresh each time from the Change's own files and, when present, the manifest's `track`/`status`. If a manifest also carries a written `next_action`, the engine treats it as an unverified hint to display alongside the derived answer, never as the answer itself — and a disagreement between the two is reported, not silently resolved.
+
+**Why this needs its own ADR, not silent reliance on ADR-013.** [ADR-013](#adr-013-aief-20-is-a-redesign--no-capability-enters-the-core-without-removing-an-equivalent) requires every new core capability to name a removal or merge. Change 0043's manifest reader was defensible without a new ADR because it was purely additive and read-only — nothing in the core acted on what it read. A Workflow Engine is different in kind: it produces `blocking: true/false` verdicts and (in a later Entrega, not this one) is the thing a future `close`/`work` would have to consult before acting. That is active governance logic, even while Entrega 2 itself only narrates it through `status` and wires nothing to enforce it yet. Per the project owner's explicit instruction when commissioning Change 0044's planning, active governance/transition/blocking logic gets its own ADR rather than an assumed exemption.
+
+**Why a workflow engine is needed at all, rather than inferring everything from files as today.** Today, "what's the next step" is answered by scattered, ad hoc logic: `status()`'s `printNext()` calls a hand-picked command based on a handful of `if`/`else` conditions ([cli.js](../cli/src/cli.js), `status()`); `close()`'s `checkChangeReadiness()` is a separate, independently-maintained rule list; `verify()`'s `verifyProject()`/`verifyChange()` are a third. None of them know about tracks, because tracks don't exist as a concept in code yet — only as free-text `## Type` values with no enforced vocabulary (Change 0039's finding: `## Type` is not actually an enum in this repository). Adding "does Standard require review before close, and does Governed also require approval and a security review" to that landscape by adding more scattered `if` branches is exactly the anti-pattern the vision document (`docs/aief-core-3-claude-code-prompt.md` §4.7: "workflows must be declarative... do not encode every state and transition through scattered conditionals") and this project's own coding guidance (AGENTS.md: prefer simple, readable solutions; ADR-013: reorganize and simplify, don't just add) both warn against. A single declarative definition per track, evaluated by one module, replaces three independent guesses with one.
+
+**What still governs from the filesystem, unchanged.** The four required Change files (`change.md`/`spec.md`/`tasks.md`/`evidence.md`) remain the only source of truth for structural readiness (ADR-009) — the Workflow Engine does not reimplement `checkChangeReadiness()`/`verifyProject()`'s rules, it wraps their existing output as one gate result. `close` continues to write only `change.md`, and continues to verify its own write by reading `change.md` directly, never through the Workflow Engine or the manifest ([Change 0043](../changes/0043-core3-change-foundation/)'s finding B1, and this ADR's explicit prohibition below).
+
+**What is derived, always, never cached as authoritative.** Every gate's `status` (`passed`/`failed`/`pending`/`warning`/`not_applicable`), the Change's current workflow stage, every blocker and warning, and `next_action` — computed fresh from `loadChangeUnified()`'s output plus the track's declarative definition, on every command invocation. Nothing here is a database row; it is a pure function of files that already exist.
+
+**What is persisted, and why it cannot be avoided.** Only `manifest.track` (`lite`/`standard`/`governed`) — a human's explicit choice, not something derivable from file contents (there is no reliable signal in a Change's Markdown that says "this should be Governed"). This is the same category Change 0043 already established for `status`: an explicit fact a human declared, not an inference. No new persisted field is introduced by this ADR beyond what Entrega 1 already accepted and left unused.
+
+**How hidden state is avoided.** No `.aief/state.json`, no transition log, no cache file, no database (ADR-009's rule, unmodified). Workflow *definitions* (one file per track) are versioned source files, read the same way `skills-catalog.json` already is — visible in every diff, not runtime-only state. If a manifest's `next_action` field is ever written by a later Entrega, it is documented as a **verified hint**: every read recomputes the true answer and compares; a stale or wrong hint produces a visible warning, never a silent trust. Gate results are not written back to the manifest at all in this Entrega — only read and displayed.
+
+**How compatibility is maintained.** A Change with no manifest, or a manifest with no `track`, is invisible to the Workflow Engine — `status` for it renders exactly as before Change 0043 and exactly as after it (byte-identical, per the same diff discipline used to close that Change). The engine only activates for a manifest that declares a `track`, and none exists yet in this repository — the same "additive and dormant" property Change 0043 had, this time made structurally true (an unrecognized or absent track cannot trigger any gate logic) rather than true only by coincidence of no adopter yet existing.
+
+**Why this remains assistant-agnostic.** Every gate the engine can evaluate in this Entrega reads only filesystem facts (file presence, emptiness, evidence classification, open-task counts) through the exact same `loadChangeUnified()`/`checkChangeReadiness()` primitives every assistant-agnostic command already uses. No model is consulted to decide whether a transition is legal, and none ever will be by this engine's contract — an AI assistant may act *on* a `next_action` the engine states, the same way it already acts on `aief status`'s printed suggestion, but the engine itself is a deterministic function, callable identically by a human, a script, or any assistant.
+
+**Alternatives considered.**
+
+- **Do nothing; keep per-command ad hoc logic and add more of it for tracks.** Rejected: this is the scattered-conditionals anti-pattern the vision document explicitly names, and it would triple the surface area needing to independently agree (as B1 already demonstrated happens when two independent checks are expected to agree but aren't actually the same check).
+- **A fully event-sourced state machine, with a persisted transition log recording every state change.** Rejected: introduces exactly the hidden/duplicated state ADR-009 already rejected once (the `.aief/state.json` proposal) — a transition log is a second source of truth that can drift from the files, and nothing in this project's workflow needs history beyond what Git already provides.
+- **Persist full gate results into the manifest as the primary source, refreshed periodically.** Rejected per this ADR's own decision text: a gate result is cheap to recompute and expensive to keep correct as a cache; turning the manifest into a mutable results database is the "manifest becomes a database" outcome the project owner explicitly ruled out when commissioning this planning work.
+- **Skip a new ADR and treat this as covered by ADR-013's existing "additive and dormant" reasoning from Change 0043.** Rejected per the project owner's explicit instruction: a gate evaluator that produces `blocking` verdicts is a different kind of capability than a read-only manifest reader, even before anything enforces those verdicts.
+
+**Consequences.**
+
+- Every gate the engine reports in Entrega 2 that has no real evaluator yet (`review`, `approval`, `security_review`) must be represented honestly as `status: "pending"`, never fabricated as `"passed"` — a Standard or Governed Change can never compute `next_action: close` through this engine until the Entregas that build those evaluators (7, 8) exist. This is intentional: the alternative is pretending gates exist before they do.
+- `close`'s actual enforcement is **not** wired to this engine in Entrega 2 — the engine narrates through `status` only. Wiring `close` to gates is reserved for a distinct, later, explicitly-approved Change, so that when it happens, the change in *enforced* behavior is reviewable on its own, not bundled with the engine's introduction.
+- Relative to ADR-013: this ADR's position is that Entrega 2 is not yet a completed merge (the scattered logic in `status()`/`close()`/`verify()` is not deleted here — see design.md §warning), but it is the necessary first step of one, and the ADR-013 obligation is discharged in full only when a later Change retires the ad hoc `printNext()`/`checkChangeReadiness()` narration this engine is designed to eventually replace. That obligation is recorded here so it is not forgotten.
+- If accepted, this ADR authorizes Change 0044 to proceed from planning to a full `spec.md`/`design.md`/`tasks.md`, but not to implementation — that remains a separate, explicit approval per this project's standing practice.
+
+---
+
 ## ADR-015: The usability study freezes the simplification
 
 **Status: Accepted (2026-07-17), by the project owner.**
@@ -209,7 +520,7 @@ Each source has a single responsibility. **The Prompt Engine is the only place w
 
 ## ADR-011: The workflow is documented as three levels — Context, Feature, Governance
 
-**Decision.** AIEF documents one canonical workflow model ([docs/Workflow.md](../docs/Workflow.md)) with three levels: **1 · AIEF Context** (`doctor → adopt → verify → analyze → prompt`), **2 · OpenSpec / Assistant Feature Workflow** (verified official OpenSpec: `Explore → Propose → Apply → Archive`, driven by assistant slash commands; extensible with Specboot-style skills like *enrich-us* or *adversarial review*, documented as examples, never as official OpenSpec), and **3 · AIEF Governance** (`verify → close`). `aief close` is explicitly not OpenSpec `/archive`: each governs its own artifact.
+**Decision.** AIEF documents one canonical workflow model ([docs/workflow.md](../docs/workflow.md)) with three levels: **1 · AIEF Context** (`doctor → adopt → verify → analyze → prompt`), **2 · OpenSpec / Assistant Feature Workflow** (verified official OpenSpec: `Explore → Propose → Apply → Archive`, driven by assistant slash commands; extensible with Specboot-style skills like *enrich-us* or *adversarial review*, documented as examples, never as official OpenSpec), and **3 · AIEF Governance** (`verify → close`). `aief close` is explicitly not OpenSpec `/archive`: each governs its own artifact.
 
 **Context.** Four different workflow phrasings had accumulated across README, docs/Workflow.md and the OpenSpec adapter, none distinguishing what AIEF does from what the assistant/OpenSpec does. Specboot's operational clarity inspired the level separation; nothing was copied. The model is documentation-only: no CLI behavior changed, no commands added, no state introduced.
 

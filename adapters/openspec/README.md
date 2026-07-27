@@ -2,11 +2,11 @@
 
 This adapter explains how to use AIEF with OpenSpec.
 
-OpenSpec is optional. In the [three-level AIEF workflow](../../docs/Workflow.md), OpenSpec powers **level 2 (the Feature Workflow)**: turning ideas into proposals, specs and tasks. AIEF keeps level 1 (context) and level 3 (governance).
+OpenSpec is optional. In the [three-level AIEF workflow](../../docs/workflow.md), OpenSpec powers **level 2 (the Feature Workflow)**: turning ideas into proposals, specs and tasks. AIEF keeps level 1 (context) and level 3 (governance).
 
 OpenSpec can be used as a more formal specification engine for teams that want structured change proposals, design notes, and spec deltas.
 
-Note: `aief close` is **not** the same as OpenSpec `/archive` — close governs the AIEF Change (Status in change.md), archive governs the OpenSpec change. If you use both tools, do both (comparison table in [docs/Workflow.md](../../docs/Workflow.md)).
+Note: `aief close` is **not** the same as OpenSpec `/archive` — close governs the AIEF Change (Status in change.md), archive governs the OpenSpec change. If you use both tools, do both (comparison table in [docs/workflow.md](../../docs/workflow.md)).
 
 ## When to use this adapter
 

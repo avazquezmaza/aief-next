@@ -642,3 +642,782 @@ test("prompt on an Enrichment Change tells the assistant not to implement and to
   assert.match(out, /Do not modify the external requirement source/);
   assert.match(out, /never marking Human Review tasks done yourself/);
 });
+
+// AIEF Core 3.0, Entrega 1 (Change 0043) — status reads an optional
+// manifest.json when a Change has one. change.md carries no ## Status
+// section here on purpose: under legacy-only inference this Change would
+// read as open. The manifest is authoritative (no merge), so status must
+// list it as closed instead — proving the wiring end-to-end through the
+// real CLI binary, not just through the domain-layer unit tests.
+test("status honors a Change's manifest.json over legacy inference (no ## Status in change.md)", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "manifest-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-manifest-thing");
+  assert.doesNotMatch(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Status/);
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1",
+    id: "0001",
+    slug: "manifest-thing",
+    title: "Manifest thing",
+    status: "closed"
+  }), "utf8");
+  const { status, out } = aief(dir, ["status"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Open Changes/);
+});
+
+// Regression test for Change 0043's independent review, finding B1: close
+// used to share isClosed() (manifest-aware) between openChangeDirs() and
+// markClosed()'s own write-verification. A Change carrying a manifest.json
+// with status "open" would then have close --yes write "Closed" to
+// change.md, immediately followed by markClosed() re-checking the
+// (untouched) manifest and reporting the write as a failure — exit code 1
+// on a command that had, in fact, just succeeded.
+test("close --yes succeeds and updates change.md even when the Change carries a manifest.json (B1 regression)", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "manifest-close-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-manifest-close-thing");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1",
+    id: "0001",
+    slug: "manifest-close-thing",
+    title: "Manifest close thing",
+    status: "open"
+  }), "utf8");
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 0);
+  assert.match(out, /✓ Closed changes\/0001-manifest-close-thing/);
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Status\n\nClosed \(\d{4}-\d{2}-\d{2}\)/);
+});
+
+// AIEF Core 3.0, Entrega 2 (Change 0044, WF-R1–WF-R4 — H2 hardening).
+// A present-but-invalid manifest.json must be visibly distinct from both "no
+// manifest" (legacy) and "valid manifest" — never silently merged into a
+// plain "Open Changes" entry with no indication anything is wrong.
+test("status reports a malformed manifest.json as invalid, with the exact parse error, not silently as a healthy Change", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "broken-manifest"]);
+  const changeDir = path.join(dir, "changes", "0001-broken-manifest");
+  const rawManifest = "{ this is not valid json";
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), rawManifest, "utf8");
+  const { status, out } = aief(dir, ["status"]);
+  assert.equal(status, 0);
+  assert.match(out, /Changes with an invalid manifest\.json: 1/);
+  assert.match(out, /0001-broken-manifest/);
+  assert.match(out, /manifest\.json: manifest\.json is not valid JSON/);
+  // Not repaired, not deleted, not rewritten — status is read-only (WF-R4).
+  assert.equal(fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8"), rawManifest);
+});
+
+test("status reports a structurally invalid manifest.json (valid JSON, missing required fields) with one message per problem", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "incomplete-manifest"]);
+  const changeDir = path.join(dir, "changes", "0001-incomplete-manifest");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({ schema: "aief.change/v1" }), "utf8");
+  const { status, out } = aief(dir, ["status"]);
+  assert.equal(status, 0);
+  assert.match(out, /Changes with an invalid manifest\.json: 1/);
+  assert.match(out, /id: is required/);
+  assert.match(out, /slug: is required/);
+  assert.match(out, /title: is required/);
+  assert.match(out, /status: must be "open" or "closed"/);
+});
+
+test("status does not fall back silently to legacy for an invalid manifest — the Change still shows in Open Changes too, per design.md §4", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "invalid-but-open"]);
+  const changeDir = path.join(dir, "changes", "0001-invalid-but-open");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), "not json at all", "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Open Changes: 1/);
+  assert.match(out, /- 0001-invalid-but-open/);
+  assert.match(out, /Changes with an invalid manifest\.json: 1/);
+});
+
+test("status output for a Change with no manifest.json, or a valid one, is unaffected by H2's new section", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "plain-legacy-thing"]);
+  const { out } = aief(dir, ["status"]);
+  assert.doesNotMatch(out, /invalid manifest/);
+});
+
+// AIEF Core 3.0, Entrega 2 (Change 0044) — Workflow Engine, integration with
+// `status`. A Change without every required file cannot pass the "readiness"
+// gate, so Lite's next action is "verify", never "close".
+test("status shows a Lite Change's stage/blockers when readiness fails", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "lite-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-lite-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "lite-thing", title: "Lite thing", status: "open", track: "lite"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Workflow status: 1/);
+  assert.match(out, /0001-lite-thing \(track: lite\)/);
+  assert.match(out, /Stage: verify/);
+  assert.match(out, /Next: verify/);
+  assert.match(out, /Blockers:/);
+  assert.match(out, /readiness: failed/);
+});
+
+test("status shows a Lite Change resolving to close when readiness passes", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "lite-ready"]);
+  const changeDir = path.join(dir, "changes", "0001-lite-ready");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "lite-ready", title: "Lite ready", status: "open", track: "lite"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Stage: close/);
+  assert.match(out, /Next: close/);
+  assert.doesNotMatch(out, /Blockers:/);
+});
+
+// Standard can never show "Next: close" through this Entrega's engine — the
+// review gate has no automated evaluator yet (WF-R14), even when every other
+// gate passes.
+test("status never shows Standard resolving to close — review has no evaluator yet", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "standard-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-standard-thing");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "standard-thing", title: "Standard thing", status: "open", track: "standard"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Stage: review/);
+  assert.doesNotMatch(out, /Next: close/);
+  assert.match(out, /No automated evaluator yet \(planned for Entrega 7\)/);
+});
+
+// Governed represents approval/security_review/review as pending
+// capabilities — none can ever appear as "passed" through this Entrega.
+test("status represents Governed's approval/security_review/review gates as pending, never passed", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "governed-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-governed-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "governed-thing", title: "Governed thing", status: "open", track: "governed"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Stage: approval/);
+  assert.match(out, /approval: pending/);
+  assert.doesNotMatch(out, /: passed/);
+});
+
+test("status reports an unrecognized track distinctly from an invalid manifest", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "custom-track-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-custom-track-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "custom-track-thing", title: "Custom track thing", status: "open", track: "custom"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Changes with an unrecognized or broken workflow track: 1/);
+  assert.match(out, /unknown track "custom"/);
+  assert.doesNotMatch(out, /invalid manifest\.json/);
+});
+
+test("status shows a warning (identity mismatch) without blocking Lite from reaching close", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "warn-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-warn-thing");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "a-totally-different-slug", title: "Warn thing", status: "open", track: "lite"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /Stage: close/);
+  assert.doesNotMatch(out, /Blockers:/);
+  assert.match(out, /Warnings:/);
+  assert.match(out, /identity: warning/);
+});
+
+// WF-R20 / design.md §9: close's readiness gate is deliberately blind to the
+// Workflow Engine in this Entrega, even for a Governed Change with a
+// permanently-pending "approval" gate — this is the approved scope boundary
+// (commissioning instruction: "no intentes corregir ese límite
+// indirectamente"), not an oversight. This test documents the boundary so a
+// future Entrega that changes it does so as a visible, deliberate decision.
+test("close succeeds on a Governed Change even though its 'approval' workflow gate is permanently pending — close stays blind to the Workflow Engine by design", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "governed-close-boundary"]);
+  const changeDir = path.join(dir, "changes", "0001-governed-close-boundary");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  const manifestBefore = JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "governed-close-boundary", title: "Governed close boundary", status: "open", track: "governed"
+  });
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), manifestBefore, "utf8");
+
+  const preClose = aief(dir, ["status"]);
+  assert.match(preClose.out, /Stage: approval/);
+  assert.match(preClose.out, /Blockers:/);
+
+  const closed = aief(dir, ["close", "--yes"]);
+  assert.equal(closed.status, 0);
+  assert.match(closed.out, /✓ Closed changes\/0001-governed-close-boundary/);
+  // manifest.json is never touched by close (B1 non-repetition, extended to
+  // the Workflow Engine's own fields) — still "open", still "governed".
+  assert.equal(fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8"), manifestBefore);
+});
+
+// AIEF Core 3.0, Entrega 3 (Change 0045) — SDD Provider, status integration.
+test("status shows SDD provider/change/readiness for a Change with an explicit local sdd.provider", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "sdd-local-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-sdd-local-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "sdd-local-thing", title: "SDD local thing", status: "open",
+    sdd: { provider: "local" }
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /SDD provider status: 1/);
+  assert.match(out, /0001-sdd-local-thing/);
+  assert.match(out, /SDD provider: local/);
+  assert.match(out, /SDD change: 0001-sdd-local-thing/);
+  // new-change's own generated files are non-empty templates, so local
+  // readiness is "ready" here — evidenceState/placeholder classification is
+  // change-verifier.js's own separate concern, unaffected by this Entrega.
+  assert.match(out, /SDD readiness: ready/);
+});
+
+test("status reports an explicit but unavailable SDD provider as an error, never a silent fallback to local", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "sdd-unavailable-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-sdd-unavailable-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "sdd-unavailable-thing", title: "SDD unavailable thing", status: "open",
+    sdd: { provider: "openspec" }
+  }), "utf8");
+  const { out } = aief(dir, ["status"], { PATH: path.dirname(process.execPath) });
+  assert.match(out, /SDD provider status: 1/);
+  assert.match(out, /configured provider "openspec" is unavailable/);
+  assert.doesNotMatch(out, /SDD provider: local/);
+});
+
+test("status output is unaffected by SDD when no Change declares manifest.sdd", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "plain-thing"]);
+  const { out } = aief(dir, ["status"]);
+  assert.doesNotMatch(out, /SDD provider/);
+});
+
+// AIEF Core 3.0, Entrega 4 (Change 0046, ADR-018 §1) — the bottom-line "Next:"
+// suggestion and the "Workflow status" block's own "Next:" line must never
+// disagree for a single, track-carrying open Change (the exact discrepancy
+// this Entrega's consolidation exists to eliminate).
+test("status's bottom-line suggestion agrees with the Workflow status block's own next action (no more discrepancy)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "consolidated-next-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-consolidated-next-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "consolidated-next-thing", title: "Consolidated next thing", status: "open", track: "lite"
+  }), "utf8");
+  const { out } = aief(dir, ["status"]);
+  // Workflow status block: readiness fails (evidence.md/tasks.md are still
+  // untouched templates) -> Stage: verify, blocked.
+  assert.match(out, /Stage: verify/);
+  assert.match(out, /Next: verify/);
+  // Bottom-line suggestion (previously a hardcoded "aief prompt", unrelated
+  // to the block above) must now be the exact same derived command
+  // workflowService.nextAction() produces for a blocked stage.
+  assert.match(out, /\nNext:\n {2}aief status --change 0001-consolidated-next-thing --next\n/);
+  assert.doesNotMatch(out, /\nNext:\n {2}aief prompt\n/, "must not fall back to the old, unconditional 'aief prompt' suggestion");
+});
+
+test("status's bottom-line suggestion for a legacy Change (no track) is completely unchanged", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "legacy-thing"]);
+  const { out } = aief(dir, ["status"]);
+  assert.match(out, /\nNext:\n {2}aief prompt\n/);
+});
+
+// AIEF Core 3.0, Entrega 4 (Change 0046) — `aief status --change <id>` /
+// `--next`, Path B's entire CLI-facing surface (ADR-018). No new command.
+test("status --change <id> shows a deep, read-only view of one Change (track, stage, blockers, SDD)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "deep-view-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-deep-view-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "deep-view-thing", title: "Deep view thing", status: "open",
+    track: "standard", sdd: { provider: "local" }
+  }), "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-deep-view-thing"]);
+  assert.equal(status, 0);
+  assert.match(out, /Change: changes\/0001-deep-view-thing/);
+  assert.match(out, /Track: standard/);
+  assert.match(out, /Stage: verify/);
+  assert.match(out, /Blockers:/);
+  assert.match(out, /SDD provider: local/);
+  assert.match(out, /SDD readiness: ready/);
+});
+
+test("status --change <id> --next shows the compact Normalized Action view, exit 0 even when blocked", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "compact-next-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-compact-next-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "compact-next-thing", title: "Compact next thing", status: "open", track: "lite"
+  }), "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-compact-next-thing", "--next"]);
+  assert.equal(status, 0, "blocked is a successfully-answered query — exit 0, not 1 (ADR-018 §3)");
+  assert.match(out, /Next action:/);
+  assert.match(out, /status: blocked/);
+  assert.match(out, /id: verify/);
+});
+
+test("status --next (no --change) infers the single open Change deterministically", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "implicit-next-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-implicit-next-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "implicit-next-thing", title: "Implicit next thing", status: "open", track: "lite"
+  }), "utf8");
+  const { status, out } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /Change: changes\/0001-implicit-next-thing/);
+});
+
+test("status --next with multiple open Changes produces an actionable ambiguity error, exit 1, no guess", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "first"]);
+  aief(dir, ["new-change", "second"]);
+  const { status, out } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 1);
+  assert.match(out, /Multiple open Changes/);
+});
+
+test("status --next with no open Changes produces an actionable result, exit 1", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x", "changes/.gitkeep": "" });
+  const { status, out } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 1);
+  assert.match(out, /No open Change found/);
+});
+
+test("status --change <id> for a closed Change reports it as closed, never presented as pending work", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "closed-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-closed-thing");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  aief(dir, ["close", "--yes", "--change", "0001-closed-thing"]);
+  const { status, out } = aief(dir, ["status", "--change", "0001-closed-thing", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /status: complete/);
+  assert.match(out, /id: closed/);
+});
+
+test("status --change <id> for a Change with an unavailable explicit SDD provider never falls back to local", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "sdd-fail-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-sdd-fail-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "sdd-fail-thing", title: "SDD fail thing", status: "open",
+    sdd: { provider: "openspec" }
+  }), "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-sdd-fail-thing", "--next"], { PATH: path.dirname(process.execPath) });
+  assert.equal(status, 1, "an invalid/unresolvable query is exit 1, not a silently-successful fallback");
+  assert.match(out, /status: invalid/);
+  assert.doesNotMatch(out, /SDD provider: local/);
+});
+
+// Regression found via this Entrega's own Etapa G live verification: a
+// Change with no `track` used to silently discard a real, correctly-detected
+// SDD error (e.g. a rejected path-traversal `sdd.change_id`) and fall
+// through to the unrelated legacy-readiness answer instead — the error was
+// computed, just never surfaced. Fixed in workflow-service.js before this
+// was ever exercised by a real command; this test locks the fix in.
+test("status --change <id> --next surfaces a rejected SDD path-traversal change_id, even for a Change with no track", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  fs.mkdirSync(path.join(dir, "openspec", "changes"), { recursive: true });
+  aief(dir, ["new-change", "traversal-no-track-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-traversal-no-track-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "traversal-no-track-thing", title: "Traversal no track thing", status: "open",
+    sdd: { provider: "openspec", change_id: "../../../etc" }
+  }), "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-traversal-no-track-thing", "--next"]);
+  assert.equal(status, 1);
+  assert.match(out, /status: invalid/);
+  assert.match(out, /not a valid change identifier/);
+});
+
+test("status --change does not write any file (read-only query)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "readonly-thing", title: "Readonly thing", status: "open", track: "lite"
+  }), "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["status", "--change", "0001-readonly-thing"]);
+  aief(dir, ["status", "--change", "0001-readonly-thing", "--next"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+// AIEF Core 3.0, Entrega 4 (Change 0046) — `aief prompt` as "work" (Path B:
+// no new `work` command; prompt evolves compatibly, ADR-018).
+test("prompt shows Workflow and SDD context blocks for a Change that opts in (track + sdd)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "prompt-context-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-prompt-context-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "prompt-context-thing", title: "Prompt context thing", status: "open",
+    track: "lite", sdd: { provider: "local" }
+  }), "utf8");
+  const { out } = aief(dir, ["prompt", "--change", "0001-prompt-context-thing"]);
+  assert.match(out, /Workflow context \(read-only/);
+  assert.match(out, /Stage: verify/);
+  assert.match(out, /Blockers:/);
+  assert.match(out, /SDD context \(provider: local/);
+  assert.match(out, /Pending tasks \(from the SDD provider, not yet marked complete\):/);
+  // Never a claim that work was performed or a gate/transition occurred.
+  assert.doesNotMatch(out, /gate (passed|approved)/i);
+  assert.doesNotMatch(out, /transition (occurred|completed|performed)/i);
+  assert.doesNotMatch(out, /work (was )?(performed|completed|done)/i);
+});
+
+test("prompt output is byte-identical for a Change with no track/sdd (the common case today)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "prompt-plain-thing"]);
+  const withoutTrack = aief(dir, ["prompt", "--change", "0001-prompt-plain-thing"]).out;
+  assert.doesNotMatch(withoutTrack, /Workflow context/);
+  assert.doesNotMatch(withoutTrack, /SDD context/);
+});
+
+test("prompt never writes any file (evidence.md, tasks.md unchanged)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "prompt-readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-prompt-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "prompt-readonly-thing", title: "Prompt readonly thing", status: "open", track: "standard"
+  }), "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["prompt", "--change", "0001-prompt-readonly-thing"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+// --- Entrega 5 (Change 0047, ADR-019) — Skills Runtime, `prompt` integration ---
+
+test("prompt --list-skills lists both registered Skills, deterministic order, with zero open Changes", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { out, status } = aief(dir, ["prompt", "--list-skills"]);
+  assert.equal(status, 0);
+  assert.match(out, /change-context \(v1\.0\.0\): Change Context/);
+  assert.match(out, /requirements-analysis-instructions \(v1\.0\.0\): Requirements Analysis Instructions/);
+  assert.ok(out.indexOf("change-context") < out.indexOf("requirements-analysis-instructions"));
+});
+
+test("prompt --list-skills performs zero writes and resolves no Change", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "list-skills-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-list-skills-thing");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  const { status } = aief(dir, ["prompt", "--list-skills"]);
+  assert.equal(status, 0);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+test("prompt --skill <id> appends exactly one clearly-labeled section for an applicable Skill", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "skill-applicable-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-skill-applicable-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "skill-applicable-thing", title: "Skill applicable thing", status: "open", track: "lite"
+  }), "utf8");
+  const without = aief(dir, ["prompt", "--change", "0001-skill-applicable-thing"]).out;
+  const { out, status } = aief(dir, ["prompt", "--skill", "change-context", "--change", "0001-skill-applicable-thing"]);
+  assert.equal(status, 0);
+  assert.match(out, /─── Skill: change-context \(ready\) ───/);
+  assert.match(out, /was not executed, and following it is not evidence/);
+  // Strictly additive: removing the one new section (by index, not regex —
+  // the Skill's own instructions may contain arbitrary text) recovers the
+  // byte-identical legacy prompt.
+  const skillStart = out.indexOf("\n─── Skill: change-context");
+  const afterMarker = "\nWhere results belong:";
+  const skillEnd = out.indexOf(afterMarker, skillStart);
+  assert.ok(skillStart > -1 && skillEnd > -1);
+  const withoutSkillSection = out.slice(0, skillStart) + out.slice(skillEnd);
+  assert.equal(withoutSkillSection, without);
+});
+
+test("prompt --skill <id> for a non-applicable Skill still prints the full prompt, honestly, exit 0", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "skill-not-applicable-thing"]);
+  const { out, status } = aief(dir, ["prompt", "--skill", "requirements-analysis-instructions", "--change", "0001-skill-not-applicable-thing"]);
+  assert.equal(status, 0);
+  assert.match(out, /─── Skill: requirements-analysis-instructions \(not_applicable\) ───/);
+  assert.match(out, /Change has no sdd section in its manifest/);
+  assert.match(out, /Copy this prompt into your AI assistant/); // full prompt still printed
+});
+
+test("prompt --skill does-not-exist is an actionable error, exit 1, before any prompt text is printed", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "skill-unknown-thing"]);
+  const { out, status } = aief(dir, ["prompt", "--skill", "does-not-exist", "--change", "0001-skill-unknown-thing"]);
+  assert.equal(status, 1);
+  assert.match(out, /Unknown Skill "does-not-exist"/);
+  assert.doesNotMatch(out, /Copy this prompt into your AI assistant/);
+});
+
+test("prompt --skill never writes any file", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "skill-readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-skill-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "skill-readonly-thing", title: "Skill readonly thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["prompt", "--skill", "requirements-analysis-instructions", "--change", "0001-skill-readonly-thing"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+test("prompt without --skill/--list-skills remains byte-identical to Entrega 4's output", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "skill-neutral-thing"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-skill-neutral-thing"]);
+  assert.doesNotMatch(out, /Skill:/);
+  assert.doesNotMatch(out, /Registered Skills/);
+});
+
+// --- Entrega 6 (Change 0048, ADR-020) — Hooks Runtime, `prompt`/`verify` integration ---
+
+test("prompt is byte-identical without an applicable Hook result (no sdd on the Change)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-neutral-thing"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-hook-neutral-thing"]);
+  assert.doesNotMatch(out, /─── Hook:/);
+});
+
+test("prompt appends a Hook: prompt-skill-suggestion section when requirements-analysis-instructions is ready", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-suggest-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-hook-suggest-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "hook-suggest-thing", title: "Hook suggest thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  const { out, status } = aief(dir, ["prompt", "--change", "0001-hook-suggest-thing"]);
+  assert.equal(status, 0);
+  assert.match(out, /─── Hook: prompt-skill-suggestion ───/);
+  assert.match(out, /consider: aief prompt --skill requirements-analysis-instructions --change 0001-hook-suggest-thing/);
+  // Never claims the Skill was executed (checked on the Hook's own section only —
+  // the unrelated "not executed" disclaimer in the Skill Catalog block is expected).
+  const hookSection = out.slice(out.indexOf("─── Hook:"));
+  assert.doesNotMatch(hookSection, /(executed|ran|completed)/i);
+});
+
+test("prompt --skill and the Hook section coexist, clearly labeled and distinct", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-and-skill-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-hook-and-skill-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "hook-and-skill-thing", title: "Hook and skill thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  const { out } = aief(dir, ["prompt", "--skill", "change-context", "--change", "0001-hook-and-skill-thing"]);
+  assert.match(out, /─── Skill: change-context \(ready\) ───/);
+  assert.match(out, /─── Hook: prompt-skill-suggestion ───/);
+  assert.ok(out.indexOf("─── Skill:") < out.indexOf("─── Hook:"));
+});
+
+test("prompt --list-skills is unaffected by Hooks Runtime", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { out, status } = aief(dir, ["prompt", "--list-skills"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /─── Hook:/);
+});
+
+test("prompt never writes any file when a Hook matches", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-hook-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "hook-readonly-thing", title: "Hook readonly thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["prompt", "--change", "0001-hook-readonly-thing"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+test("verify --change is byte-identical (plus an additive Hook line) and never changes PASS/FAIL", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-verify-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-hook-verify-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "hook-verify-thing", title: "Hook verify thing", status: "open", track: "lite"
+  }), "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-hook-verify-thing"]);
+  assert.match(out, /Result: PASS/);
+  assert.equal(status, 0);
+  assert.match(out, /Hook recommendation:/);
+  assert.match(out, /aief status --change 0001-hook-verify-thing --next/);
+});
+
+test("verify (whole project) is unaffected by Hooks Runtime (Post-Verify Hook is not_applicable, no single Change)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-project-verify-thing"]);
+  const { out } = aief(dir, ["verify"]);
+  assert.doesNotMatch(out, /Hook recommendation:/);
+});
+
+test("verify never writes any file when a Hook matches", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "hook-verify-readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-hook-verify-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "hook-verify-readonly-thing", title: "Hook verify readonly thing", status: "open", track: "lite"
+  }), "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["verify", "--change", "0001-hook-verify-readonly-thing"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+test("no new public command verb is introduced for Hooks", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { out, status } = aief(dir, ["hooks"]);
+  assert.equal(status, 1);
+  assert.match(out, /Unknown command/);
+});
+
+// --- Entrega 7 (Change 0049, ADR-021) — Verification Engine, `verify` integration ---
+
+test("verify --change is byte-identical without --requirements (Entrega 7 default stays legacy)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-neutral-thing"]);
+  const withoutFlag = aief(dir, ["verify", "--change", "0001-vr-neutral-thing"]).out;
+  assert.doesNotMatch(withoutFlag, /Requirement Verification/);
+});
+
+test("verify --requirements adds an additive section after the legacy report, never before or interleaved", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-additive-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-additive-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-additive-thing", title: "VR additive thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  const without = aief(dir, ["verify", "--change", "0001-vr-additive-thing"]).out;
+  const { out } = aief(dir, ["verify", "--change", "0001-vr-additive-thing", "--requirements"]);
+  assert.ok(out.startsWith(without));
+  assert.match(out.slice(without.length), /^\n?Requirement Verification:/);
+});
+
+test("verify --requirements: a requirement cited in verification.md with a present evidence file passes both rules", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-pass-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-pass-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-pass-thing", title: "VR pass thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), "# Specification\n\n- **REQ-1** — Do the thing.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "verification.md"), "| 1 | check | REQ-1 | see `README.md` |\n", "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-vr-pass-thing", "--requirements"]);
+  assert.equal(status, 0);
+  assert.match(out, /Requirement Verification: PASS/);
+  assert.match(out, /REQ-1 — requirement-has-traceability: passed/);
+  assert.match(out, /REQ-1 — evidence-reference-integrity: passed/);
+  assert.doesNotMatch(out, /satisfied\./); // never claims the requirement itself is satisfied (only "does not mean...satisfied")
+});
+
+test("verify --requirements: a requirement not cited in an existing verification.md fails traceability, aggregate FAIL, exit 1", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-fail-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-fail-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-fail-thing", title: "VR fail thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), "# Specification\n\n- **REQ-1** — Do the thing.\n- **REQ-2** — Another thing.\n", "utf8");
+  // verification.md exists (so the rule applies) but only cites REQ-1 — REQ-2 is a real,
+  // actionable traceability gap, not a missing-file no-op.
+  fs.writeFileSync(path.join(changeDir, "verification.md"), "| 1 | check | REQ-1 | pass |\n", "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-vr-fail-thing", "--requirements"]);
+  assert.equal(status, 1);
+  assert.match(out, /Requirement Verification: FAIL/);
+  assert.match(out, /REQ-2 — requirement-has-traceability: failed/);
+  assert.match(out, /REQ-1 — requirement-has-traceability: passed/);
+});
+
+test("verify --requirements: a path-traversal evidence reference is rejected, aggregate INVALID, exit 1", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-invalid-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-invalid-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-invalid-thing", title: "VR invalid thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), "# Specification\n\n- **REQ-1** — Do the thing.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "verification.md"), "| 1 | check | REQ-1 | see `../../../etc/passwd` |\n", "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-vr-invalid-thing", "--requirements"]);
+  assert.equal(status, 1);
+  assert.match(out, /Requirement Verification: INVALID/);
+});
+
+test("verify --requirements: a Change with no sdd section reports zero requirements, PASS (vacuous), never FAIL", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-empty-thing"]);
+  const { out, status } = aief(dir, ["verify", "--change", "0001-vr-empty-thing", "--requirements"]);
+  assert.equal(status, 0);
+  assert.match(out, /Requirement Verification: PASS/);
+  assert.match(out, /No requirements declared/);
+});
+
+test("verify --requirements without --change: whole-project structural verify is unaffected, requirement layer explicitly skipped", () => {
+  // Note: the `aief()` helper concatenates stdout+stderr as two separate
+  // blocks (`${stdout}${stderr}`), not in real chronological order — a
+  // pre-existing harness property (unrelated to this Entrega) that makes a
+  // simple startsWith() comparison unreliable whenever stderr content (e.g.
+  // "! Recommended but missing: knowledge/") exists. Removing the one new,
+  // known line by exact substring instead avoids depending on stream order.
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-skip-thing"]);
+  const withoutFlag = aief(dir, ["verify"]).out;
+  const { out, status } = aief(dir, ["verify", "--requirements"]);
+  assert.equal(status, 0);
+  const skipLine = "\nRequirement Verification: skipped — pass --change <id> to select one Change.\n";
+  assert.ok(out.includes(skipLine));
+  assert.equal(out.replace(skipLine, ""), withoutFlag);
+});
+
+test("verify.completed's Hook contract is unchanged by --requirements — operation.result is still the legacy report", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-hook-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-hook-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-hook-thing", title: "VR hook thing", status: "open", track: "lite", sdd: { provider: "local" }
+  }), "utf8");
+  const without = aief(dir, ["verify", "--change", "0001-vr-hook-thing"]).out;
+  const withFlag = aief(dir, ["verify", "--change", "0001-vr-hook-thing", "--requirements"]).out;
+  const hookLineOf = (s) => (s.match(/Hook recommendation:\n- .+/) || [""])[0];
+  assert.equal(hookLineOf(without), hookLineOf(withFlag));
+});
+
+test("verify --requirements performs zero writes", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-readonly-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-vr-readonly-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "vr-readonly-thing", title: "VR readonly thing", status: "open", sdd: { provider: "local" }
+  }), "utf8");
+  fs.writeFileSync(path.join(changeDir, "verification.md"), "| 1 | check | REQ-1 | `README.md` |\n", "utf8");
+  const before = {};
+  for (const f of fs.readdirSync(changeDir)) before[f] = fs.readFileSync(path.join(changeDir, f), "utf8");
+  aief(dir, ["verify", "--change", "0001-vr-readonly-thing", "--requirements"]);
+  for (const f of fs.readdirSync(changeDir)) assert.equal(fs.readFileSync(path.join(changeDir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+test("verify --requirements does not affect close/propose/status/prompt/Skills/Hooks compatibility markers in its own output", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "vr-scope-thing"]);
+  const { out } = aief(dir, ["verify", "--change", "0001-vr-scope-thing", "--requirements"]);
+  assert.doesNotMatch(out, /Skill Catalog|Skills Runtime|─── Skill:/);
+});

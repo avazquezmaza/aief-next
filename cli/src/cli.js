@@ -6,7 +6,19 @@ import { detectProject, recommendSkills } from "./detect.js";
 import { PROVIDERS, providerList } from "./requirement.js";
 import { retrieveRequirement, hasAdapter, implementedProviders } from "./requirement-providers/index.js";
 import { loadChange, isClosedContent, changeTypeFromContent, isEvidencePlaceholderContent, matchChanges } from "./core/domain/change.js";
+import { loadChangeUnified } from "./core/domain/change-loader.js";
+import { loadWorkflowDefinition, KNOWN_TRACKS } from "./core/domain/workflow-definition.js";
 import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
+import { evaluateGates } from "./core/services/gate-evaluator.js";
+import { resolveState } from "./core/services/transition-engine.js";
+import { resolveSddProvider } from "./core/domain/sdd-provider-resolver.js";
+import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
+import { buildSkillContext } from "./core/services/skill-context.js";
+import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
+import { buildEvent, buildHookContext } from "./core/services/hook-context.js";
+import { evaluateEvent } from "./core/services/hook-service.js";
+import { buildVerificationContext } from "./core/services/verification-context.js";
+import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
 const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "ci", "aief-verify.yml");
@@ -51,20 +63,85 @@ function getChangeDirs() {
     .map((name) => path.join(changesPath, name));
 }
 // A Change is closed when its change.md carries a "## Status / Closed" section
-// (written by `aief close --yes`). The Change files are the only source of truth;
-// there is no separate state file.
-// Thin wrappers over the core/domain/change.js content predicates: they read
-// the file cli.js's own way (via read()/cwd()) and delegate the actual rule
-// to the single implementation in the domain layer, so openChangeDirs(),
-// prompt() and the verification service all agree on one definition.
+// (written by `aief close --yes`) — or, if the Change carries an optional
+// manifest.json (AIEF Core 3.0, Entrega 1), when the manifest's own `status`
+// field says so; the manifest is authoritative over change.md when present,
+// never merged with it (design.md §3 of Change 0043). Either way, the Change
+// files are the only source of truth; there is no separate state file.
+// Thin wrapper over loadChangeUnified() (core/domain/change-loader.js), used
+// by openChangeDirs() (status/prompt/implicit selection) only. `close` does
+// NOT use this: `markClosed()` below checks change.md directly, because
+// `close` only ever writes change.md — a manifest, if present, is untouched
+// and out of scope for Entrega 1 (design.md §9). Sharing this function
+// between the two was Change 0043's review finding B1: a successful
+// change.md write was reported as a failure whenever a manifest still said
+// "open", because this manifest-aware check disagreed with what was just
+// written.
 function isClosed(changeDir) {
-  return isClosedContent(read(path.join(changeDir, "change.md")));
+  return loadChangeUnified(changeDir).closed;
 }
 function changeType(changeDir) {
   return changeTypeFromContent(read(path.join(changeDir, "change.md")));
 }
 function openChangeDirs() {
   return getChangeDirs().filter((dir) => !isClosed(dir));
+}
+// AIEF Core 3.0, Entrega 2 (Change 0044, WF-R1/WF-R2 — H2 hardening).
+// A Change whose manifest.json exists but fails to parse or fails
+// validateManifest() is a distinct, first-class state — never the same as
+// "no manifest" (legacy) and never silently reported as a healthy open
+// Change. loadChangeUnified() already computes this (Entrega 1); this is
+// the first place anything reads .manifestError instead of discarding it.
+function invalidManifestChanges() {
+  return getChangeDirs()
+    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
+    .filter(({ change }) => Array.isArray(change.manifestError) && change.manifestError.length > 0);
+}
+// AIEF Core 3.0, Entrega 2 (Change 0044) — the Workflow Engine's only wiring
+// point. A Change is a workflow candidate when it has a valid manifest with
+// a non-empty `track`; everything else (no manifest, manifest with no
+// track) is untouched (WF-R17/WF-R18) and never reaches this function.
+// Reuses loadWorkflowDefinition() / evaluateGates() / resolveState() as-is —
+// this function only wires them together for `status`, per design.md §3's
+// data flow. Never called for a Change with .manifestError (H2 already
+// reports those separately) or with no `.track`.
+function resolveWorkflowFor(change) {
+  if (!KNOWN_TRACKS.includes(change.track)) {
+    // WF-R7: an unrecognized track is a distinct, explicit error — never
+    // silently ignored, never guessed into one of the three known tracks.
+    return { kind: "unknown_track", error: `unknown track ${JSON.stringify(change.track)} — expected one of ${KNOWN_TRACKS.join(", ")}` };
+  }
+  const definition = loadWorkflowDefinition(change.track);
+  if (!definition.ok) {
+    // AIEF's own shipped workflow file is broken — an internal bug, not a
+    // problem with this Change's manifest (design.md §10).
+    return { kind: "internal_error", error: definition.error };
+  }
+  const gateResults = evaluateGates(change, definition.value);
+  const state = resolveState(change, definition.value, gateResults);
+  return { kind: "resolved", definition: definition.value, gateResults, state };
+}
+// Every Change whose manifest declares a track — split into ones the engine
+// could resolve and ones it couldn't (unknown track / internal error),
+// mirroring invalidManifestChanges()'s own additive-section pattern.
+function workflowChanges() {
+  return getChangeDirs()
+    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
+    .filter(({ change }) => !change.manifestError && change.manifest && change.track)
+    .map(({ dir, change }) => ({ dir, change, workflow: resolveWorkflowFor(change) }));
+}
+// AIEF Core 3.0, Entrega 3 (Change 0045) — SDD Provider, `status` wiring.
+// Only Changes whose manifest declares an `sdd` section reach this list
+// (SDD-R34: additive-only). A Change with no `sdd` never resolves a
+// provider here — LocalSddProvider is never shown "automatically" for a
+// Change that didn't ask for SDD information, so the legacy/Entrega-1/2
+// output stays byte-identical for every Change without one (100% of this
+// repository today).
+function sddChanges() {
+  return getChangeDirs()
+    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
+    .filter(({ change }) => !change.manifestError && change.manifest?.sdd)
+    .map(({ dir, change }) => ({ dir, change, resolution: resolveSddProvider(change, cwd()) }));
 }
 // Change selection (Flux Portal dogfooding, ROADMAP-TO-1.0 workstream 1):
 // one shared implementation for every command that operates on a Change.
@@ -172,11 +249,11 @@ const COMMAND_HELP = {
     next: "aief adopt (existing project) or aief init <name> (new project)."
   },
   status: {
-    purpose: "Show current AIEF adoption status, recent Changes and all open Changes.",
-    when: "When you want to know where the project stands, or which Change to select with --change.",
+    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action.",
+    when: "When you want to know where the project stands, which Change to select with --change, or what a specific Change's next action is.",
     reads: "Project structure, package.json and changes/.",
     writes: "Nothing.",
-    example: "aief status",
+    example: "aief status --change <id> --next",
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
   adopt: {
@@ -292,7 +369,7 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status\n\nAdoption:\n  aief init                 (initialize the current directory)\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status [--change change-id] [--next]\n\nAdoption:\n  aief init                 (initialize the current directory)\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
               (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
@@ -586,6 +663,16 @@ function prompt(args) {
   if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project${exists("CLAUDE.md") ? "; including CLAUDE.md instead" : ""}.`);
   const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
   section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
+  // Entrega 5 (Change 0047, ADR-019) — Skills Runtime, additive flag, no new
+  // command verb (ADR-015). A static registry listing: no Change is
+  // resolved, no Skill is run, no SDD provider is touched — only
+  // listSkillDescriptors()'s deterministic, context-free metadata.
+  if (parsed["list-skills"] === true) {
+    const descriptors = listSkillDescriptors();
+    console.log("Registered Skills:\n");
+    for (const d of descriptors) console.log(`- ${d.id} (v${d.version}): ${d.title} — ${d.description}`);
+    return;
+  }
   // Shared selection: composing a prompt for the wrong Change is a mutation of
   // the workflow in practice, so with multiple open Changes the selection must
   // be explicit — never the chronologically latest one by accident.
@@ -594,6 +681,33 @@ function prompt(args) {
     : resolveImplicitChange(`aief prompt${assistant ? ` ${assistant}` : ""}`);
   if (!changeDir) { printNext("aief status (list open Changes)", "aief new-change <name>", "aief analyze"); return; }
   const changeName = path.relative(process.cwd(), changeDir);
+  // Entrega 5 (Change 0047, ADR-019) — `--skill <id>` selects exactly one
+  // registered Skill. Unknown id / a runtime "invalid"/"failed" result are
+  // the only operational-failure cases (exit 1, before any prompt text is
+  // printed — UX-R29-style discipline, restated as SK-R29 for Skills); every
+  // other outcome (ready/not_applicable/blocked/unsupported) still prints
+  // the full prompt (exit 0), honestly reporting the Skill's own status
+  // instead of silently omitting it (SK-R41).
+  const requestedSkillId = typeof parsed.skill === "string" ? parsed.skill : "";
+  let skillSection = "";
+  if (requestedSkillId) {
+    const skillContext = buildSkillContext(changeDir, cwd());
+    let result;
+    try {
+      result = runSkill(requestedSkillId, skillContext);
+    } catch (err) {
+      if (!isUnknownSkillError(err)) throw err;
+      console.error(`Unknown Skill "${requestedSkillId}".\n\nKnown Skills:\n\n${listSkillDescriptors().map((d) => `- ${d.id}`).join("\n")}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (result.status === "invalid" || result.status === "failed") {
+      console.error(`Skill "${requestedSkillId}" could not be run: ${result.summary}${result.errors.length ? `\n${result.errors.join("\n")}` : ""}`);
+      process.exitCode = 1;
+      return;
+    }
+    skillSection = renderSkillSection(result);
+  }
   // CRLF/LF tolerant, via the shared changeType() helper — a Change written on
   // Windows must still be recognized as Analysis/Enrichment.
   const type = changeType(changeDir);
@@ -612,8 +726,65 @@ function prompt(args) {
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
     ? `- ${s.name || s.id}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
     : `- ${s.name || s.id}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
+  // Entrega 4 (Change 0046, ADR-018 §"work") — additive Workflow/SDD context,
+  // same discipline as standardsBlock/skillsBlock: empty string, no header,
+  // when the Change never opted in (no track / no sdd). Purely informational
+  // — this text never claims work was performed, never marks a task done,
+  // never asserts a gate passed or a transition occurred (UX-R10).
+  const { change: promptChange, workflow: promptWorkflow, sdd: promptSdd } = explainWorkflow(changeDir, cwd());
+  const workflowBlock = promptWorkflow && promptWorkflow.kind === "resolved"
+    ? `\nWorkflow context (read-only — reflects current state, does not advance it):\n\nStage: ${promptWorkflow.state.stage}\nNext: ${promptWorkflow.state.nextAction === null ? "none (closed)" : promptWorkflow.state.nextAction}\n${promptWorkflow.state.blockers.length ? `Blockers:\n${promptWorkflow.state.blockers.map((g) => `- ${g.id}: ${g.status} — ${g.reason}`).join("\n")}\n` : ""}`
+    : "";
+  const sddBlock = promptSdd && !promptSdd.error
+    ? `\nSDD context (provider: ${promptSdd.providerId}, readiness: ${promptSdd.readiness.status}):\n\n${promptSdd.tasks.filter((t) => !t.completed).length
+        ? `Pending tasks (from the SDD provider, not yet marked complete):\n${promptSdd.tasks.filter((t) => !t.completed).map((t) => `- ${t.id ? `${t.id} ` : ""}${t.text}`).join("\n")}\n`
+        : ""}`
+    : "";
+  // Entrega 6 (Change 0048, ADR-020) — the `prompt.prepared` event fires here:
+  // after every existing context block (standards/Skill Catalog/Workflow/SDD/
+  // Skill Runtime) is computed, before the final render. Hook Context reuses
+  // promptChange/promptWorkflow/promptSdd — the exact same explainWorkflow()
+  // call above, never a second one (HK-R20). Zero writes, strictly additive.
+  const promptPreparedEvent = buildEvent("prompt.prepared", "prompt");
+  const hookOutcome = evaluateEvent(promptPreparedEvent, buildHookContext(promptPreparedEvent, {
+    project, change: promptChange, workflow: promptWorkflow, sdd: promptSdd,
+    operation: { input: { profile, assistant, changeName }, result: null }
+  }));
+  const hookBlock = renderHookResults(hookOutcome);
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+}
+// Renders one Skill's result as a clearly-labeled, additive prompt section
+// (Entrega 5, design.md §9) — the ONLY place this framing text is written,
+// so no individual Skill's own output can phrase itself as a completion
+// claim (SK-R25/R42). `ready` is the only status with real instructions to
+// show; every other reachable status here (not_applicable/blocked/
+// unsupported) is rendered as one honest line instead of a fabricated
+// section (SK-R41) — `invalid`/`failed` never reach this function (prompt()
+// exits 1 before calling it).
+function renderSkillSection(result) {
+  const header = `\n─── Skill: ${result.skill} (${result.status}) ───\n`;
+  if (result.status === "ready") {
+    return `${header}This is guidance for a human or assistant to follow — it was not executed, and following it is not evidence that the work it describes was done.\n\n${result.instructions}\n`;
+  }
+  return `${header}${result.summary}\n`;
+}
+// Renders every `matched` Hook result with real content as one additional,
+// clearly-labeled section (Entrega 6, design.md §7/§8) — the ONLY place this
+// framing text is written, so no Hook's own text can phrase itself as
+// something that "ran"/"executed" (a Hook observes; HK-R25-equivalent
+// discipline). Silent for a Hook with nothing to show (`not_applicable`,
+// `unsupported`, `invalid`, `failed`, or `matched` with empty instructions/
+// warnings) — never an empty or noisy block.
+function renderHookResults(outcome) {
+  return outcome.results
+    .filter((r) => r.status === "matched" && (r.instructions.length || r.warnings.length))
+    .map((r) => {
+      const header = `\n─── Hook: ${r.hook} ───\n`;
+      const lines = [...r.warnings.map((w) => `Warning: ${w}`), ...r.instructions];
+      return `${header}${r.summary}\n\n${lines.map((l) => `- ${l}`).join("\n")}\n`;
+    })
+    .join("");
 }
 function markClosed(changeDir) {
   const file = path.join(changeDir, "change.md");
@@ -622,7 +793,10 @@ function markClosed(changeDir) {
   if (/^##\s*status\s*$/im.test(content)) content = content.replace(/(^##\s*Status\s*(?:\r?\n)+)[^\r\n]*/im, `$1${stamp}`);
   else content = `${content.replace(/\s*$/, "")}\n\n## Status\n\n${stamp}\n`;
   writeFile(file, content, true);
-  return isClosed(changeDir);
+  // Checked against change.md directly, not isClosed() — see the comment on
+  // isClosed() above (Change 0043 review finding B1). close() only ever
+  // writes change.md; verifying success must read the same file it wrote.
+  return isClosedContent(read(file));
 }
 // evidenceIsPlaceholder(changeDir) stays a thin wrapper (delegating to the
 // domain content predicate) because prompt() reads it independently of any
@@ -666,6 +840,58 @@ function renderReport(report) {
   if (!report.passed) process.exitCode = 1;
   printNext(...report.next);
 }
+// Entrega 6 (Change 0048, ADR-020) — emits `verify.completed` after
+// renderReport() has already printed PASS/FAIL and set the exit code
+// (HK-R48: a Hook result can never influence either, so it never runs
+// before both are already decided). `changeDir` is null for the
+// whole-project verify — the Post-Verify Next Action Hook has no single
+// Change to recommend a next action for and reports `not_applicable`, so no
+// Workflow/SDD lookup is performed for that path at all (no explain() call
+// unless a Change was actually targeted). Strictly additive; silent when no
+// Hook matches with real content.
+function runVerifyCompletedHooks(changeDir, report, inspection) {
+  const event = buildEvent("verify.completed", "verify");
+  const { change, workflow, sdd } = inspection;
+  const context = buildHookContext(event, {
+    project: detectProject(), change, workflow, sdd,
+    operation: { input: { changeId: changeDir ? path.basename(changeDir) : null }, result: report }
+  });
+  const outcome = evaluateEvent(event, context);
+  const lines = outcome.results.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
+  if (lines.length) {
+    console.log("\nHook recommendation:");
+    for (const l of lines) console.log(`- ${l}`);
+  }
+}
+// Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
+// opt-in flag: Structural Verification (renderReport, above) always runs
+// first, unchanged; this function only ever ADDS a section after it, never
+// replacing or reordering anything legacy (VR-R43). `inspection` is the
+// SAME `explainWorkflow()` result the caller already computed once (and
+// already handed to runVerifyCompletedHooks) — buildVerificationContext()
+// never calls explain() itself, so a `--change ... --requirements`
+// invocation performs exactly one explain() call total, not two
+// (VR-R21/R24/R45).
+function runRequirementVerification(changeDir, report, inspection) {
+  const context = buildVerificationContext(inspection, changeDir, cwd(), { input: { changeId: path.basename(changeDir) }, result: report });
+  const { requirementResults } = evaluateRequirements(context);
+  const overall = aggregateVerificationResult(report.passed, requirementResults);
+  console.log(`\nRequirement Verification: ${overall}`);
+  if (!requirementResults.length) {
+    console.log("  No requirements declared for this Change (no sdd.requirements).");
+  }
+  for (const { requirement, ruleResults } of requirementResults) {
+    for (const rr of ruleResults) {
+      if (rr.status === "not_applicable") continue; // quiet — never render arrays/rows with nothing to say
+      console.log(`  ${requirement.id} — ${rr.rule}: ${rr.status} — ${rr.summary}`);
+    }
+  }
+  // Exit code derives exclusively from the aggregated status (VR-R44) — no
+  // individual rule result can set it directly; PASS/INCOMPLETE are exit 0
+  // (an honest, actionable answer, mirroring Normalized Action's own
+  // blocked/pending precedent, ADR-018 §3), FAIL/INVALID/ERROR are exit 1.
+  if (overall === "FAIL" || overall === "INVALID" || overall === "ERROR") process.exitCode = 1;
+}
 function verify(args = []) {
   const parsed = parseArgs(args);
   section("AIEF Verify");
@@ -675,7 +901,14 @@ function verify(args = []) {
   if (typeof parsed.change === "string") {
     const changeDir = resolveExplicitChange(parsed.change);
     if (!changeDir) { printNext("aief status (list open Changes)"); return; }
-    renderReport(verifyChange(loadChange(changeDir), process.cwd()));
+    const report = verifyChange(loadChange(changeDir), process.cwd());
+    renderReport(report);
+    // Computed exactly once per invocation, shared by the Hook and (if
+    // requested) Requirement Verification — never a second explain() call
+    // (VR-R21/R24/R45).
+    const inspection = explainWorkflow(changeDir, cwd());
+    runVerifyCompletedHooks(changeDir, report, inspection);
+    if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -688,8 +921,20 @@ function verify(args = []) {
     cwd: process.cwd()
   });
   renderReport(report);
+  runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });
+  // Requirement Verification is Change-scoped (requirements come from one
+  // Change's own SDD provider) — whole-project `aief verify --requirements`
+  // (no `--change`) cannot silently redefine which structural check ran
+  // (verifyProject() above is untouched either way), so it names the gap
+  // instead of guessing a Change to target.
+  if (parsed.requirements) console.log("\nRequirement Verification: skipped — pass --change <id> to select one Change.");
 }
-function status(project = detectProject(), showNext = true) {
+// Renamed from status() (Entrega 4, Change 0046): this is the full-project
+// overview — unchanged behavior, unchanged output. status() below is now
+// the actual `aief status` command entry point, which parses --change/
+// --next and delegates here only when neither flag is present (Path B,
+// ADR-018 — no new command, status evolves compatibly).
+function statusOverview(project = detectProject(), showNext = true) {
   section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n");
   const required = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Changes", exists("changes")]];
   for (const [n, ok] of required) console.log(`${ok ? "✓" : "!"} ${n}`);
@@ -706,12 +951,190 @@ function status(project = detectProject(), showNext = true) {
     for (const d of open) console.log(`- ${path.basename(d)}`);
     if (open.length > 1) console.log("\nMultiple Changes in progress — commands that act on a Change need an explicit --change <id>.");
   }
+  // Additive only (WF-R15): this section is absent whenever no Change has an
+  // invalid manifest.json, which is every Change in this repository today.
+  const invalidManifests = invalidManifestChanges();
+  if (invalidManifests.length) {
+    console.log(`\nChanges with an invalid manifest.json: ${invalidManifests.length}`);
+    for (const { dir, change } of invalidManifests) {
+      console.log(`- ${path.basename(dir)}:`);
+      for (const err of change.manifestError) console.log(`    ${err.field}: ${err.message}`);
+    }
+  }
+  // Additive only (WF-R15): absent whenever no Change declares a recognized
+  // track, which is every Change in this repository today. Distinguishes
+  // stage/track/next action/blockers/warnings/pending gates explicitly
+  // (commissioning instruction, Etapa E) — never shows a transition as
+  // available while a blocking gate remains unsatisfied.
+  const workflows = workflowChanges();
+  const resolvable = workflows.filter((w) => w.workflow.kind === "resolved");
+  const unresolvable = workflows.filter((w) => w.workflow.kind !== "resolved");
+  if (resolvable.length) {
+    console.log(`\nWorkflow status: ${resolvable.length}`);
+    for (const { dir, change, workflow } of resolvable) {
+      const { state, gateResults } = workflow;
+      console.log(`- ${path.basename(dir)} (track: ${change.track}):`);
+      console.log(`    Stage: ${state.stage}`);
+      console.log(`    Next: ${state.nextAction === null ? "none (closed)" : state.nextAction}`);
+      if (state.blockers.length) {
+        console.log("    Blockers:");
+        for (const g of state.blockers) console.log(`      - ${g.id}: ${g.status} — ${g.reason}`);
+      }
+      if (state.warnings.length) {
+        console.log("    Warnings:");
+        for (const g of state.warnings) console.log(`      - ${g.id}: ${g.status} — ${g.reason}`);
+      }
+      const pending = gateResults.filter((g) => g.status === "pending" && !state.blockers.includes(g));
+      if (pending.length) {
+        console.log("    Pending (not yet implemented):");
+        for (const g of pending) console.log(`      - ${g.id}: ${g.reason}`);
+      }
+    }
+  }
+  if (unresolvable.length) {
+    console.log(`\nChanges with an unrecognized or broken workflow track: ${unresolvable.length}`);
+    for (const { dir, workflow } of unresolvable) console.log(`- ${path.basename(dir)}: ${workflow.error}`);
+  }
+  // Additive only (SDD-R34): absent whenever no Change declares manifest.sdd,
+  // which is every Change in this repository today.
+  const sdd = sddChanges();
+  if (sdd.length) {
+    console.log(`\nSDD provider status: ${sdd.length}`);
+    for (const { dir, change, resolution } of sdd) {
+      console.log(`- ${path.basename(dir)}:`);
+      if (resolution.error) {
+        console.log(`    SDD provider: ${resolution.error}`);
+        continue;
+      }
+      console.log(`    SDD provider: ${resolution.provider.PROVIDER_ID}`);
+      const changeResolution = resolution.provider.resolveChange(change, cwd());
+      console.log(`    SDD change: ${changeResolution.resolved ? changeResolution.changeId : `unresolved (${changeResolution.reason})`}`);
+      const readiness = resolution.provider.validate(change, cwd());
+      console.log(`    SDD readiness: ${readiness.status}`);
+      if (readiness.blockers.length) {
+        console.log("    Blockers:");
+        for (const b of readiness.blockers) console.log(`      - ${b}`);
+      }
+      if (readiness.warnings.length) {
+        console.log("    Warnings:");
+        for (const w of readiness.warnings) console.log(`      - ${w}`);
+      }
+    }
+  }
   console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`);
   if (!showNext) return;
-  if (!exists("AGENTS.md") || !exists("changes")) printNext("aief adopt");
-  else if (!changes.length) printNext("aief analyze");
-  else if (open.length > 1) printNext("aief prompt --change <id>", "aief close --yes --change <id>");
-  else printNext("aief prompt");
+  if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief adopt"); return; }
+  if (!changes.length) { printNext("aief analyze"); return; }
+  if (open.length > 1) { printNext("aief prompt --change <id>", "aief close --yes --change <id>"); return; }
+  // ADR-018 §1 (Change 0046): for the one case where this suggestion and the
+  // "Workflow status" block above could actually disagree — a single open,
+  // track-carrying Change — both now come from the exact same
+  // workflowService.nextAction() call. Every Change without a track (100%
+  // of this repository today) falls through to the unchanged legacy line
+  // below, so real output is untouched; this branch is additive-and-dormant
+  // the same way Entregas 1–3 introduced their own machinery.
+  if (open.length === 1) {
+    const singleChange = loadChangeUnified(open[0]);
+    if (singleChange.manifest && singleChange.track) {
+      const action = nextAction(open[0], cwd());
+      printNext(action.command || "aief status --next");
+      return;
+    }
+  }
+  printNext("aief prompt");
+}
+// Renders a single gate/blocker/warning line, shared by the --change deep
+// view and the --next compact view so the two never format the same data
+// two different ways.
+function printGateLine(label, g) {
+  console.log(`  ${label} ${g.id}: ${g.status} — ${g.reason}`);
+}
+// aief status --change <id>   (deep, read-only inspection of one Change)
+// aief status --change <id> --next   (compact Normalized Action view)
+// aief status --next   (same compact view, implicit single-open-Change selection)
+//
+// Entrega 4 (Change 0046, ADR-018 §4, Path B): no new command — this is the
+// entire CLI-facing surface Path B introduces, as flags on the existing
+// `status` command. Every branch here is read-only (UX-R5/R17): nothing
+// below writes a file, and workflowService.* is the only thing consulted
+// for workflow/SDD facts (UX-R21/R23) — no gate/track conditional lives in
+// this function itself, only rendering of what workflowService already decided.
+function statusSingleChange(parsed) {
+  section("AIEF Status"); console.log("Purpose: inspect one Change. Writes nothing.\n");
+  const changeDir = typeof parsed.change === "string"
+    ? resolveExplicitChange(parsed.change)
+    : resolveImplicitChange("aief status --next");
+  if (!changeDir) { printNext("aief status (list open Changes)"); return; }
+  const name = path.relative(process.cwd(), changeDir);
+  const change = loadChangeUnified(changeDir);
+  console.log(`Change: ${name}`);
+
+  if (change.manifestError) {
+    console.log("Manifest: invalid — never falls back to legacy inference (spec.md UX-R24).");
+    for (const err of change.manifestError) console.log(`  ${err.field}: ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Status: ${change.closed ? "closed" : "open"}`);
+
+  if (parsed.next) {
+    // Compact Normalized Action view — the single computation both this
+    // and statusOverview()'s bottom line consult (ADR-018 §1).
+    const action = nextAction(changeDir, cwd());
+    console.log(`\nNext action:`);
+    console.log(`  id: ${action.id}`);
+    console.log(`  status: ${action.status}`);
+    console.log(`  reason: ${action.reason}`);
+    console.log(`  blocking: ${action.blocking}`);
+    if (action.evidence?.length) {
+      console.log("  evidence:");
+      for (const e of action.evidence) console.log(typeof e === "string" ? `    - ${e}` : `    - ${e.id}: ${e.status} — ${e.reason}`);
+    }
+    console.log(`\nNext:`);
+    console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
+    if (action.status === "invalid") process.exitCode = 1;
+    return;
+  }
+
+  // Deep inspection view — track/stage/gates, SDD provider/readiness, then
+  // the same derived action's suggested command at the end.
+  const { workflow, sdd, action } = explainWorkflow(changeDir, cwd());
+  if (workflow && workflow.kind === "resolved") {
+    console.log(`\nTrack: ${change.track}`);
+    console.log(`Stage: ${workflow.state.stage}`);
+    if (workflow.state.blockers.length) {
+      console.log("Blockers:");
+      for (const g of workflow.state.blockers) printGateLine("-", g);
+    }
+    if (workflow.state.warnings.length) {
+      console.log("Warnings:");
+      for (const g of workflow.state.warnings) printGateLine("-", g);
+    }
+  } else if (workflow) {
+    console.log(`\nWorkflow: invalid — ${workflow.error}`);
+  } else {
+    console.log("\nWorkflow: no track declared (legacy readiness only).");
+  }
+  if (sdd && !sdd.error) {
+    console.log(`\nSDD provider: ${sdd.providerId}`);
+    console.log(`SDD change: ${sdd.changeResolution.resolved ? sdd.changeResolution.changeId : `unresolved (${sdd.changeResolution.reason})`}`);
+    console.log(`SDD readiness: ${sdd.readiness.status}`);
+    if (sdd.readiness.blockers?.length) { console.log("  Blockers:"); for (const b of sdd.readiness.blockers) console.log(`    - ${b}`); }
+    if (sdd.readiness.warnings?.length) { console.log("  Warnings:"); for (const w of sdd.readiness.warnings) console.log(`    - ${w}`); }
+  } else if (sdd?.error) {
+    console.log(`\nSDD provider: ${sdd.error}`);
+  }
+  console.log(`\nNext:`);
+  console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
+  if (action.status === "invalid") process.exitCode = 1;
+}
+function status(args = []) {
+  const parsed = parseArgs(args);
+  if (typeof parsed.change === "string" || parsed.next === true) {
+    statusSingleChange(parsed);
+    return;
+  }
+  statusOverview();
 }
 function toolVersion(command, args = ["--version"]) {
   const result = run(command, args);
@@ -770,7 +1193,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); status(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : "aief analyze"); }
+function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : "aief analyze"); }
 function initProject(name) { if (!name) return initHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // `aief init` without arguments prepares the current directory. It creates
 // only visible structure via runAdoption() and reports how AIEF fits with
@@ -855,4 +1278,4 @@ function printVersion() {
   const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"));
   console.log(`aief ${pkg.version}`);
 }
-export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}
+export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

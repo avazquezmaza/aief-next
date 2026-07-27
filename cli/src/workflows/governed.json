@@ -1,0 +1,19 @@
+{
+  "schema": "aief.workflow/v1",
+  "track": "governed",
+  "stages": [
+    { "id": "approval", "gateIds": ["approval"] },
+    { "id": "work" },
+    { "id": "verify", "gateIds": ["readiness"] },
+    { "id": "security_review", "gateIds": ["security_review"] },
+    { "id": "review", "gateIds": ["review"] },
+    { "id": "close" }
+  ],
+  "transitions": [
+    { "from": "approval", "to": "work" },
+    { "from": "work", "to": "verify" },
+    { "from": "verify", "to": "security_review" },
+    { "from": "security_review", "to": "review" },
+    { "from": "review", "to": "close" }
+  ]
+}
