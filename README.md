@@ -40,7 +40,7 @@ AIEF deliberately does **not**:
 
 ## How does it work?
 
-![AIEF Core 3.0 Workflow](docs/images/workflow.svg)
+![AIEF Core 3.0 Workflow](docs/images/workflow.png)
 
 <details>
 <summary>Canonical Mermaid Workflow Source</summary>

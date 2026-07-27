@@ -315,7 +315,7 @@
     </g>
   </g>
 
-  <!-- Next Change Loopback: I (aief status --next) -> C (aief new-change / enrich) -->
+  <!-- Next Change Loopback: I (aief status next) -> C (aief new-change / enrich) -->
   <g>
     <path d="M 1125 677 C 1125 790, 235 790, 235 685" fill="none" stroke="#4f46e5" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-indigo)"/>
     <g transform="translate(620, 778)">
