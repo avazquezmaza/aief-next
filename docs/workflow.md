@@ -184,6 +184,45 @@ No `loop` field (every Change before this one) behaves exactly as before — `ai
 section — `aief verify`'s own output and `loop.md` already answer every question a third surface
 would only duplicate.
 
+## Graph — the Change dependency model
+
+A Change's `manifest.json` may declare `dependsOn`, naming other Changes it depends on (Change
+0058, ADR-028). This is the **foundation** `status --next`, automatic planning and Change
+navigation will build on later — none of those exist yet.
+
+```json
+{
+  "dependsOn": ["0002-user-model", "0003-add-login"]
+}
+```
+
+`dependsOn` entries are Change directory basenames — the same identifier `--change <id>` already
+accepts. Nothing is persisted beyond `manifest.json` itself: the graph is rebuilt, deterministically,
+from `changes/*/manifest.json` on every invocation.
+
+- **`aief status`** (overview) gains a "Dependency Graph:" section — present only when at least
+  one Change declares `dependsOn` — listing each such Change's dependencies and any issues.
+- **`aief status --graph`** renders the *full* graph: every Change as a node (even ones with no
+  dependencies), every edge, the topological order (dependencies first), or an explicit
+  "unavailable — dependency cycle among: ..." statement when a cycle exists.
+- **`aief verify --change <id>`** prints one small, non-blocking note when the targeted Change has
+  a Graph issue — never affects PASS/FAIL or the exit code.
+- **`aief doctor`** is untouched — the Graph is cross-Change project state, which `status` already
+  owns (the same place Workflow/SDD/Harness/Loop's own cross-Change facts live).
+
+Issues detected, always as informational diagnostics, never as blockers:
+
+| Issue | Meaning |
+|---|---|
+| `missing_dependency` | `dependsOn` names a Change that doesn't exist. |
+| `self_dependency` | A Change lists itself in `dependsOn`. |
+| `duplicate_dependency` | The same dependency is listed more than once. |
+| `cycle` | Two or more Changes depend on each other, directly or transitively — no valid order exists among them. |
+
+No `dependsOn` field anywhere (every Change before this one) behaves exactly as before —
+`aief status` (overview), `aief verify` (whole-project and `--change`), and `aief doctor` are
+byte-identical. `aief status --graph` is a brand-new flag.
+
 ## Verification
 
 `aief verify` always runs **Structural Verification** first: are the Change's required files

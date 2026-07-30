@@ -1859,6 +1859,116 @@ test("Harness/LIDR Skills/Standards/Bootstrap are unaffected by Loop (Change 005
   assert.match(doctorVerbose.out, /\nHarness:/, "0056's Harness registry still works, untouched by Loop");
 });
 
+// --- Change 0058/ADR-028: Change dependency Graph ---
+
+function manifestFor(id, slug, title, overrides = {}) {
+  return JSON.stringify({ schema: "aief.change/v1", id, slug, title, status: "open", ...overrides });
+}
+
+test("status/verify: with no dependsOn anywhere, output is byte-identical to the pre-Change-0058 baseline", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "graph-baseline"]);
+  const statusOut = aief(dir, ["status"]).out;
+  assert.doesNotMatch(statusOut, /\nDependency Graph:/);
+  const verifyOut = aief(dir, ["verify", "--change", "0001-graph-baseline"]).out;
+  assert.doesNotMatch(verifyOut, /Dependency Graph issues/);
+  const verifyWholeOut = aief(dir, ["verify"]).out;
+  assert.doesNotMatch(verifyWholeOut, /Dependency Graph/);
+});
+
+test("doctor: is completely unaffected by dependsOn (default and --verbose)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "graph-doctor"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-graph-doctor", "manifest.json"), manifestFor("0001", "graph-doctor", "x", { dependsOn: [] }), "utf8");
+  const plain = aief(dir, ["doctor"]);
+  const verbose = aief(dir, ["doctor", "--verbose"]);
+  assert.doesNotMatch(plain.out, /Dependency Graph|Graph:/);
+  assert.doesNotMatch(verbose.out, /Dependency Graph|\nGraph:/);
+});
+
+test("status overview: a Dependency Graph section appears only when at least one Change declares dependsOn, listing dependencies and issues", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "user-model"]);
+  aief(dir, ["new-change", "add-login"]);
+  fs.writeFileSync(path.join(dir, "changes", "0002-add-login", "manifest.json"), manifestFor("0002", "add-login", "x", { dependsOn: ["0001-user-model", "0099-ghost"] }), "utf8");
+  const { out, status } = aief(dir, ["status"]);
+  assert.equal(status, 0);
+  assert.match(out, /\nDependency Graph: 1 Change\(s\) declare dependencies/);
+  // Only the real, resolved edge is listed as a dependency — the missing
+  // one never creates an edge (R6), it only ever appears under Issues.
+  assert.match(out, /- 0002-add-login depends on: 0001-user-model$/m);
+  assert.match(out, /Issues:/);
+  assert.match(out, /missing_dependency: "0002-add-login" depends on "0099-ghost", which does not exist/);
+});
+
+test("status --graph: renders every Change as a node, including ones without dependencies, plus edges and topological order", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "user-model"]);
+  aief(dir, ["new-change", "add-login"]);
+  fs.writeFileSync(path.join(dir, "changes", "0002-add-login", "manifest.json"), manifestFor("0002", "add-login", "x", { dependsOn: ["0001-user-model"] }), "utf8");
+  const { out, status } = aief(dir, ["status", "--graph"]);
+  assert.equal(status, 0);
+  assert.match(out, /Nodes: 2/);
+  assert.match(out, /Edges: 1/);
+  assert.match(out, /- 0002-add-login -> 0001-user-model/);
+  assert.match(out, /Topological order \(dependencies first\):\n {2}0001-user-model, 0002-add-login/);
+  assert.match(out, /Issues: none/);
+});
+
+test("status --graph: a cycle is reported, topological order is explicitly unavailable", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "a-thing"]);
+  aief(dir, ["new-change", "b-thing"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-a-thing", "manifest.json"), manifestFor("0001", "a-thing", "x", { dependsOn: ["0002-b-thing"] }), "utf8");
+  fs.writeFileSync(path.join(dir, "changes", "0002-b-thing", "manifest.json"), manifestFor("0002", "b-thing", "x", { dependsOn: ["0001-a-thing"] }), "utf8");
+  const { out, status } = aief(dir, ["status", "--graph"]);
+  assert.equal(status, 0);
+  assert.match(out, /Topological order: unavailable — dependency cycle among: 0001-a-thing, 0002-b-thing/);
+  assert.match(out, /- cycle: dependency cycle among: 0001-a-thing, 0002-b-thing/);
+});
+
+test("verify --change: prints a non-blocking Dependency Graph issue note for the targeted Change, never affecting PASS/FAIL or exit code", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "graph-verify-thing"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-graph-verify-thing", "manifest.json"), manifestFor("0001", "graph-verify-thing", "x", { dependsOn: ["0099-ghost"] }), "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-graph-verify-thing"]);
+  assert.equal(status, 0, "Structural Verification still PASSes — a missing dependency never blocks");
+  assert.match(out, /Result: PASS/);
+  assert.match(out, /Dependency Graph issues for this Change \(non-blocking\):/);
+  assert.match(out, /- missing_dependency: "0001-graph-verify-thing" depends on "0099-ghost", which does not exist/);
+});
+
+test("verify --change: no Dependency Graph note when the targeted Change has no issues", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "user-model"]);
+  aief(dir, ["new-change", "add-login"]);
+  fs.writeFileSync(path.join(dir, "changes", "0002-add-login", "manifest.json"), manifestFor("0002", "add-login", "x", { dependsOn: ["0001-user-model"] }), "utf8");
+  const { out } = aief(dir, ["verify", "--change", "0002-add-login"]);
+  assert.doesNotMatch(out, /Dependency Graph issues/);
+});
+
+test("verify --change: a self-dependency issue is reported for the offending Change, never crashes", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "self-thing"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-self-thing", "manifest.json"), manifestFor("0001", "self-thing", "x", { dependsOn: ["0001-self-thing"] }), "utf8");
+  const { out, status } = aief(dir, ["verify", "--change", "0001-self-thing"]);
+  assert.equal(status, 0);
+  assert.match(out, /- self_dependency: "0001-self-thing" depends on itself/);
+});
+
+test("Bootstrap/LIDR/Harness/Loop are unaffected by the Graph (Change 0058 touches only status and verify --change)", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
+  });
+  const bootstrap = aief(dir, ["bootstrap"]);
+  assert.equal(bootstrap.status, 0);
+  assert.doesNotMatch(bootstrap.out, /Dependency Graph/);
+  const doctorVerbose = aief(dir, ["doctor", "--verbose"]);
+  assert.match(doctorVerbose.out, /pair-programming \[project\]/, "0054's Skill wiring still works, untouched by the Graph");
+  assert.match(doctorVerbose.out, /\nHarness:/, "0056's Harness registry still works, untouched by the Graph");
+});
+
 // --- Entrega 7 (Change 0049, ADR-021) — Verification Engine, `verify` integration ---
 
 test("verify --change is byte-identical without --requirements (Entrega 7 default stays legacy)", () => {

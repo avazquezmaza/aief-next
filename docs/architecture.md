@@ -124,6 +124,22 @@ changes. `aief doctor --verbose` reads (never writes) every open Change's Loop s
 project-wide registry view. No Hook, no new lifecycle event, no automatic re-invocation of
 anything — "retry" is a reported outcome, never an action Loop performs.
 
+## Graph
+
+`change-graph.js` (Change 0058, ADR-028) exports one pure function, `buildGraph(nodes)` —
+`nodes: [{id, dependsOn}]` in, `{nodes, edges, order, cycles, issues}` out. No filesystem access,
+no CLI dependency, fully unit-testable with synthetic input. Construction and validation are one
+pass: an edge is only created once checked against `self_dependency`/`duplicate_dependency`/
+`missing_dependency`; cycle detection is Kahn's algorithm, with any leftover node after
+topological removal reported as one `cycle` issue and `order` becoming `null` (never a fabricated
+partial order). `cli.js`'s `buildProjectGraph()` is the sole place that gathers real Changes for
+this feature (`getChangeDirs().map(loadChangeUnified)`, guarded by `!manifestError`, mirroring
+`sddChanges()`/`workflowChanges()`'s own pattern) — read-only, rebuilt on every call, nothing
+persisted beyond `manifest.json` itself (ADR-009). Three read surfaces:
+`statusOverview()`'s conditional "Dependency Graph:" section, the new `aief status --graph` full
+view, and `aief verify --change <id>`'s non-blocking per-Change issue note. `aief doctor` is
+untouched — the Graph is cross-Change project state, which `status` already owns.
+
 ## Verification Engine
 
 `verification-rule.js` defines the Verification Rule contract (scope, capabilities, `appliesTo()`,

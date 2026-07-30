@@ -119,6 +119,17 @@ decision over the attempt number (derived from `<changeDir>/loop.md` itself) and
 `verify`, a Hook, or anything else automatically, and never changes `verify`'s own PASS/FAIL or
 exit code. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
 
+## Graph
+
+The official Change dependency model (Change 0058): a Change's `manifest.json` may declare
+`dependsOn`, naming other Changes it depends on. `change-graph.js`'s `buildGraph()` derives, on
+every invocation, a deterministic node/edge structure, a topological order (dependencies first),
+and any issues (`missing_dependency`, `self_dependency`, `duplicate_dependency`, `cycle`) — never
+persisted, never cached. `aief status`/`aief status --graph` read it; `aief verify --change <id>`
+prints a non-blocking note when the targeted Change has an issue. This is the foundation `status
+--next`, automatic planning and Change navigation will read later — not their implementation.
+See [Workflow — Graph](workflow.md#graph--the-change-dependency-model).
+
 ## Verification Rule / Requirement Verification
 
 `aief verify --requirements` runs **Requirement Verification**: for each requirement a Change's

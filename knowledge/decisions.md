@@ -4,6 +4,121 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-028: `dependsOn` is the official Change dependency field; the Graph is derived, pure, and read-only — construction and validation are one pass; `status --graph` is the full view, `status`'s overview gets a conditional summary, `verify` gets a non-blocking note, `doctor` gets nothing
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0058](../changes/0058-change-graph-dependency-model/)'s planning artifacts (`spec.md`/`tasks.md`); the foundation `status --next`, automatic planning and Change navigation will read later — none of those are implemented here.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `dependsOn: [<other Change id>, ...]` — an array of other
+> Changes' directory basenames, the same identifier `--change <id>` already accepts everywhere
+> else. Structural shape (array of non-empty strings) is validated in `change-manifest.js`,
+> mirroring `sdd.change_id`'s own precedent exactly: **referential validity is never checked at
+> the manifest layer** — whether a named Change exists, or participates in a cycle, is a
+> cross-Change, project-wide fact only the Graph itself can determine.
+>
+> `cli/src/core/domain/change-graph.js` exports one pure function, `buildGraph(nodes)`, taking a
+> plain `[{id, dependsOn}]` array (no filesystem access, no CLI dependency) and returning
+> `{nodes, edges, order, cycles, issues}`. **Construction and validation are one pass, not two**:
+> building the edge set and detecting `missing_dependency`/`duplicate_dependency`/
+> `self_dependency` happen together, per source node, so there is no second traversal that could
+> compute a different answer than what was actually built. Cycle detection uses Kahn's algorithm
+> (repeatedly remove zero-remaining-dependency nodes); any node left over is in a cycle — reported
+> once, naming every member — and `order` is `null` in that case, never a fabricated partial
+> order. Every ordering decision (node iteration, tie-breaking, the `edges` array itself) is
+> sorted by Change id, making the whole function deterministic without a priority queue or any
+> other data structure beyond what a small, synchronous CLI needs.
+>
+> `cli.js`'s `buildProjectGraph()` is the **only** place that gathers real Changes for this
+> feature — `getChangeDirs().map(loadChangeUnified)`, `dependsOn` read only from Changes with no
+> `manifestError` (mirrors `sddChanges()`/`workflowChanges()`'s own guard: an invalid manifest's
+> content is never trusted for anything). Three read surfaces, each additive and non-blocking:
+> `aief status` (overview) gains a conditional "Dependency Graph:" section, present only when at
+> least one Change declares `dependsOn`; `aief status --graph` (new flag) renders the full graph,
+> every Change as a node whether or not it has dependencies; `aief verify --change <id>` gains one
+> informational note when the targeted Change has a Graph issue, printed after Loop's own output,
+> never touching `report.passed` or the exit code. `aief doctor` gains nothing — no Graph fact is
+> doctor-shaped (doctor is environment/registry-level; the Graph is cross-Change project state,
+> which `status` already owns for Workflow/SDD/Harness alike).
+
+**Why this needs its own ADR.** A fourth optional `manifest.json` field, a new domain module, and
+an explicit decision about which commands surface cross-Change structural information (plus the
+commissioning instruction's own conditional invitation to add `status --graph` "only if it keeps
+the CLI simple, documented in the ADR") are each independently ADR-triggering, continuing the bar
+ADR-016 through ADR-027 already applied.
+
+**Why one pass, not "build, then validate."** A two-pass design (build the graph first, then walk
+it again to find problems) risks the second pass silently using different rules than the first —
+exactly the kind of drift ADR-024's Standards refactor and ADR-026/027's shared-helper extractions
+were written to prevent elsewhere in this codebase. Detecting `self_dependency`/
+`duplicate_dependency`/`missing_dependency` at the exact moment an edge would be created, and
+simply not creating it when one of those applies, makes "what got built" and "what got reported"
+provably the same computation, not two that happen to agree today.
+
+**Why cycle detection reports the whole remaining set, not decomposed simple cycles.** Kahn's
+algorithm already answers "is there a cycle, and who's in it" as a side effect of computing
+topological order — decomposing a general cyclic subgraph into its individual simple cycles is a
+harder, separate graph problem with no cited need in this codebase (ADR-008): a Change author
+staring at "these N Changes form a dependency cycle: A, B, C" has everything required to go fix
+their own `dependsOn` declarations.
+
+**Why `doctor` gets nothing.** Every prior cross-Change, project-wide fact this codebase has ever
+surfaced (Workflow status, SDD provider status, Harness's per-Change config, Loop's per-Change
+attempt state) went into `status`, never `doctor` — `doctor` answers "is my environment and this
+project's static setup usable," never "what is the current cross-Change state of my Changes."
+Adding a Graph section to `doctor` would be the first exception to that boundary with no cited
+need for it; `status`'s existing precedent already fits perfectly.
+
+**Why `status --graph` and not a required flag, or folding it into the existing overview
+unconditionally.** The overview's own "Dependency Graph:" section is deliberately conditional
+(R10) so a project with no `dependsOn` sees byte-identical `status` output — but that means it
+never shows a Change with zero dependencies, which is exactly the information someone building on
+this foundation (a future `status --next`) will need: the *whole* graph, not just the declared
+edges. A new, explicit, additive flag — never on by default — keeps `status`'s default output
+untouched while making the full picture available on request, the same opt-in-detail precedent
+`--verbose` already established for `doctor` (Changes 0054–0056).
+
+**Relationship to ADR-016 (`manifest.json`).** `dependsOn` joins `sdd`/`track`/`harness`/`loop` as
+another optional, additive top-level field — required-field set unchanged; a legacy Change (no
+manifest, or a manifest without `dependsOn`) is entirely unaffected.
+
+**Relationship to ADR-026/ADR-027.** Same manifest-field → structural-validation → pure-module →
+additive-CLI-wiring shape, applied a third time; `harness-service.js`/`loop-service.js` are
+untouched — zero diff, zero coupling in either direction.
+
+**Alternatives considered.**
+
+- **Two-pass build-then-validate.** Rejected — see "Why one pass, not 'build, then validate.'"
+  above.
+- **Decompose cycles into individual simple cycles.** Rejected for this Entrega — no cited need,
+  real added complexity (ADR-008).
+- **Add the Graph to `aief doctor` instead of/in addition to `status`.** Rejected — breaks the
+  established `status` vs. `doctor` boundary with no cited need to.
+- **Persist the built graph (a `graph.json` or similar cache).** Rejected outright — violates
+  ADR-009 (no hidden state) and this Change's own explicit "no storage beyond `manifest.json`"
+  requirement; rebuilding from `changes/*/manifest.json` on every invocation is cheap at any
+  realistic project size and guarantees the Graph can never silently go stale.
+- **Make `dependsOn` reference SDD artifacts or Workflow tracks instead of/alongside Change ids.**
+  Rejected — no cited use case; `dependsOn` names other Changes, full stop, keeping the model as
+  small as the commissioning instruction's own "sin sobrediseño" principle requires.
+
+**Consequences.**
+
+- `cli/src/core/services/harness-service.js`, `cli/src/core/services/loop-service.js`,
+  `cli/src/core/domain/ai-specs.js`, `cli/src/detect.js`, `cli/src/hooks/*`,
+  `change-verifier.js`'s report computation, and `aief doctor` are untouched by this Entrega —
+  zero diff lines.
+- A project with no `dependsOn` anywhere sees byte-identical `aief status` (overview and
+  `--change`) and `aief verify` (whole-project and `--change`) output; `aief status --graph` is a
+  brand-new flag with no prior baseline.
+- No new persisted state, no new write path — `change-graph.js` and its `cli.js` callers are
+  entirely read-only.
+- A future Change implementing `status --next`, automatic planning, or Change navigation must
+  build on `buildGraph()`'s existing `{nodes, edges, order, cycles, issues}` shape rather than
+  inventing a second graph representation.
+
+---
+
 ## ADR-027: Loop is opt-in, per-Change attempt tracking over the unmodified verify pipeline — feedback is reused, never recomputed; retry is always a manual re-invocation, never automatic; `loop.md` mirrors ADR-026's `hooks.md` exactly
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0057](../changes/0057-loop-verify-feedback-retry/)'s planning artifacts (`spec.md`/`tasks.md`); the third opt-in `manifest.json` extension following the pattern [ADR-026](#adr-026-harness-configuration-is-per-change-keyed-by-event-id-opt-in-via-manifestjson-disabling-and-logging-are-post-evaluation-filters-over-the-unmodified-adr-020-hook-runtime--never-a-second-hook-system-never-command-execution-never-blocking) established for Harness.

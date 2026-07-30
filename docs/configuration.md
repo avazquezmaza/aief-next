@@ -36,11 +36,12 @@ into the Workflow Engine and/or the SDD Provider.
 | `harness.log` | no | boolean | Opts into a visible, append-only `<changeDir>/hooks.md` execution log. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration). |
 | `harness.hooks."<event>".disabled` | no | array of Hook id strings | Excludes listed Hook ids from that event's output/log. `<event>` must be `"prompt.prepared"` or `"verify.completed"` — any other key is an invalid-manifest error. An unknown Hook id inside the array is a visible warning (`aief status --change <id>`), never a crash and never disables anything real. |
 | `loop.verify.maxRetries` | no | positive integer, default `3` | Opts the Change into Loop attempt tracking for `aief verify --change <id>`. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry). |
+| `dependsOn` | no | array of Change id strings | Names other Changes this one depends on. Referential validity (does the named Change exist? is there a cycle?) is a cross-Change fact resolved by `aief status`/`aief status --graph`/`aief verify --change <id>`, never checked here. See [Workflow — Graph](workflow.md#graph--the-change-dependency-model). |
 
-An invalid manifest (bad JSON, wrong schema, missing required field, or — since Change 0056/0057 —
-an unrecognized `harness`/`loop` shape) is reported as a distinct, visible state by `aief status`
-— it is never silently treated as "no manifest," and never falls back to inferring the missing
-fields.
+An invalid manifest (bad JSON, wrong schema, missing required field, or — since Changes 0056–0058
+— an unrecognized `harness`/`loop`/`dependsOn` shape) is reported as a distinct, visible state by
+`aief status` — it is never silently treated as "no manifest," and never falls back to inferring
+the missing fields.
 
 ## Workflow track definitions — `cli/src/workflows/*.json`
 

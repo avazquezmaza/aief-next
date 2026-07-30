@@ -208,3 +208,43 @@ test("validateManifest: loop.verify.maxRetries must be a positive integer", () =
     assert.ok(errors.some((e) => e.field === "loop.verify.maxRetries"));
   }
 });
+
+// --- Change 0058/ADR-028: dependsOn structural validation ---
+
+test("validateManifest: no dependsOn field is valid (the default for every existing Change)", () => {
+  const { valid, errors } = validateManifest(VALID_MANIFEST);
+  assert.equal(valid, true);
+  assert.deepEqual(errors, []);
+});
+
+test("validateManifest: a valid dependsOn array passes", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, dependsOn: ["0001-thing", "0002-other"] });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: an empty dependsOn array is valid", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, dependsOn: [] });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: dependsOn must be an array", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, dependsOn: "0001-thing" });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "dependsOn"));
+});
+
+test("validateManifest: dependsOn entries must be non-empty strings", () => {
+  for (const bad of [[""], [42], [null], [{ id: "x" }]]) {
+    const { valid, errors } = validateManifest({ ...VALID_MANIFEST, dependsOn: bad });
+    assert.equal(valid, false, `dependsOn ${JSON.stringify(bad)} must be rejected`);
+    assert.ok(errors.some((e) => e.field === "dependsOn"));
+  }
+});
+
+test("validateManifest: referential validity of dependsOn is not checked here (structural only)", () => {
+  // "does 0099-ghost exist" and "is there a cycle" are cross-Change facts
+  // only change-graph.js can determine — a single manifest naming a
+  // nonexistent Change is still structurally valid.
+  const { valid } = validateManifest({ ...VALID_MANIFEST, dependsOn: ["0099-totally-made-up"] });
+  assert.equal(valid, true);
+});

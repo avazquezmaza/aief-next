@@ -21,6 +21,7 @@ import { buildEvent, buildHookContext } from "./core/services/hook-context.js";
 import { evaluateEvent } from "./core/services/hook-service.js";
 import { resolveHarnessConfig, partitionOutcome, describeHarnessRegistry, hookTitle, formatHookLogSection, formatHookResultsBlock, describeFailingHooks } from "./core/services/harness-service.js";
 import { resolveLoopConfig, countPreviousAttempts, decideLoopOutcome, formatLoopSummary, formatLoopLogEntry } from "./core/services/loop-service.js";
+import { buildGraph } from "./core/domain/change-graph.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
@@ -146,6 +147,19 @@ function sddChanges() {
     .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
     .filter(({ change }) => !change.manifestError && change.manifest?.sdd)
     .map(({ dir, change }) => ({ dir, change, resolution: resolveSddProvider(change, cwd()) }));
+}
+// buildProjectGraph() (Change 0058/ADR-028) — the only place that gathers
+// real Changes for the dependency Graph. An invalid manifest's dependsOn
+// (if any) is never trusted, same guard sddChanges()/workflowChanges()
+// already use — mirrors their exact pattern. Read-only: never writes a
+// file, never caches, rebuilds on every call (ADR-009).
+function buildProjectGraph() {
+  const nodes = getChangeDirs().map((dir) => {
+    const change = loadChangeUnified(dir);
+    const dependsOn = !change.manifestError && Array.isArray(change.manifest?.dependsOn) ? change.manifest.dependsOn : [];
+    return { id: path.basename(dir), dependsOn };
+  });
+  return buildGraph(nodes);
 }
 // Change selection (Flux Portal dogfooding, ROADMAP-TO-1.0 workstream 1):
 // one shared implementation for every command that operates on a Change.
@@ -1017,6 +1031,19 @@ function runLoop(changeDir, change, report) {
   const entry = formatLoopLogEntry({ timestamp: new Date().toISOString(), outcome, feedback: report.errors });
   writeFile(logPath, `${already ? read(logPath) : header}\n${entry}`, true);
 }
+// Change 0058/ADR-028 — a small, non-blocking dependency-issue note for the
+// Change `aief verify --change <id>` targeted: printed only when the Graph
+// has an issue naming this Change (as source, or as a cycle member) — never
+// touches report.passed or the exit code (both already decided before this
+// runs). Silent for every Change today (none declares dependsOn).
+function runGraphCheck(changeDir) {
+  const changeId = path.basename(changeDir);
+  const graph = buildProjectGraph();
+  const relevant = graph.issues.filter((issue) => issue.changeId === changeId || (issue.members && issue.members.includes(changeId)));
+  if (!relevant.length) return;
+  console.log("\nDependency Graph issues for this Change (non-blocking):");
+  for (const issue of relevant) console.log(`- ${issue.type}: ${issue.detail}`);
+}
 // Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
 // opt-in flag: Structural Verification (renderReport, above) always runs
 // first, unchanged; this function only ever ADDS a section after it, never
@@ -1064,6 +1091,7 @@ function verify(args = []) {
     runVerifyCompletedHooks(changeDir, report, inspection);
     if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
     runLoop(changeDir, inspection.change, report);
+    runGraphCheck(changeDir);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -1174,6 +1202,25 @@ function statusOverview(project = detectProject(), showNext = true) {
         console.log("    Warnings:");
         for (const w of readiness.warnings) console.log(`      - ${w}`);
       }
+    }
+  }
+  // Additive only (Change 0058/ADR-028): absent whenever no Change declares
+  // manifest.dependsOn, which is every Change in this repository today —
+  // same conditional discipline sddChanges()/workflowChanges() above use.
+  // Only Changes that actually declare a dependency are listed here; the
+  // full graph (every Change, with or without dependencies) is
+  // `aief status --graph`.
+  const graph = buildProjectGraph();
+  const declaring = graph.edges.length ? [...new Set(graph.edges.map((e) => e.from))].sort() : [];
+  if (declaring.length || graph.issues.length) {
+    console.log(`\nDependency Graph: ${declaring.length} Change(s) declare dependencies`);
+    for (const id of declaring) {
+      const deps = graph.edges.filter((e) => e.from === id).map((e) => e.to);
+      console.log(`- ${id} depends on: ${deps.join(", ")}`);
+    }
+    if (graph.issues.length) {
+      console.log("  Issues:");
+      for (const issue of graph.issues) console.log(`    - ${issue.type}: ${issue.detail}`);
     }
   }
   console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`);
@@ -1308,8 +1355,32 @@ function printHarnessStatus(changeDir, change) {
   }
   if (config.log && fs.existsSync(path.join(changeDir, "hooks.md"))) console.log(`  Execution log: ${path.relative(process.cwd(), path.join(changeDir, "hooks.md"))}`);
 }
+// aief status --graph (Change 0058/ADR-028) — the full dependency graph:
+// every Change is a node, whether or not it declares dependencies (the
+// overview's own "Dependency Graph:" section only lists Changes that do).
+// Read-only, additive, new flag — no existing status output changes.
+function statusGraph() {
+  section("AIEF Status"); console.log("Purpose: show the full Change dependency graph. Writes nothing.\n");
+  const graph = buildProjectGraph();
+  console.log(`Nodes: ${graph.nodes.length}`);
+  console.log(`Edges: ${graph.edges.length}`);
+  for (const e of graph.edges) console.log(`- ${e.from} -> ${e.to}`);
+  console.log("");
+  if (graph.order) {
+    console.log("Topological order (dependencies first):");
+    console.log(`  ${graph.order.join(", ") || "(none)"}`);
+  } else {
+    console.log(`Topological order: unavailable — dependency cycle among: ${graph.cycles.join(", ")}`);
+  }
+  console.log(graph.issues.length ? "\nIssues:" : "\nIssues: none");
+  for (const issue of graph.issues) console.log(`- ${issue.type}: ${issue.detail}`);
+}
 function status(args = []) {
   const parsed = parseArgs(args);
+  if (parsed.graph === true) {
+    statusGraph();
+    return;
+  }
   if (typeof parsed.change === "string" || parsed.next === true) {
     statusSingleChange(parsed);
     return;

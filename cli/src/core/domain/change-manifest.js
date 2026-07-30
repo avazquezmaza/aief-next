@@ -146,5 +146,16 @@ export function validateManifest(value) {
     }
   }
 
+  // dependsOn is optional (Change 0058, ADR-028): its absence never produces
+  // an error, and this block never runs for any Change that predates it.
+  // Shape only — referential validity (does the named Change exist? is
+  // there a cycle?) is a cross-Change, project-wide fact only
+  // change-graph.js can determine, never this single-manifest validator
+  // (same discipline sdd.change_id already established).
+  if (value.dependsOn !== undefined) {
+    const isValidList = Array.isArray(value.dependsOn) && value.dependsOn.every((id) => typeof id === "string" && id.trim());
+    if (!isValidList) require("dependsOn", "must be an array of non-empty strings when present");
+  }
+
   return { valid: errors.length === 0, errors };
 }
