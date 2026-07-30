@@ -4,6 +4,84 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-024: `aief doctor` is the first (and, this Change, only) consumer of the ai-specs resolver; activation is directory presence, never a Change's `manifest.json`
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0054](../changes/0054-lidr-skill-recommendations/)'s planning artifacts (`spec.md`/`tasks.md`); activates the wiring [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left deliberately dormant.
+
+**Decision.**
+
+> `cli/src/core/domain/ai-specs.js` gains `resolveSkillRecommendations(builtins, cwd)` — a thin,
+> pure composition of ADR-023's existing `discoverAiSpecs()`/`resolveResources()`, adding only
+> what rendering needs: a derived `description` for a project-sourced Skill (its file's first
+> non-empty line, a leading `#` stripped), a fixed `because` line naming the source file, and an
+> `overridesBuiltin` boolean. `aief doctor`'s `printSkills()` — its **one and only caller** — is
+> the sole integration point: it prints a project-sourced Skill inline with built-ins, tagged
+> `[project]`/`[project override]`, in the deterministic order `resolveResources()` already
+> guarantees. A new `--verbose` flag on `doctor` reveals `source`/`path`/`overrides` per entry and
+> full resolver warning text; the default output adds at most one bracketed tag per line and, when
+> warnings exist, exactly one summary line pointing at `--verbose` — never a raw warning dump or a
+> stack trace. `bootstrap`/`analyze`/`prompt` — the Skill Catalog's three other consumers — are
+> **not** touched; each keeps calling `recommendSkills()` directly, unaware this resolver exists.
+
+**Why `doctor` and not `bootstrap`/`analyze`/`prompt`.** `printSkills()` has exactly one caller
+(`doctor()`, confirmed by inspection) and `doctor` is this codebase's only Skill-recommending
+command that never writes a file — "Doctor never modifies your project" is already its own
+documented guarantee. Wiring here first proves the resolver end-to-end at the lowest possible
+risk: no adopted project's `knowledge/skills.md` (`bootstrap`), no Analysis Change's seeded
+content (`analyze`), and no assistant-facing prompt text (`prompt`) changes as a side effect of
+this Change. Extending to those three is explicitly left to future, separately-scoped Changes.
+
+**Activation gate is directory presence, not a Change's `manifest.json`.** The commissioning
+instruction for this Change listed "no modifiques proyectos sin `manifest.json`" among its rules.
+Read literally against this repository's actual state — zero Changes under `changes/` carry a
+`manifest.json` (confirmed by inspection, same fact ADR-016/`change-loader.test.js`'s own
+zero-drift regression already established) — that reading would make the feature permanently
+unreachable, which cannot have been the intent. This Change's real gate is the one ADR-023 already
+established: `ai-specs/skills/*.md` presence in the *project* directory (not any Change's
+manifest). No file is ever written by `resolveSkillRecommendations()` or by `doctor --verbose`, in
+any project, with or without a manifest anywhere — so the literal concern the rule was protecting
+against (an unreviewed project being modified) does not arise either way. Recorded here rather
+than resolved silently, per this project's own precedent for surfacing an ambiguous instruction
+instead of guessing past it.
+
+**Relationship to ADR-023.** Fully consistent — this Change passes `recommendSkills(project)`'s
+output as ADR-023's generic `builtins` argument, exactly as ADR-023's own "alternatives
+considered" anticipated. `discoverAiSpecs()`/`resolveResources()` are unmodified; zero diff lines
+in `cli/src/core/domain/ai-specs.js`'s existing exports.
+
+**Relationship to ADR-010.** The Skill *Catalog* (`skills-catalog.json`, `recommendSkills()`,
+`detect.js`) is untouched — zero diff lines. This Change only changes what `doctor` prints after
+calling `recommendSkills()`, never what `recommendSkills()` itself computes.
+
+**Relationship to ADR-013/ADR-015.** `--verbose` is an additive, opt-in flag on an existing
+command — not a new command verb — so neither ADR is implicated; ADR-022's scoped thaw is not
+invoked because nothing here needed it.
+
+**Alternatives considered.**
+
+- **Wire into `bootstrap`/`analyze`/`prompt` in this same Change.** Rejected — out of scope by
+  explicit commissioning instruction; each is a write path (`bootstrap`) or assistant-facing
+  content (`analyze`, `prompt`), a materially higher-risk first integration than a read-only
+  report.
+- **Gate activation behind a Change's `manifest.json` field (e.g. `manifest.aiSpecs.enabled`).**
+  Considered, per the commissioning instruction's literal wording; rejected — no Change in this
+  repository has ever carried a manifest, `doctor` operates at the project level (not a single
+  Change), and ADR-023 already established directory presence as this feature's opt-in mechanism.
+- **A `--json` output mode alongside `--verbose`.** Rejected for this Entrega — no evidenced
+  consumer needs machine-readable `doctor` output yet (ADR-008); `--verbose` alone satisfies the
+  commissioning instruction's "detail behind a flag" requirement.
+
+**Consequences.**
+
+- `cli/src/detect.js`, `skillsDoc()`, `analyze()`'s context building, and `prompt()`'s
+  `skillsBlock` are untouched by this Entrega — zero diff lines, zero behavioral change.
+- `aief doctor`'s output (with or without `--verbose`) is byte-identical to before this Change for
+  any project without `ai-specs/skills/*.md`.
+- A future Change wiring `bootstrap`/`analyze`/`prompt` to the same resolver must cite this ADR
+  and ADR-023 rather than inventing a third precedence or activation rule.
+
+---
+
 ## ADR-023: `ai-specs/` resources are discovered and resolved against AIEF's built-ins, never copied; project always wins on id collision; unwired (dormant) this Change
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0053](../changes/0053-lidr-integration/)'s planning artifacts (`spec.md`/`design.md`/`tasks.md`); commissioned as the first, deliberately narrow step of LIDR integration — "AIEF consume LIDR, nunca lo copia."

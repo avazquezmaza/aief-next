@@ -13,7 +13,8 @@ existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
 
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief doctor` | PATH tools, project files | Nothing | Environment (required/recommended/optional tools) + project readiness. |
+| `aief doctor` | PATH tools, project files, `ai-specs/skills/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). |
+| `aief doctor --verbose` | Same | Nothing | Same, plus each Skill's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, and full `ai-specs` resolution warnings. |
 | `aief status` | `changes/`, project files | Nothing | Adoption overview, recent Changes, all open Changes, Workflow/SDD summaries. |
 | `aief status --change <id>` | The selected Change | Nothing | Deep inspection: track, stage, gates, SDD readiness. |
 | `aief status --change <id> --next` | The selected Change | Nothing | Compact Normalized Action: the one next command to run. |

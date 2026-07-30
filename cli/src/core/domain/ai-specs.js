@@ -118,3 +118,63 @@ export function resolveResources(builtins, projectResources) {
 
   return { resources: [...resolved.values()], warnings };
 }
+
+// deriveSkillDescription(content) -> a short, human-readable description for
+// a project-sourced Skill file (AIEF 3.1, Change 0054/ADR-024). The file's
+// first non-empty line, with a leading Markdown heading marker stripped —
+// never throws, never returns empty.
+export function deriveSkillDescription(content) {
+  const lines = String(content || "").split(/\r?\n/);
+  const firstNonEmpty = lines.find((line) => line.trim().length > 0);
+  if (!firstNonEmpty) return "Project-defined skill";
+  const stripped = firstNonEmpty.replace(/^#+\s*/, "").trim();
+  return stripped || "Project-defined skill";
+}
+
+// resolveSkillRecommendations(builtins, cwd) ->
+//   { items, warnings, invalidCount, aiSpecsPresent }
+//
+// Thin composition over discoverAiSpecs()/resolveResources() — adds only
+// what rendering a Skill recommendation needs (Change 0054/ADR-024). Does
+// not know about `aief doctor`, console output, or any other presentation
+// concern; that lives entirely in cli.js's printSkills().
+//
+// `builtins` is normally `recommendSkills(project)`'s output (each entry
+// already carrying `id`/`description`/`because`) — this function does not
+// import or call `recommendSkills()` itself, keeping `cli/src/detect.js`
+// untouched.
+//
+// `invalidCount` is counted separately from `warnings.length`: an override
+// warning describes a *successful* precedence decision (already visible via
+// an item's `overridesBuiltin`/`[project override]` tag), not a problem —
+// only a genuinely unusable project resource (read_error/duplicate/empty)
+// should make a caller surface a "something was ignored" hint.
+export function resolveSkillRecommendations(builtins, cwd) {
+  const aiSpecs = discoverAiSpecs(cwd);
+  const { resources, warnings } = resolveResources(builtins, aiSpecs.skills);
+  const builtinIds = new Set(builtins.filter((b) => b && typeof b.id === "string").map((b) => b.id));
+  const invalidCount = aiSpecs.skills.filter((resource) => resource.state !== "present").length;
+
+  const items = resources.map((entry) => {
+    if (entry.source === "builtin") {
+      return {
+        id: entry.id,
+        description: entry.value.description,
+        because: entry.value.because || [],
+        source: "builtin",
+        path: null,
+        overridesBuiltin: false
+      };
+    }
+    return {
+      id: entry.id,
+      description: deriveSkillDescription(entry.value.content),
+      because: [`ai-specs/skills/${entry.id}.md present in project`],
+      source: "project",
+      path: entry.value.path,
+      overridesBuiltin: builtinIds.has(entry.id)
+    };
+  });
+
+  return { items, warnings, invalidCount, aiSpecsPresent: aiSpecs.present };
+}

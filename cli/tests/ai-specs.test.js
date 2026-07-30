@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { discoverAiSpecs, resolveResources } from "../src/core/domain/ai-specs.js";
+import { discoverAiSpecs, resolveResources, deriveSkillDescription, resolveSkillRecommendations } from "../src/core/domain/ai-specs.js";
 
 function tempCwd() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "aief-ai-specs-"));
@@ -179,4 +179,98 @@ test("non-interactive: discovery and resolution never touch stdin/TTY and comple
   discoverAiSpecs(cwd);
   resolveResources([], []);
   assert.ok(Date.now() - before < 1000);
+});
+
+// --- Change 0054/ADR-024: deriveSkillDescription / resolveSkillRecommendations ---
+
+test("deriveSkillDescription: strips a leading Markdown heading marker", () => {
+  assert.equal(deriveSkillDescription("# Team Code Review\n\nBody text."), "Team Code Review");
+});
+
+test("deriveSkillDescription: falls back to the first non-empty line when there is no heading", () => {
+  assert.equal(deriveSkillDescription("\n\nJust a plain first line\nmore text"), "Just a plain first line");
+});
+
+test("deriveSkillDescription: never throws and never returns empty, even for blank/absent content", () => {
+  assert.equal(deriveSkillDescription(""), "Project-defined skill");
+  assert.equal(deriveSkillDescription("   \n  \n"), "Project-defined skill");
+  assert.equal(deriveSkillDescription(undefined), "Project-defined skill");
+});
+
+test("resolveSkillRecommendations: no ai-specs/skills/ is a strict pass-through of builtins", () => {
+  const cwd = tempCwd();
+  const builtins = [{ id: "a", description: "A", because: ["reason a"] }, { id: "b", description: "B", because: ["reason b"] }];
+  const { items, warnings, invalidCount, aiSpecsPresent } = resolveSkillRecommendations(builtins, cwd);
+  assert.equal(aiSpecsPresent, false);
+  assert.equal(invalidCount, 0);
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(items, [
+    { id: "a", description: "A", because: ["reason a"], source: "builtin", path: null, overridesBuiltin: false },
+    { id: "b", description: "B", because: ["reason b"], source: "builtin", path: null, overridesBuiltin: false }
+  ]);
+});
+
+test("resolveSkillRecommendations: a project-only skill is added, tagged as project, not an override", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "pair-programming.md"), "# Pair Programming\n\nRotate often.");
+  const builtins = [{ id: "existing", description: "E", because: ["r"] }];
+  const { items } = resolveSkillRecommendations(builtins, cwd);
+  const added = items.find((i) => i.id === "pair-programming");
+  assert.equal(added.source, "project");
+  assert.equal(added.overridesBuiltin, false);
+  assert.equal(added.description, "Pair Programming");
+  assert.deepEqual(added.because, ["ai-specs/skills/pair-programming.md present in project"]);
+  assert.equal(added.path, path.join(cwd, "ai-specs", "skills", "pair-programming.md"));
+});
+
+test("resolveSkillRecommendations: a project skill overrides a matching built-in id", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "code-review.md"), "# Team Code Review\n\nOur own checklist.");
+  const builtins = [{ id: "code-review", description: "AIEF built-in review guidance", because: ["signal x"] }];
+  const { items, warnings } = resolveSkillRecommendations(builtins, cwd);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].source, "project");
+  assert.equal(items[0].overridesBuiltin, true);
+  assert.equal(items[0].description, "Team Code Review");
+  assert.equal("because" in items[0] && items[0].because[0].includes("signal x"), false, "built-in fields must never leak into an overriding project entry");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /overrides AIEF's built-in/);
+});
+
+test("resolveSkillRecommendations: combines built-ins, an override, and a project-only skill, in deterministic order", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "code-review.md"), "# Team Code Review\n\nOurs.");
+  writeFile(path.join(cwd, "ai-specs", "skills", "pair-programming.md"), "# Pair Programming\n\nOurs too.");
+  const builtins = [
+    { id: "code-review", description: "Built-in review", because: ["r1"] },
+    { id: "unrelated-builtin", description: "Untouched", because: ["r2"] }
+  ];
+  const { items } = resolveSkillRecommendations(builtins, cwd);
+  assert.deepEqual(items.map((i) => i.id), ["code-review", "unrelated-builtin", "pair-programming"]);
+  assert.equal(items[0].source, "project");
+  assert.equal(items[1].source, "builtin");
+  assert.equal(items[2].source, "project");
+});
+
+test("resolveSkillRecommendations: invalid project resources are excluded, counted, and never crash", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "blank.md"), "   ");
+  writeFile(path.join(cwd, "ai-specs", "skills", "dup.md"), "content one");
+  fs.writeFileSync(path.join(cwd, "ai-specs", "skills", "dup.MD"), "content two", "utf8");
+  const builtins = [{ id: "kept", description: "Kept built-in", because: ["r"] }];
+  const { items, invalidCount, warnings } = resolveSkillRecommendations(builtins, cwd);
+  assert.equal(items.some((i) => i.id === "blank"), false);
+  assert.equal(items.filter((i) => i.id === "dup").length, 1, "exactly one of the colliding dup files becomes a recommendation");
+  assert.equal(items.find((i) => i.id === "kept").source, "builtin", "built-in is kept — an invalid project resource never overrides it");
+  assert.equal(invalidCount, 2, "one empty file + one duplicate file are both invalid");
+  assert.ok(warnings.length >= 2);
+});
+
+test("resolveSkillRecommendations: is deterministic across repeated calls", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "a.md"), "# A\n\ncontent");
+  const builtins = [{ id: "b", description: "B", because: ["r"] }];
+  const first = resolveSkillRecommendations(builtins, cwd);
+  const second = resolveSkillRecommendations(builtins, cwd);
+  assert.deepEqual(first, second);
 });

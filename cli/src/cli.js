@@ -13,6 +13,7 @@ import { evaluateGates } from "./core/services/gate-evaluator.js";
 import { resolveState } from "./core/services/transition-engine.js";
 import { resolveSddProvider, sddProviderConfigPath } from "./core/domain/sdd-provider-resolver.js";
 import { getProvider } from "./sdd-providers/index.js";
+import { resolveSkillRecommendations } from "./core/domain/ai-specs.js";
 import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
 import { buildSkillContext } from "./core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
@@ -193,11 +194,30 @@ function parseArgs(args) {
   return parsed;
 }
 function section(title) { console.log("\n" + title); console.log("─".repeat(60)); }
-function printSkills(project) {
+// The sole caller is doctor() (AIEF 3.1, Change 0054/ADR-024) — bootstrap/
+// analyze/prompt all call recommendSkills() directly and are unaffected by
+// options.verbose or by a project's ai-specs/skills/*.md.
+function printSkills(project, options = {}) {
+  const { verbose = false } = options;
+  const { items, warnings, invalidCount } = resolveSkillRecommendations(recommendSkills(project), process.cwd());
   console.log("Recommended Skills:");
-  for (const skill of recommendSkills(project)) {
-    console.log(`- ${skill.id}: ${skill.description}`);
+  for (const skill of items) {
+    const tag = skill.source === "project" ? (skill.overridesBuiltin ? " [project override]" : " [project]") : "";
+    console.log(`- ${skill.id}${tag}: ${skill.description}`);
     for (const reason of skill.because) console.log(`    because: ${reason}`);
+    if (verbose) {
+      console.log(`    source: ${skill.source}`);
+      if (skill.path) console.log(`    path: ${path.relative(process.cwd(), skill.path)}`);
+      if (skill.overridesBuiltin) console.log(`    overrides: built-in skill "${skill.id}"`);
+    }
+  }
+  if (verbose) {
+    if (warnings.length) {
+      console.log("\nai-specs warnings:");
+      for (const warning of warnings) console.log(`- ${warning}`);
+    }
+  } else if (invalidCount) {
+    console.log(`\n⚠ ${invalidCount} ai-specs resource(s) ignored — see aief doctor --verbose`);
   }
 }
 function standardsForProject(project) {
@@ -242,11 +262,11 @@ function printSignals(project) {
 }
 const COMMAND_HELP = {
   doctor: {
-    purpose: "Inspect your local environment (required, recommended and optional tools) and current project readiness for AIEF.",
+    purpose: "Inspect your local environment (required, recommended and optional tools) and current project readiness for AIEF. Recommended Skills include a project's own ai-specs/skills/*.md alongside AIEF's built-ins (project wins on id collision) — --verbose shows source, file path and overrides.",
     when: "Before adoption or when the project feels misconfigured.",
-    reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/.",
+    reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/, ai-specs/skills/.",
     writes: "Nothing.",
-    example: "aief doctor",
+    example: "aief doctor   (or: aief doctor --verbose)",
     next: "aief bootstrap (current directory) or aief bootstrap <name> (new project)."
   },
   status: {
@@ -1191,7 +1211,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs(args); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose: Boolean(parsed.verbose) }); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a

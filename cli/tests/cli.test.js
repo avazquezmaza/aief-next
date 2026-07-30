@@ -205,6 +205,109 @@ test("doctor does not recommend governance for generic prose", () => {
   assert.doesNotMatch(out, /multitenant-saas-architect/);
 });
 
+// --- Change 0054/ADR-024: ai-specs skill recommendations wired into `aief doctor` only ---
+
+test("doctor: with no ai-specs/skills/, default output is unchanged from before this Change", () => {
+  const dir = makeProject({ "README.md": "We value maintainability and plain code." });
+  const { status, out } = aief(dir, ["doctor"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /\[project\]/);
+  assert.doesNotMatch(out, /\[project override\]/);
+  assert.doesNotMatch(out, /ai-specs/);
+  assert.doesNotMatch(out, /source: /, "source: lines are additive detail, only shown with --verbose");
+});
+
+test("doctor --verbose: with no ai-specs/skills/, every recommendation is tagged source: builtin and nothing else changes", () => {
+  const dir = makeProject({ "README.md": "We value maintainability and plain code." });
+  const { status, out } = aief(dir, ["doctor", "--verbose"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /\[project\]/);
+  assert.doesNotMatch(out, /\[project override\]/);
+  assert.doesNotMatch(out, /ai-specs warnings:/);
+  assert.match(out, /source: builtin/);
+});
+
+test("doctor: a project-only ai-specs skill is shown tagged [project]", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nRotate driver/navigator often.\n"
+  });
+  const { status, out } = aief(dir, ["doctor"]);
+  assert.equal(status, 0);
+  assert.match(out, /- pair-programming \[project\]: Pair Programming/);
+  assert.match(out, /because: ai-specs\/skills\/pair-programming\.md present in project/);
+});
+
+test("doctor: a project ai-specs skill overriding a built-in id is shown tagged [project override], never the built-in's own fields", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/multitenant-saas-architect.md": "# Our Own Tenant Checklist\n\nProject-specific guidance.\n"
+  });
+  const { status, out } = aief(dir, ["doctor"]);
+  assert.equal(status, 0);
+  assert.match(out, /- multitenant-saas-architect \[project override\]: Our Own Tenant Checklist/);
+  assert.doesNotMatch(out, /Tenant isolation, Host header resolution, tenant lifecycle, SaaS architecture/, "the overridden built-in's own description must not appear");
+});
+
+test("doctor --verbose: reveals source, path and overrides for project-sourced skills", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/multitenant-saas-architect.md": "# Our Own Tenant Checklist\n\nGuidance.\n"
+  });
+  const { status, out } = aief(dir, ["doctor", "--verbose"]);
+  assert.equal(status, 0);
+  assert.match(out, /source: project/);
+  assert.match(out, /path: ai-specs\/skills\/multitenant-saas-architect\.md/);
+  assert.match(out, /overrides: built-in skill "multitenant-saas-architect"/);
+  assert.match(out, /source: builtin/);
+});
+
+test("doctor: an invalid ai-specs skill (duplicate id) is excluded, never overrides its built-in, and produces one default-output hint line", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/dup.md": "one",
+    "ai-specs/skills/dup.MD": "two"
+  });
+  const { status, out } = aief(dir, ["doctor"]);
+  assert.equal(status, 0);
+  assert.match(out, /⚠ 1 ai-specs resource\(s\) ignored — see aief doctor --verbose/);
+  assert.doesNotMatch(out, /duplicate id "dup"/, "the raw diagnostic must not appear in default output");
+});
+
+test("doctor --verbose: an invalid ai-specs skill's full diagnostic is shown, never a stack trace", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/dup.md": "one",
+    "ai-specs/skills/dup.MD": "two"
+  });
+  const { status, out } = aief(dir, ["doctor", "--verbose"]);
+  assert.equal(status, 0);
+  assert.match(out, /ai-specs warnings:/);
+  assert.match(out, /duplicate id "dup"/);
+  assert.doesNotMatch(out, /at TestContext|at Object\.<anonymous>|node:internal/, "no stack trace leakage");
+});
+
+test("doctor: an override alone (no invalid resource) does not trigger the default 'ignored' hint line", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/multitenant-saas-architect.md": "# Our Own Tenant Checklist\n\nGuidance.\n"
+  });
+  const { out } = aief(dir, ["doctor"]);
+  assert.doesNotMatch(out, /ignored/, "an override is a successful precedence decision, not something ignored");
+});
+
+test("bootstrap/analyze/prompt are unaffected by ai-specs/skills/ (Change 0054 touches only doctor)", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
+  });
+  const bootstrap = aief(dir, ["bootstrap"]);
+  assert.equal(bootstrap.status, 0);
+  assert.doesNotMatch(bootstrap.out, /pair-programming/);
+  const skillsDoc = fs.readFileSync(path.join(dir, "knowledge", "skills.md"), "utf8");
+  assert.doesNotMatch(skillsDoc, /pair-programming/);
+});
+
 test("analyze creates an Analysis Change with the standard evidence structure", () => {
   const dir = makeProject();
   const { status } = aief(dir, ["analyze"]);
