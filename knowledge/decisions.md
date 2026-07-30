@@ -4,6 +4,114 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-026: Harness configuration is per-Change, keyed by event id, opt-in via `manifest.json`; disabling and logging are post-evaluation filters over the unmodified ADR-020 Hook Runtime — never a second Hook system, never command execution, never blocking
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0056](../changes/0056-harness-hooks-visibility/)'s planning artifacts (`spec.md`/`tasks.md`); the first user-facing configuration surface over the Hook Runtime [ADR-020](#adr-020-a-hook-is-a-versioned-capability-gated-closed-catalog-event-observer-blocking-authority-is-contractually-reserved-but-structurally-inert-this-entrega-effects-deferred)
+established (Change 0048) as internally-registered and unconfigurable.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `harness: { log: boolean, hooks: { "<event id>":
+> { disabled: string[] } } }` — keyed by `hook.js`'s own closed event catalog
+> (`prompt.prepared`/`verify.completed`), not by a new, invented lifecycle vocabulary. Structural
+> shape (`harness`/`harness.log`/`harness.hooks.<event>.disabled`, event ids checked against a
+> small duplicated `HARNESS_EVENT_VALUES` constant) is validated in `change-manifest.js`, mirroring
+> the existing `sdd` field's precedent exactly — including the same discipline of *not* importing
+> the runtime registry (Hook ids inside `disabled` are shape-checked only as non-empty strings
+> here). Real Hook-id existence is resolved at runtime by a new `harness-service.js`
+> (`resolveHarnessConfig()`), mirroring `sdd-provider-resolver.js`'s own separation of structural
+> validation from registry-backed resolution. `hook-service.js`/`hooks/index.js`/`hook.js` are not
+> modified — every registered Hook is still evaluated, unconditionally, for every fired event,
+> exactly as ADR-020 specified; `disabled` is implemented as a **post-evaluation filter**
+> (`partitionOutcome()`) over an already-computed `evaluateEvent()` result, never a change to what
+> gets evaluated. `manifest.harness.log === true` additionally opts the targeted Change into a
+> visible, append-only `<changeDir>/hooks.md` Markdown log of every (non-disabled) Hook's result
+> for the fired event — written by the calling command (`prompt()`/`verify()`), never by a Hook
+> itself, preserving ADR-020's "a Hook never writes a file" guarantee at the Hook level.
+>
+> `aief doctor --verbose` gains a Harness section listing the static, project-wide Hook Registry
+> (unconditional once `--verbose` is passed, since `--verbose` output has no backward-compatibility
+> promise — Change 0054/0055 precedent). `aief status --change <id>` gains a Harness section
+> present only when that Change's manifest declares `harness` — reporting **configuration**
+> (log on/off, disabled Hooks per event, unknown-id warnings), never a fabricated execution-count
+> summary, since `status` never fires a Hook and cannot honestly report a last-run outcome without
+> either lying or re-deriving it from `hooks.md` as a second, driftable source of the same fact.
+
+**Why this needs its own ADR.** A new, user-facing `manifest.json` field with its own nested
+schema, a new service-layer module, a new per-Change persisted artifact (`hooks.md`), and a
+decision about how far Hook visibility extends into `doctor`/`status` are each independently
+ADR-triggering (same bar ADR-016 through ADR-025 applied) — and because this Change touches the
+one subsystem (Hooks) whose entire design center, ADR-020, is a set of hard capability/authority
+limits this ADR must explicitly reaffirm rather than quietly erode.
+
+**What this ADR explicitly does NOT change (ADR-020 restated, not superseded).** No Hook capability
+gains `writeFiles`/`executeCommands`/`network` — `FORBIDDEN_CAPABILITIES` in `hook.js` is untouched,
+and no code introduced by this Change spawns a process, reads `manifest.json` as a command string,
+or otherwise executes anything (verified by grep as closing evidence, spec.md R9). No Hook gains
+blocking authority — `canBlock` in `hook-service.js` still requires `capabilities.block === true`
+**and** a `phase: "pre"` event, and the catalog still contains none; a `disabled` Hook is simply
+excluded from rendering, and a `failed`/`invalid` Hook (now visible for the first time) still
+cannot flip `prompt`/`verify`'s own exit code or PASS/FAIL. `hooks.md` is written by the
+orchestrating command, never by a Hook's own `evaluate()` return value — a Hook still, structurally,
+never touches the filesystem.
+
+**Why keyed by event id, not the commissioning brief's illustrative `beforePrompt`/`afterPrompt`/
+`beforeVerify`/`afterVerify` names.** Those names describe a four-phase pre/post split that does
+not exist in this codebase — `hook.js`'s catalog is two events, both already `phase: "post"`
+(ADR-020 §"why the event catalog is closed and evidence-based, not adopted from the vision
+document"). Inventing a four-key config surface over a two-event, no-`pre`-phase runtime would let
+a user configure something (`beforePrompt`) that can never fire — a worse compatibility/honesty
+trade than adapting the brief's *intent* (name the moment a Hook fires) to the *real* catalog.
+
+**Why `status --change` reports configuration, not execution counts.** Considered the
+commissioning brief's own illustrative `Hooks: 3 configured, 2 passed, 1 not run` line; rejected
+as a literal design for this Entrega specifically because `status` is a pure, no-fire inspector —
+producing that line would require either (a) `status` silently firing Hooks itself (a new,
+surprising side effect for a command documented as "Writes nothing" and, worse, semantically wrong
+since Hooks fire *from* `prompt`/`verify`, not from inspecting one), or (b) parsing `hooks.md` back
+into counts, creating a second, driftable representation of the same historical fact. Configuration
+(what *would* run, what's disabled) is the one thing `status` can report honestly without firing
+anything or re-deriving a fact it already wrote once, in `hooks.md`, in its original form.
+
+**Relationship to ADR-016 (`manifest.json`)/ADR-017 (`sdd`).** `harness` joins `sdd`/`track`/etc. as
+another optional, additive top-level manifest field — `MANIFEST_SCHEMA_VERSION`/required-field set
+unchanged; a legacy Change (no manifest) is entirely unaffected, per ADR-016's own precedent.
+
+**Alternatives considered.**
+
+- **Let a Change's manifest define brand-new, user-authored Hooks (arbitrary command/id/event).**
+  Rejected outright — recreates exactly the "second Hook system" the commissioning instruction
+  warned against, and reopens Model C (command execution) that ADR-020 deliberately closed off;
+  any such proposal must first amend or supersede ADR-020, not ride in on this Change.
+- **Execute a shell command declared in `manifest.json` when a Hook "fires."** Rejected outright,
+  for the same reason, and because the commissioning instruction explicitly required reviewing
+  existing conventions before any shell execution — the existing convention is that nothing in
+  this codebase executes an arbitrary command from configuration; introducing the repository's
+  first one inside the Hook Runtime, of all places, would contradict ADR-020's whole point.
+- **Thread `disabled` into `hook-service.js`'s `evaluateEvent()` so a disabled Hook is never even
+  evaluated.** Considered; rejected for this Entrega — every registered Hook is pure and
+  side-effect-free (ADR-020), so the wasted evaluation is free, and keeping `hook-service.js`
+  untouched (zero diff) is a stronger compatibility/review guarantee than a small performance
+  optimization with no observable difference.
+- **Make `doctor`'s Harness section unconditional (not `--verbose`-gated).** Rejected — `doctor`
+  never showed anything about Hooks before this Change; an unconditional addition would change
+  every project's default `doctor` output, violating the commissioning instruction's own
+  compatibility bar (same reasoning Change 0055 applied to Standards).
+
+**Consequences.**
+
+- `cli/src/core/domain/hook.js`, `cli/src/hooks/index.js`, `cli/src/core/services/hook-service.js`,
+  `cli/src/core/services/hook-context.js` are untouched by this Entrega — zero diff lines.
+- A Change with no `harness` field sees byte-identical `doctor` (default)/`prompt`/`verify`
+  output, and no new `status --change` section.
+- `FORBIDDEN_CAPABILITIES`/blocking-authority limits (ADR-020) remain fully in force; a future
+  Change proposing command execution or blocking Hooks must amend or supersede ADR-020 first, not
+  merely cite this ADR.
+- `hooks.md`, once a Change opts in, accumulates via append only — never truncated, never rewritten
+  by this Change's own code path.
+
+---
+
 ## ADR-025: `aief prompt` is the primary consumer of project `ai-specs/standards/`; `aief doctor --verbose` gains a conditional report; the shared resolver is extracted from ADR-024's Skill wiring
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0055](../changes/0055-lidr-standards-integration/)'s planning artifacts (`spec.md`/`tasks.md`); the second activation of the resolver [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left dormant, after [ADR-024](#adr-024-aief-doctor-is-the-first-and-this-change-only-consumer-of-the-ai-specs-resolver-activation-is-directory-presence-never-a-changes-manifestjson)'s Skill wiring.

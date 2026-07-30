@@ -14,9 +14,9 @@ existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
 | `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). |
-| `aief doctor --verbose` | Same | Nothing | Same, plus each Skill's/Standard's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, and full `ai-specs` resolution warnings. |
+| `aief doctor --verbose` | Same | Nothing | Same, plus each Skill's/Standard's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, full `ai-specs` resolution warnings, and a "Harness:" section listing every registered Hook and the event it fires on (Change 0056/ADR-026). |
 | `aief status` | `changes/`, project files | Nothing | Adoption overview, recent Changes, all open Changes, Workflow/SDD summaries. |
-| `aief status --change <id>` | The selected Change | Nothing | Deep inspection: track, stage, gates, SDD readiness. |
+| `aief status --change <id>` | The selected Change | Nothing | Deep inspection: track, stage, gates, SDD readiness, and — only when that Change's manifest declares `harness` — a "Harness:" configuration summary (Change 0056/ADR-026). |
 | `aief status --change <id> --next` | The selected Change | Nothing | Compact Normalized Action: the one next command to run. |
 | `aief status --next` | The one open Change | Nothing | Same as above with implicit selection (fails if more than one Change is open). |
 
@@ -39,7 +39,7 @@ both now print a one-line redirect and exit 1.
 | `aief enrich <provider> <source-id> [--file path]` | The Requirement Source, read-only | A new Change (`Requires Human Review`) | Seed a Change from Jira/manual instead of an idea. See [Workflow — Requirement Sources](workflow.md#starting-from-a-requirement-source). |
 | `aief propose "<idea>"` | OpenSpec availability, `changes/` | OpenSpec output, or a local Change + `proposal.md` | Turn an idea into a proposal, delegating to OpenSpec when available. |
 | `aief propose --change <id>` | The existing Change | Only `proposal.md` inside it | Continue an existing Change (e.g. after `enrich` + Human Review) without forking a new one. |
-| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, profile, standards (`knowledge/standards/` + a project's `ai-specs/standards/`, project wins on id collision — Change 0055/ADR-025), the selected Change | Nothing | Generate a ready-to-paste, context-complete prompt. With no `ai-specs/standards/`, the standards list is byte-identical to before Change 0055. |
+| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, profile, standards (`knowledge/standards/` + a project's `ai-specs/standards/`, project wins on id collision — Change 0055/ADR-025), the selected Change, its `manifest.harness` (if any) | Nothing, unless the Change's `manifest.harness.log` is `true` — then appends to `<changeDir>/hooks.md` (Change 0056/ADR-026) | Generate a ready-to-paste, context-complete prompt. With no `ai-specs/standards/` and no `harness` field, output is byte-identical to before Changes 0055/0056. A Hook the Change disabled is excluded; a `failed`/`invalid` Hook result is now shown (previously silently dropped), never affecting the command's own exit code. |
 | `aief prompt --skill <id> [...]` | The Skill's declared context | Nothing | Attach one registered Skill's output to the prompt. Unknown id, or a `invalid`/`failed` Skill result, exits 1 before any prompt is printed. |
 | `aief prompt --list-skills` | The Skill registry | Nothing | List every registered Skill (id, version, title, description). |
 
@@ -48,7 +48,7 @@ both now print a one-line redirect and exit 1.
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
 | `aief verify` | `README.md`, `AGENTS.md`, `changes/`, `knowledge/` | Nothing | Structural Verification for the whole project. |
-| `aief verify --change <id>` | The selected Change | Nothing | Structural Verification for one Change; says exactly which one. |
+| `aief verify --change <id>` | The selected Change, its `manifest.harness` (if any) | Nothing, unless `manifest.harness.log` is `true` — then appends to `<changeDir>/hooks.md` | Structural Verification for one Change; says exactly which one. Same Harness disabled/failure-visibility treatment as `aief prompt` (Change 0056/ADR-026) — never affects PASS/FAIL or the exit code. |
 | `aief verify --change <id> --requirements` | The Change's SDD artifacts + evidence | Nothing | Adds Requirement Verification — a per-requirement, evidence-grounded verdict. See [Workflow — Verification](workflow.md#verification). |
 | `aief close [--yes] [--change id]` | The selected Change | A `## Status` section in `change.md` — only with `--yes`, only when all readiness checks pass | Check (or, with `--yes`, mark) a Change Closed. |
 

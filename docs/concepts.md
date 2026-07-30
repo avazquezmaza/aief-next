@@ -96,13 +96,18 @@ This is distinct from the **Skill Catalog** (`aief doctor`/`aief bootstrap`'s re
 written to `knowledge/skills.md`) — that is passive, static, contextual knowledge; the Skills
 Runtime above is a registered, invocable contract. See [CLI Reference](cli.md#prompt) for both.
 
-## Hook
+## Hook / Harness
 
-A versioned observer that reacts to one of a small, closed set of lifecycle events
+A **Hook** is a versioned observer that reacts to one of a small, closed set of lifecycle events
 (`prompt.prepared`, `verify.completed`). A Hook can only add an observation to the output — it
-never blocks a command, never changes an exit code, and never mutates a file. Hooks are internally
-registered (not user-authored) and exist so future contextual behavior has one shared extension
-point instead of another bespoke `if` inside `cli.js`.
+never blocks a command, never changes an exit code, and never mutates a file itself. Hooks are
+internally registered (not user-authored) — a Change's `manifest.json` cannot define a new one.
+
+The **Harness** (Change 0056) is what a Change *can* configure over the existing Hooks: disable
+specific ones per event (`manifest.harness.hooks.<event>.disabled`) and opt into a visible,
+append-only execution log (`manifest.harness.log`, written to `<changeDir>/hooks.md`). `aief doctor
+--verbose` shows every registered Hook; `aief status --change <id>` shows a Change's effective
+Harness configuration, only when declared. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
 
 ## Verification Rule / Requirement Verification
 

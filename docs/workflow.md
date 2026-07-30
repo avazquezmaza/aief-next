@@ -108,14 +108,46 @@ Every shipped Skill is instructions-only: it hands the assistant guidance to fol
 writes a file, runs a command, or calls the network on its own — following the instructions is not
 by itself evidence the described work happened.
 
-## Hooks Runtime
+## Harness — Hooks Runtime, visibility and configuration
 
-Two lifecycle events exist today: `prompt.prepared` (fires at the end of `aief prompt`, after every
-other context block) and `verify.completed` (fires after `aief verify` has already printed its
-PASS/FAIL and set its exit code). A Hook observing either event can only append an additional,
-clearly labeled section — it cannot influence the exit code, block the command, or write a file. No
-Hook is user-facing to configure yet; the runtime exists so future reactive behavior has one shared
-extension point.
+**AIEF's Harness** is the Hook Runtime plus the opt-in configuration and logging layer over it
+(Change 0056, ADR-026). Two lifecycle events exist today: `prompt.prepared` (fires at the end of
+`aief prompt`, after every other context block) and `verify.completed` (fires after `aief verify`
+has already printed its PASS/FAIL and set its exit code). A Hook observing either event can only
+append an additional, clearly labeled section — it cannot influence the exit code, block the
+command, or write a file itself. Hooks are internally registered, not user-authored — you cannot
+define a new Hook via configuration, only see, disable, and log the existing ones.
+
+`aief doctor --verbose` lists every registered Hook and the event it fires on (`aief doctor`'s
+default output shows nothing about Hooks — this section only exists behind `--verbose`).
+
+A Change's `manifest.json` may opt into Harness configuration:
+
+```json
+{
+  "harness": {
+    "log": true,
+    "hooks": {
+      "prompt.prepared": { "disabled": ["prompt-skill-suggestion"] },
+      "verify.completed": { "disabled": [] }
+    }
+  }
+}
+```
+
+- `harness.log: true` makes `aief prompt`/`aief verify --change <id>` append a visible, append-only
+  `<changeDir>/hooks.md` record of every Hook's result for the fired event (id, event, status, a
+  short summary — never raw command output or a credential, since Hooks structurally cannot
+  produce either).
+- `harness.hooks."<event>".disabled` excludes listed Hook ids from that event's output and log —
+  the Hook is still evaluated (Hooks are pure and side-effect-free either way), only its result is
+  excluded from what you see.
+- `aief status --change <id>` shows a Harness section — only when the Change declares one —
+  reporting configuration (which Hooks are active/disabled per event, any unknown-id warnings),
+  never a fabricated execution count: `status` never fires a Hook, so it never claims one "passed".
+
+No `harness` field (every Change before this one, and any Change that doesn't need it) behaves
+exactly as before — `aief doctor` (default), `aief prompt`, `aief verify` are byte-identical.
 
 ## Verification
 

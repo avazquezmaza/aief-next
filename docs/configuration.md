@@ -33,10 +33,12 @@ into the Workflow Engine and/or the SDD Provider.
 | `track` | no | `"lite"` \| `"standard"` \| `"governed"` | Opts into the Workflow Engine. See [Workflow — Tracks](workflow.md#tracks). Any other value is an explicit "unrecognized track" error, never guessed into one of the three. |
 | `sdd.provider` | no | `"local"` \| `"openspec"` | Opts into the SDD Provider. Defaults to none — `aief status` shows no SDD section for a Change without it. |
 | `sdd.change_id` | no | non-empty string | The identifier the provider resolves against (e.g. the OpenSpec change's own directory name). |
+| `harness.log` | no | boolean | Opts into a visible, append-only `<changeDir>/hooks.md` execution log. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration). |
+| `harness.hooks."<event>".disabled` | no | array of Hook id strings | Excludes listed Hook ids from that event's output/log. `<event>` must be `"prompt.prepared"` or `"verify.completed"` — any other key is an invalid-manifest error. An unknown Hook id inside the array is a visible warning (`aief status --change <id>`), never a crash and never disables anything real. |
 
-An invalid manifest (bad JSON, wrong schema, missing required field) is reported as a distinct,
-visible state by `aief status` — it is never silently treated as "no manifest," and never falls
-back to inferring the missing fields.
+An invalid manifest (bad JSON, wrong schema, missing required field, or — since Change 0056 — an
+unrecognized `harness` shape) is reported as a distinct, visible state by `aief status` — it is
+never silently treated as "no manifest," and never falls back to inferring the missing fields.
 
 ## Workflow track definitions — `cli/src/workflows/*.json`
 
@@ -117,6 +119,15 @@ Optional, project-level SDD Provider choice (`{ "provider": "openspec" | "local"
 genuinely ambiguous (OpenSpec and SpecBoot both detected) and you are prompted for it in an
 interactive shell. Absent by default — a Change's own `manifest.sdd.provider` still wins over it.
 See `sdd-provider-resolver.js`'s step 2.
+
+## `changes/<id>-<slug>/hooks.md`
+
+Optional, per-Change, visible Harness execution log (Change 0056/ADR-026). Written only when that
+Change's `manifest.harness.log` is `true`; appended to on every `aief prompt`/`aief verify
+--change <id>` call targeting it — never truncated or rewritten. Each entry lists, for every
+active (non-disabled) Hook evaluated for the fired event: id, event, status, and the Hook's own
+short summary — never raw command output, full context, or a credential. Absent by default. See
+[Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
 
 ## CI gate
 

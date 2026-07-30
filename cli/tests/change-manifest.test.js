@@ -101,3 +101,72 @@ test("validateManifest: sdd must be an object when present", () => {
   assert.equal(valid, false);
   assert.ok(errors.some((e) => e.field === "sdd"));
 });
+
+// --- Change 0056/ADR-026: harness structural validation ---
+
+test("validateManifest: no harness field is valid (the default for every existing Change)", () => {
+  const { valid, errors } = validateManifest(VALID_MANIFEST);
+  assert.equal(valid, true);
+  assert.deepEqual(errors, []);
+});
+
+test("validateManifest: a minimal valid harness (log only) passes", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, harness: { log: true } });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: a full valid harness (log + hooks.<event>.disabled) passes", () => {
+  const { valid } = validateManifest({
+    ...VALID_MANIFEST,
+    harness: { log: true, hooks: { "prompt.prepared": { disabled: ["prompt-skill-suggestion"] }, "verify.completed": { disabled: [] } } }
+  });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: harness must be an object when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, harness: "yes" });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "harness"));
+});
+
+test("validateManifest: harness.log must be a boolean when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, harness: { log: "true" } });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "harness.log"));
+});
+
+test("validateManifest: an unknown event key in harness.hooks is rejected, naming the known events", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "some.unknown.event": {} } } });
+  assert.equal(valid, false);
+  const error = errors.find((e) => e.field === "harness.hooks.some.unknown.event");
+  assert.ok(error);
+  assert.match(error.message, /prompt\.prepared/);
+  assert.match(error.message, /verify\.completed/);
+});
+
+test("validateManifest: harness.hooks.<event>.disabled must be an array of non-empty strings", () => {
+  const notArray = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "prompt.prepared": { disabled: "prompt-skill-suggestion" } } } });
+  assert.equal(notArray.valid, false);
+  assert.ok(notArray.errors.some((e) => e.field === "harness.hooks.prompt.prepared.disabled"));
+
+  const badEntry = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "prompt.prepared": { disabled: ["", 42] } } } });
+  assert.equal(badEntry.valid, false);
+  assert.ok(badEntry.errors.some((e) => e.field === "harness.hooks.prompt.prepared.disabled"));
+});
+
+test("validateManifest: harness.hooks.<event> must be an object when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "prompt.prepared": ["not", "an", "object"] } } });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "harness.hooks.prompt.prepared"));
+});
+
+test("validateManifest: harness.hooks must be an object when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, harness: { hooks: "nope" } });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "harness.hooks"));
+});
+
+test("validateManifest: an unknown Hook id inside a known event's disabled list is structurally valid (existence is a runtime concern, not structural)", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "prompt.prepared": { disabled: ["totally-made-up-hook"] } } } });
+  assert.equal(valid, true);
+});

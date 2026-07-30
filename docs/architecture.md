@@ -88,15 +88,26 @@ Three capabilities (`writeFiles`, `executeCommands`, `network`) cannot be declar
 Skill this release — a Skill attempting to register with one of them fails registration outright,
 so the restriction cannot be bypassed by an unreviewed edit.
 
-## Hooks Runtime
+## Hooks Runtime and Harness
 
 `hook.js` defines a closed, two-event catalog (`prompt.prepared`, `verify.completed`) and the same
 descriptor/capability discipline as Skills. `hooks/index.js` is the static registry;
 `hook-service.js` evaluates every registered Hook against a built `hook-context.js` for the fired
-event and collects `matched` results with real content into one additional, clearly labeled output
-section. A Hook's declared capabilities can never include `writeFiles`/`executeCommands`/`network`
-either, and — unlike a Skill — a Hook has no path back into the exit code or file state at all: it
-is purely observational by construction, not merely by convention.
+event, unconditionally, exactly as before Change 0056. A Hook's declared capabilities can never
+include `writeFiles`/`executeCommands`/`network` either, and — unlike a Skill — a Hook has no path
+back into the exit code or file state at all: it is purely observational by construction, not
+merely by convention. None of `hook.js`/`hooks/index.js`/`hook-service.js`/`hook-context.js` was
+modified by Change 0056/ADR-026.
+
+**Harness** (Change 0056, ADR-026) is the layer above that: `harness-service.js` reads a Change's
+optional `manifest.json` `harness` field (structurally validated in `change-manifest.js`, mirroring
+the `sdd` field's own precedent) and resolves it against the real Hook Registry —
+`resolveHarnessConfig()` for configuration, `partitionOutcome()` to split an already-computed
+`evaluateEvent()` result into active vs. Change-disabled Hooks (a post-evaluation filter — nothing
+about which Hooks get evaluated changes), and `formatHookResultsBlock()`/`formatHookLogSection()`
+for presentation (`aief prompt`'s Hook section, and `<changeDir>/hooks.md` when a Change opts into
+`harness.log`). `aief doctor --verbose` and `aief status --change <id>` are the two read surfaces;
+neither can enable a Hook capability the registry itself doesn't already declare.
 
 ## Verification Engine
 

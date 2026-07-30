@@ -19,6 +19,7 @@ import { buildSkillContext } from "./core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
 import { buildEvent, buildHookContext } from "./core/services/hook-context.js";
 import { evaluateEvent } from "./core/services/hook-service.js";
+import { resolveHarnessConfig, partitionOutcome, describeHarnessRegistry, hookTitle, formatHookLogSection, formatHookResultsBlock, describeFailingHooks } from "./core/services/harness-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
@@ -247,6 +248,23 @@ function printStandardsReport(options = {}) {
     }
   } else if (invalidCount) {
     console.log(`\n⚠ ${invalidCount} ai-specs standard resource(s) ignored — see aief doctor --verbose`);
+  }
+}
+// Called from doctor() only under --verbose (Change 0056/ADR-026) — the
+// static, project-wide Hook Registry (hook.js/hooks/index.js, unmodified).
+// Unlike printSkills()/printStandardsReport(), there is no non-verbose
+// content at all here: `aief doctor`'s default output has never shown
+// anything about Hooks, so adding an unconditional section would change
+// every project's default output (the same compatibility bar Change 0055
+// applied to Standards) — gating the whole section behind --verbose (which
+// has no backward-compatibility promise, Change 0054/0055 precedent) keeps
+// the default byte-identical while still making the registry discoverable.
+function printHarnessRegistry() {
+  const descriptors = describeHarnessRegistry();
+  console.log("\nHarness:");
+  console.log(`${descriptors.length} Hook(s) registered (built-in, not user-authored — see docs/workflow.md#hooks-runtime):`);
+  for (const d of descriptors) {
+    console.log(`- ${d.id}: fires on ${d.events.join(", ")} — ${d.description}`);
   }
 }
 function standardsForProject(project) {
@@ -817,7 +835,14 @@ function prompt(args) {
     project, change: promptChange, workflow: promptWorkflow, sdd: promptSdd,
     operation: { input: { profile, assistant, changeName }, result: null }
   }));
-  const hookBlock = renderHookResults(hookOutcome);
+  // Change 0056/ADR-026: a Change's manifest.harness (absent for every
+  // Change that predates this) decides which Hook results are excluded
+  // (disabled) and whether this invocation is logged to hooks.md — never
+  // which Hooks were evaluated (hook-service.js/hooks/index.js untouched).
+  const harnessConfig = resolveHarnessConfig(promptChange.manifest);
+  const { active: activeHookResults } = partitionOutcome(hookOutcome, harnessConfig);
+  const hookBlock = formatHookResultsBlock(activeHookResults);
+  if (harnessConfig.log) appendHookLog(changeDir, { operation: "prompt", event: hookOutcome.event, entries: activeHookResults });
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
   console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
@@ -836,22 +861,26 @@ function renderSkillSection(result) {
   }
   return `${header}${result.summary}\n`;
 }
-// Renders every `matched` Hook result with real content as one additional,
-// clearly-labeled section (Entrega 6, design.md §7/§8) — the ONLY place this
-// framing text is written, so no Hook's own text can phrase itself as
-// something that "ran"/"executed" (a Hook observes; HK-R25-equivalent
-// discipline). Silent for a Hook with nothing to show (`not_applicable`,
-// `unsupported`, `invalid`, `failed`, or `matched` with empty instructions/
-// warnings) — never an empty or noisy block.
-function renderHookResults(outcome) {
-  return outcome.results
-    .filter((r) => r.status === "matched" && (r.instructions.length || r.warnings.length))
-    .map((r) => {
-      const header = `\n─── Hook: ${r.hook} ───\n`;
-      const lines = [...r.warnings.map((w) => `Warning: ${w}`), ...r.instructions];
-      return `${header}${r.summary}\n\n${lines.map((l) => `- ${l}`).join("\n")}\n`;
-    })
-    .join("");
+// Appends one dated section to <changeDir>/hooks.md (Change 0056/ADR-026,
+// spec.md R8) — only ever called when the targeted Change's own
+// manifest.harness.log is true. Creates the file with a header on first
+// use; every subsequent call appends, never truncates or rewrites a prior
+// section (same append discipline as evidence.md's own history). `entries`
+// is `active` results only (already excludes disabled Hooks); every status
+// is logged, not just `matched` — the whole point of an audit log.
+function appendHookLog(changeDir, { operation, event, entries, passed }) {
+  const file = path.join(changeDir, "hooks.md");
+  const already = fs.existsSync(file);
+  const header = "# Harness Log\n\nVisible, append-only record of Hook executions for this Change (Change 0056/ADR-026). Only each Hook's own short summary is recorded — never raw command output, full context, or credentials (Hooks structurally cannot produce either).\n";
+  const section = formatHookLogSection({
+    timestamp: new Date().toISOString(),
+    operation,
+    changeId: path.basename(changeDir),
+    event,
+    passed,
+    entries: entries.map((r) => ({ hook: r.hook, event: r.event, status: r.status, summary: r.summary }))
+  });
+  writeFile(file, `${already ? read(file) : header}\n${section}`, true);
 }
 function markClosed(changeDir) {
   const file = path.join(changeDir, "change.md");
@@ -924,11 +953,25 @@ function runVerifyCompletedHooks(changeDir, report, inspection) {
     operation: { input: { changeId: changeDir ? path.basename(changeDir) : null }, result: report }
   });
   const outcome = evaluateEvent(event, context);
-  const lines = outcome.results.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
+  // Change 0056/ADR-026: same disabled-filtering/logging treatment prompt()
+  // gives prompt.prepared — a whole-project verify (changeDir null) has no
+  // Change to read manifest.harness from, so this resolves to configured:
+  // false and behaves exactly as before (no filtering, no log).
+  const harnessConfig = resolveHarnessConfig(change?.manifest);
+  const { active } = partitionOutcome(outcome, harnessConfig);
+  const lines = active.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
   if (lines.length) {
     console.log("\nHook recommendation:");
     for (const l of lines) console.log(`- ${l}`);
   }
+  // Previously silently dropped (spec.md R7) — a failed/invalid Hook is now
+  // visible here too, same framing renderHookResults() uses for prompt.
+  const failing = describeFailingHooks(active);
+  if (failing.length) {
+    console.log("\nHook issues (non-blocking — verify's own PASS/FAIL is unaffected):");
+    for (const line of failing) console.log(`- ${line}`);
+  }
+  if (harnessConfig.log && changeDir) appendHookLog(changeDir, { operation: "verify", event: outcome.event, entries: active, passed: report.passed });
 }
 // Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
 // opt-in flag: Structural Verification (renderReport, above) always runs
@@ -1191,9 +1234,34 @@ function statusSingleChange(parsed) {
   } else if (sdd?.error) {
     console.log(`\nSDD provider: ${sdd.error}`);
   }
+  printHarnessStatus(changeDir, change);
   console.log(`\nNext:`);
   console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
   if (action.status === "invalid") process.exitCode = 1;
+}
+// Called from statusSingleChange() (Change 0056/ADR-026) — present only when
+// this Change's own manifest declares `harness` (R6): every existing Change
+// (none of which does) sees no diff at all here, unlike the Skill/Standard
+// sections in doctor which always show something. Reports configuration —
+// which Hooks would run, which are disabled, any unknown ids — never a
+// fabricated execution-count summary (status never fires a Hook; see
+// spec.md "Non-goals" for why that line from the commissioning brief's own
+// illustrative example is deliberately not implemented here).
+function printHarnessStatus(changeDir, change) {
+  if (!change.manifest || typeof change.manifest !== "object" || !change.manifest.harness) return;
+  const config = resolveHarnessConfig(change.manifest);
+  console.log(`\nHarness: configured (log ${config.log ? "on" : "off"})`);
+  for (const eventId of Object.keys(config.disabledByEvent)) {
+    const registeredForEvent = describeHarnessRegistry().filter((d) => d.events.includes(eventId)).map((d) => d.id);
+    const disabled = new Set(config.disabledByEvent[eventId] || []);
+    const activeIds = registeredForEvent.filter((id) => !disabled.has(id));
+    console.log(`  ${eventId}: ${activeIds.length} active${disabled.size ? `, ${disabled.size} disabled (${[...disabled].join(", ")})` : ""}`);
+  }
+  if (config.unknownHookIds.length) {
+    console.log("  Unknown Hook id(s) in manifest.harness (never disabled anything real):");
+    for (const u of config.unknownHookIds) console.log(`    - "${u.id}" (${u.event})`);
+  }
+  if (config.log && fs.existsSync(path.join(changeDir, "hooks.md"))) console.log(`  Execution log: ${path.relative(process.cwd(), path.join(changeDir, "hooks.md"))}`);
 }
 function status(args = []) {
   const parsed = parseArgs(args);
@@ -1260,7 +1328,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { const parsed = parseArgs(args); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose: Boolean(parsed.verbose) }); printStandardsReport({ verbose: Boolean(parsed.verbose) }); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) printHarnessRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a
