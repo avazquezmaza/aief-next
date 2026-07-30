@@ -4,6 +4,81 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-023: `ai-specs/` resources are discovered and resolved against AIEF's built-ins, never copied; project always wins on id collision; unwired (dormant) this Change
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0053](../changes/0053-lidr-integration/)'s planning artifacts (`spec.md`/`design.md`/`tasks.md`); commissioned as the first, deliberately narrow step of LIDR integration — "AIEF consume LIDR, nunca lo copia."
+
+**Decision.**
+
+> A LIDR/specboot-style project may carry an `ai-specs/skills/*.md` and/or `ai-specs/standards/*.md`
+> directory. `discoverAiSpecs(cwd)` (`cli/src/core/domain/ai-specs.js`) reads these — filename stem
+> as id, file content as-is — without ever copying a file into the AIEF-managed project structure.
+> `resolveResources(builtins, projectResources)` combines a caller-supplied list of built-in
+> resources (plain `{ id, ... }` objects — the function is generic, not coupled to the Skill
+> Catalog's or `knowledge/standards/`'s specific shape) with the discovered project resources under
+> one fixed rule: **project wins on id collision**, a human-readable warning is recorded for every
+> override, and the two definitions are **never merged field-by-field** — the resolved entry is
+> always wholly the project's or wholly AIEF's built-in, never a hybrid. A project id absent from
+> the built-ins is simply added. Read errors (an unreadable directory, e.g. a file where a
+> directory is expected) and duplicate ids *within* the project's own directory are reported as
+> diagnostics, never thrown. **This Change wires the resolver into nothing** — no command, no
+> prompt, no bootstrap step calls it yet; a project without `ai-specs/` and a project with one
+> behave, observably, identically today, because nothing observable consumes this module yet.
+
+**Why this needs its own ADR.** This is the seventh new architectural boundary this project has
+introduced (ADR-016 through ADR-022 before it) — same trigger, recorded for the same reason: a new
+external-resource contract (a project directory AIEF did not create, read by AIEF for the first
+time) and a new precedence policy are both ADR-triggering events, this Entrega introduces both.
+
+**Why unwired rather than integrated into `recommendSkills()`/`listStandards()` now.** The
+commissioning instruction for this Change is explicit and narrow: no CLI flow change, no bootstrap
+change, no observable behavior change for any project, existing or new. Wiring this resolver into
+`detect.js`'s `recommendSkills()` or `cli.js`'s `listStandards()`/`createStandards()` would change
+`aief bootstrap`/`aief analyze`/`aief prompt`'s real output for any project that adopts
+`ai-specs/skills|standards/` — a real, user-visible capability change, and exactly the kind of
+change this Change's own scope excludes ("el objetivo NO es implementar todo LIDR"). The resolver
+is therefore built, tested and documented as a complete, correct, standalone unit — the integration
+into a real command's data path is left as a distinct, later, separately-scoped Change, so that
+decision (which command, what the resulting prompt/analyze output should look like) gets its own
+review rather than riding in as a side effect of this one.
+
+**Relationship to ADR-010.** The Skill *Catalog* (`skills-catalog.json`, `recommendSkills()`) is
+untouched — zero diff lines. This ADR's resolver is generic over "a list of `{ id, ... }` objects";
+it does not know about detectors, `signal` strength, or `promptContext`. A future Change that wires
+Skill Catalog entries through it would pass `skillsCatalog.skills` as the `builtins` argument
+without this module needing to change.
+
+**Relationship to ADR-015.** Not implicated — this Change adds no new command, does not touch
+onboarding, and does not simplify or merge documentation. ADR-015's freeze (new commands,
+onboarding, documentation simplification — see [ADR-022](#adr-022-adr-015s-freeze-is-explicitly-thawed-for-aief-31-by-the-project-owners-direct-decision--not-by-change-0042s-consolidation))
+is neither invoked nor needed here.
+
+**Alternatives considered.**
+
+- **Copy `ai-specs/` content into `knowledge/`, like `aief bootstrap` does for AIEF's own
+  standards templates.** Rejected outright — violates the explicit commissioning principle
+  ("AIEF consume LIDR, nunca lo copia") and would create a second, driftable copy of
+  project-authored content.
+- **Wire the resolver into `recommendSkills()`/`listStandards()` in this same Change.** Rejected —
+  out of scope by explicit instruction; deferred to a future Change once this module's contract is
+  reviewed and accepted on its own.
+- **A YAML/front-matter schema for skill/standard files (id, description, detector, etc.).**
+  Rejected for this Entrega — no real `ai-specs/` project sample exists in this repository to
+  ground such a schema in evidence (ADR-008); filename-as-id, raw content, is the simplest contract
+  that satisfies discovery and precedence without inventing an unverified format.
+
+**Consequences.**
+
+- `detect.js`, `cli.js`'s `recommendSkills()`/`listStandards()`/`createStandards()`, `bootstrap`,
+  `analyze`, `prompt`, and every existing command are untouched by this Entrega — zero diff lines,
+  zero behavioral change, with or without a project's `ai-specs/` directory present.
+- No new command, no new CLI flag, no new persisted state, no file is ever written by this module
+  (`discoverAiSpecs`/`resolveResources` are both read-only/pure).
+- A future Change proposing the real wiring (which command surfaces project `ai-specs/` resources,
+  and how) must cite this ADR's resolver contract rather than inventing a second precedence rule.
+
+---
+
 ## ADR-022: ADR-015's freeze is explicitly thawed for AIEF 3.1, by the project owner's direct decision — not by Change 0042's consolidation
 
 **Status: Accepted (2026-07-30), by the project owner.**
