@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { discoverAiSpecs, resolveResources, deriveSkillDescription, resolveSkillRecommendations } from "../src/core/domain/ai-specs.js";
+import { discoverAiSpecs, resolveResources, deriveSkillDescription, resolveSkillRecommendations, resolveStandardRecommendations } from "../src/core/domain/ai-specs.js";
 
 function tempCwd() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "aief-ai-specs-"));
@@ -192,9 +192,12 @@ test("deriveSkillDescription: falls back to the first non-empty line when there 
 });
 
 test("deriveSkillDescription: never throws and never returns empty, even for blank/absent content", () => {
-  assert.equal(deriveSkillDescription(""), "Project-defined skill");
-  assert.equal(deriveSkillDescription("   \n  \n"), "Project-defined skill");
-  assert.equal(deriveSkillDescription(undefined), "Project-defined skill");
+  // Generic fallback text since Change 0055/ADR-025 generalized this
+  // function for both Skills and Standards — never reachable for a real
+  // `state: "present"` resource either way.
+  assert.equal(deriveSkillDescription(""), "Project-defined resource");
+  assert.equal(deriveSkillDescription("   \n  \n"), "Project-defined resource");
+  assert.equal(deriveSkillDescription(undefined), "Project-defined resource");
 });
 
 test("resolveSkillRecommendations: no ai-specs/skills/ is a strict pass-through of builtins", () => {
@@ -272,5 +275,96 @@ test("resolveSkillRecommendations: is deterministic across repeated calls", () =
   const builtins = [{ id: "b", description: "B", because: ["r"] }];
   const first = resolveSkillRecommendations(builtins, cwd);
   const second = resolveSkillRecommendations(builtins, cwd);
+  assert.deepEqual(first, second);
+});
+
+// --- Change 0055/ADR-025: resolveStandardRecommendations ---
+
+test("resolveStandardRecommendations: no ai-specs/standards/ is a strict pass-through of builtins", () => {
+  const cwd = tempCwd();
+  const builtins = [
+    { id: "base-standards", description: "Base Standards", path: "/knowledge/standards/base-standards.md" },
+    { id: "testing-standards", description: "Testing Standards", path: "/knowledge/standards/testing-standards.md" }
+  ];
+  const { items, warnings, invalidCount, aiSpecsStandardsPresent } = resolveStandardRecommendations(builtins, cwd);
+  assert.equal(aiSpecsStandardsPresent, false);
+  assert.equal(invalidCount, 0);
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(items, [
+    { id: "base-standards", description: "Base Standards", because: [], source: "builtin", path: "/knowledge/standards/base-standards.md", overridesBuiltin: false },
+    { id: "testing-standards", description: "Testing Standards", because: [], source: "builtin", path: "/knowledge/standards/testing-standards.md", overridesBuiltin: false }
+  ]);
+});
+
+test("resolveStandardRecommendations: a project-only standard is added, tagged as project, not an override", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "api-design.md"), "# API Design Guidelines\n\nUse REST.\n");
+  const builtins = [{ id: "base-standards", description: "Base Standards", path: "/k/base-standards.md" }];
+  const { items } = resolveStandardRecommendations(builtins, cwd);
+  const added = items.find((i) => i.id === "api-design");
+  assert.equal(added.source, "project");
+  assert.equal(added.overridesBuiltin, false);
+  assert.equal(added.description, "API Design Guidelines");
+  assert.deepEqual(added.because, ["ai-specs/standards/api-design.md present in project"]);
+  assert.equal(added.path, path.join(cwd, "ai-specs", "standards", "api-design.md"));
+});
+
+test("resolveStandardRecommendations: a project standard overrides a matching built-in id, with its own real path", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "security-standards.md"), "# Our Security Policy\n\nOwn rules.\n");
+  const builtins = [{ id: "security-standards", description: "Security Standards", path: "/k/security-standards.md" }];
+  const { items, warnings } = resolveStandardRecommendations(builtins, cwd);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].source, "project");
+  assert.equal(items[0].overridesBuiltin, true);
+  assert.equal(items[0].description, "Our Security Policy");
+  assert.equal(items[0].path, path.join(cwd, "ai-specs", "standards", "security-standards.md"), "the project's own path must win, not the built-in's knowledge/standards/ path");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /overrides AIEF's built-in/);
+});
+
+test("resolveStandardRecommendations: combines built-ins, an override, and a project-only standard, in deterministic order", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "security-standards.md"), "# Ours\n\nOverride.\n");
+  writeFile(path.join(cwd, "ai-specs", "standards", "api-design.md"), "# API Design\n\nNew.\n");
+  const builtins = [
+    { id: "base-standards", description: "Base Standards", path: "/k/base-standards.md" },
+    { id: "security-standards", description: "Security Standards", path: "/k/security-standards.md" }
+  ];
+  const { items } = resolveStandardRecommendations(builtins, cwd);
+  assert.deepEqual(items.map((i) => i.id), ["base-standards", "security-standards", "api-design"]);
+  assert.equal(items[0].source, "builtin");
+  assert.equal(items[1].source, "project");
+  assert.equal(items[2].source, "project");
+});
+
+test("resolveStandardRecommendations: invalid resources are excluded, counted, never crash", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "blank.md"), "   ");
+  writeFile(path.join(cwd, "ai-specs", "standards", "dup.md"), "one");
+  fs.writeFileSync(path.join(cwd, "ai-specs", "standards", "dup.MD"), "two", "utf8");
+  const builtins = [{ id: "kept", description: "Kept", path: "/k/kept.md" }];
+  const { items, invalidCount } = resolveStandardRecommendations(builtins, cwd);
+  assert.equal(items.some((i) => i.id === "blank"), false);
+  assert.equal(items.filter((i) => i.id === "dup").length, 1);
+  assert.equal(items.find((i) => i.id === "kept").source, "builtin");
+  assert.equal(invalidCount, 2);
+});
+
+test("resolveStandardRecommendations: aiSpecsStandardsPresent reflects any discovery, valid or not", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "blank.md"), "   ");
+  const { aiSpecsStandardsPresent, invalidCount, items } = resolveStandardRecommendations([], cwd);
+  assert.equal(aiSpecsStandardsPresent, true, "an invalid-only ai-specs/standards/ still counts as present for doctor's conditional section");
+  assert.equal(invalidCount, 1);
+  assert.deepEqual(items, []);
+});
+
+test("resolveStandardRecommendations: is deterministic across repeated calls", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "standards", "a.md"), "# A\n\ncontent");
+  const builtins = [{ id: "b", description: "B", path: "/k/b.md" }];
+  const first = resolveStandardRecommendations(builtins, cwd);
+  const second = resolveStandardRecommendations(builtins, cwd);
   assert.deepEqual(first, second);
 });

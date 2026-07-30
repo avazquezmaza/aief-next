@@ -13,8 +13,8 @@ existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
 
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief doctor` | PATH tools, project files, `ai-specs/skills/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). |
-| `aief doctor --verbose` | Same | Nothing | Same, plus each Skill's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, and full `ai-specs` resolution warnings. |
+| `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). |
+| `aief doctor --verbose` | Same | Nothing | Same, plus each Skill's/Standard's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, and full `ai-specs` resolution warnings. |
 | `aief status` | `changes/`, project files | Nothing | Adoption overview, recent Changes, all open Changes, Workflow/SDD summaries. |
 | `aief status --change <id>` | The selected Change | Nothing | Deep inspection: track, stage, gates, SDD readiness. |
 | `aief status --change <id> --next` | The selected Change | Nothing | Compact Normalized Action: the one next command to run. |
@@ -39,7 +39,7 @@ both now print a one-line redirect and exit 1.
 | `aief enrich <provider> <source-id> [--file path]` | The Requirement Source, read-only | A new Change (`Requires Human Review`) | Seed a Change from Jira/manual instead of an idea. See [Workflow — Requirement Sources](workflow.md#starting-from-a-requirement-source). |
 | `aief propose "<idea>"` | OpenSpec availability, `changes/` | OpenSpec output, or a local Change + `proposal.md` | Turn an idea into a proposal, delegating to OpenSpec when available. |
 | `aief propose --change <id>` | The existing Change | Only `proposal.md` inside it | Continue an existing Change (e.g. after `enrich` + Human Review) without forking a new one. |
-| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, profile, standards, the selected Change | Nothing | Generate a ready-to-paste, context-complete prompt. |
+| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, profile, standards (`knowledge/standards/` + a project's `ai-specs/standards/`, project wins on id collision — Change 0055/ADR-025), the selected Change | Nothing | Generate a ready-to-paste, context-complete prompt. With no `ai-specs/standards/`, the standards list is byte-identical to before Change 0055. |
 | `aief prompt --skill <id> [...]` | The Skill's declared context | Nothing | Attach one registered Skill's output to the prompt. Unknown id, or a `invalid`/`failed` Skill result, exits 1 before any prompt is printed. |
 | `aief prompt --list-skills` | The Skill registry | Nothing | List every registered Skill (id, version, title, description). |
 

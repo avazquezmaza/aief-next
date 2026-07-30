@@ -175,6 +175,128 @@ test("prompt includes standards and Skill context honestly", () => {
   assert.match(out, /Watch out for: queries missing the tenant filter/);
 });
 
+// --- Change 0055/ADR-025: ai-specs/standards/ wired into aief prompt (consumption) and aief doctor --verbose (report) ---
+
+test("prompt: with no ai-specs/standards/, the standards block is byte-identical to before this Change", () => {
+  const dir = makeProject({ "README.md": "plain project" });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /Project standards to follow:\n\n- knowledge\/standards\/base-standards\.md/);
+  assert.doesNotMatch(out, /ai-specs/);
+  assert.doesNotMatch(out, /\[project\]/);
+  assert.doesNotMatch(out, /\[project override\]/);
+});
+
+test("prompt: a project-only ai-specs standard appears with its real path, tagged [project]", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/api-design.md": "# API Design Guidelines\n\nUse REST.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- ai-specs\/standards\/api-design\.md \[project\]/);
+  assert.match(out, /- knowledge\/standards\/base-standards\.md/, "built-in lines are unaffected by an unrelated project-only standard");
+});
+
+test("prompt: a project standard overriding a built-in id replaces the built-in's line with its own real path", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/security-standards.md": "# Our Security Policy\n\nOwn rules.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- ai-specs\/standards\/security-standards\.md \[project override\]/);
+  assert.doesNotMatch(out, /- knowledge\/standards\/security-standards\.md/, "the built-in's own line for the overridden id must not also appear");
+  assert.match(out, /- knowledge\/standards\/base-standards\.md/, "an unrelated built-in is unaffected");
+});
+
+test("prompt: an invalid ai-specs standard (duplicate id) resolves at most once, never crashes", () => {
+  // "dup.md" is a legitimate, valid resource (state "present"); "dup.MD" is
+  // the invalid one (state "duplicate", excluded). Exactly one "dup" line
+  // must appear — never two, never a crash.
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/dup.md": "one",
+    "ai-specs/standards/dup.MD": "two"
+  });
+  aief(dir, ["bootstrap"]);
+  const { status, out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.equal(status, 0);
+  const matches = out.match(/ai-specs\/standards\/dup\.md/g) || [];
+  assert.equal(matches.length, 1);
+});
+
+test("doctor: with no ai-specs/standards/, there is no Standards: section at all", () => {
+  const dir = makeProject({ "README.md": "plain project" });
+  aief(dir, ["bootstrap"]);
+  const plain = aief(dir, ["doctor"]);
+  const verbose = aief(dir, ["doctor", "--verbose"]);
+  assert.doesNotMatch(plain.out, /\nStandards:/);
+  assert.doesNotMatch(verbose.out, /\nStandards:/);
+});
+
+test("doctor --verbose: a project ai-specs standard produces a Standards: report with source/path/overrides", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/security-standards.md": "# Our Security Policy\n\nOwn rules.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["doctor", "--verbose"]);
+  assert.match(out, /\nStandards:/);
+  assert.match(out, /- security-standards \[project override\]: Our Security Policy/);
+  assert.match(out, /source: project/);
+  assert.match(out, /path: ai-specs\/standards\/security-standards\.md/);
+  assert.match(out, /overrides: built-in standard "security-standards"/);
+});
+
+test("doctor: an invalid ai-specs standard produces exactly one default hint line, full diagnostic only in --verbose", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/dup.md": "one",
+    "ai-specs/standards/dup.MD": "two"
+  });
+  aief(dir, ["bootstrap"]);
+  const plain = aief(dir, ["doctor"]);
+  const verbose = aief(dir, ["doctor", "--verbose"]);
+  assert.match(plain.out, /⚠ 1 ai-specs standard resource\(s\) ignored — see aief doctor --verbose/);
+  assert.doesNotMatch(plain.out, /duplicate id "dup"/);
+  assert.match(verbose.out, /ai-specs warnings \(standards\):/);
+  assert.match(verbose.out, /duplicate id "dup"/);
+  assert.doesNotMatch(verbose.out, /at TestContext|at Object\.<anonymous>|node:internal/);
+});
+
+test("doctor/prompt: combining a built-in, an override and a project-only standard resolves deterministically in both commands", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/security-standards.md": "# Ours\n\nOverride.\n",
+    "ai-specs/standards/api-design.md": "# API Design\n\nNew.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const doctorOut = aief(dir, ["doctor", "--verbose"]).out;
+  const promptOut = aief(dir, ["prompt", "--change", "0001-adopt-aief"]).out;
+  const standardsSection = doctorOut.slice(doctorOut.indexOf("\nStandards:"));
+  const doctorOrder = [...standardsSection.matchAll(/^- ([a-z-]+)(?: \[project(?: override)?\])?:/gm)].map((m) => m[1]);
+  assert.deepEqual(doctorOrder, ["base-standards", "documentation-standards", "security-standards", "testing-standards", "api-design"]);
+  const promptIdx = (needle) => promptOut.indexOf(needle);
+  assert.ok(promptIdx("knowledge/standards/base-standards.md") < promptIdx("ai-specs/standards/security-standards.md"));
+  assert.ok(promptIdx("ai-specs/standards/security-standards.md") < promptIdx("knowledge/standards/testing-standards.md"));
+  assert.ok(promptIdx("knowledge/standards/testing-standards.md") < promptIdx("ai-specs/standards/api-design.md"));
+});
+
+test("bootstrap/analyze/Skill recommendations are unaffected by ai-specs/standards/ (Change 0055 touches only prompt + doctor)", () => {
+  const dir = makeProject({
+    "README.md": "plain project",
+    "ai-specs/standards/api-design.md": "# API Design\n\nGuidance.\n"
+  });
+  const bootstrap = aief(dir, ["bootstrap"]);
+  assert.equal(bootstrap.status, 0);
+  assert.doesNotMatch(bootstrap.out, /api-design/);
+  const analyzeResult = aief(dir, ["analyze"]);
+  assert.equal(analyzeResult.status, 0);
+  const changeMd = fs.readFileSync(path.join(dir, "changes", "0002-analyze-current-architecture", "change.md"), "utf8");
+  assert.doesNotMatch(changeMd, /api-design/);
+});
+
 test("prompt is honest when a recommended Skill has no operational content", () => {
   const dir = makeProject({ "README.md": "A plain library." });
   aief(dir, ["new-change", "thing"]);

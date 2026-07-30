@@ -13,7 +13,7 @@ import { evaluateGates } from "./core/services/gate-evaluator.js";
 import { resolveState } from "./core/services/transition-engine.js";
 import { resolveSddProvider, sddProviderConfigPath } from "./core/domain/sdd-provider-resolver.js";
 import { getProvider } from "./sdd-providers/index.js";
-import { resolveSkillRecommendations } from "./core/domain/ai-specs.js";
+import { resolveSkillRecommendations, resolveStandardRecommendations, deriveResourceDescription } from "./core/domain/ai-specs.js";
 import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
 import { buildSkillContext } from "./core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
@@ -220,6 +220,35 @@ function printSkills(project, options = {}) {
     console.log(`\n⚠ ${invalidCount} ai-specs resource(s) ignored — see aief doctor --verbose`);
   }
 }
+// Called from doctor() (Change 0055/ADR-025) — fully conditional on
+// aiSpecsStandardsPresent, unlike printSkills(): unlike Skills (Change
+// 0054), `aief doctor` never showed anything about standards before this
+// Change, so a project with no ai-specs/standards/ must see no new section
+// at all, not merely an empty one, to stay byte-identical.
+function printStandardsReport(options = {}) {
+  const { verbose = false } = options;
+  const { items, warnings, invalidCount, aiSpecsStandardsPresent } = resolveStandardRecommendations(builtinStandardsList(), process.cwd());
+  if (!aiSpecsStandardsPresent) return;
+  console.log("\nStandards:");
+  for (const standard of items) {
+    const tag = standard.source === "project" ? (standard.overridesBuiltin ? " [project override]" : " [project]") : "";
+    console.log(`- ${standard.id}${tag}: ${standard.description}`);
+    for (const reason of standard.because) console.log(`    because: ${reason}`);
+    if (verbose) {
+      console.log(`    source: ${standard.source}`);
+      if (standard.path) console.log(`    path: ${path.relative(process.cwd(), standard.path)}`);
+      if (standard.overridesBuiltin) console.log(`    overrides: built-in standard "${standard.id}"`);
+    }
+  }
+  if (verbose) {
+    if (warnings.length) {
+      console.log("\nai-specs warnings (standards):");
+      for (const warning of warnings) console.log(`- ${warning}`);
+    }
+  } else if (invalidCount) {
+    console.log(`\n⚠ ${invalidCount} ai-specs standard resource(s) ignored — see aief doctor --verbose`);
+  }
+}
 function standardsForProject(project) {
   const files = [...BASE_STANDARDS];
   if (project.tech.nextjs || project.tech.react || project.tech.tailwind) files.push("frontend-standards.md");
@@ -252,6 +281,18 @@ function listStandards() {
   const dir = cwd("knowledge", "standards");
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+}
+// Maps listStandards()'s bare filenames into the { id, description, path }
+// shape resolveResources() (and resolveStandardRecommendations()) can
+// consume as `builtins` (Change 0055/ADR-025) — id is the filename without
+// `.md` (so it can collide, by id, with an ai-specs/standards/<id>.md);
+// description is derived from the file's own first heading, read from disk
+// exactly once here, never cached, never written back.
+function builtinStandardsList() {
+  return listStandards().map((file) => {
+    const filePath = cwd("knowledge", "standards", file);
+    return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
+  });
 }
 function printSignals(project) {
   console.log("\nDetected project signals:");
@@ -731,7 +772,7 @@ function prompt(args) {
   const type = changeType(changeDir);
   const isAnalysis = type === "analysis";
   const isEnrichment = type === "enrichment";
-  const standards = listStandards();
+  const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
   const project = detectProject();
   const skills = recommendSkills(project);
   // Re-run guardrail: derived from files, no hidden state. Empty or template
@@ -740,7 +781,15 @@ function prompt(args) {
   const hasRealEvidence = evidenceContent.trim().length > 0 && !evidenceIsPlaceholder(changeDir);
   const evidenceGuard = hasRealEvidence ? `\nevidence.md already exists and has real content:\n\n- Do not overwrite it blindly.\n- Review and amend only if needed; preserve existing validated evidence.\n- If no changes are needed, report that the evidence was re-verified.\n` : "";
   const feedbackNote = `\nWhere results belong:\n\n- Project evidence belongs in ${changeName}/evidence.md.\n- Feedback about AIEF or the tooling goes in your response to the user, not in the project evidence, unless the Change explicitly asks for a separate feedback file.\n`;
-  const standardsBlock = standards.length ? `\nProject standards to follow:\n\n${standards.map((f) => `- knowledge/standards/${f}`).join("\n")}\n` : "";
+  // Change 0055/ADR-025: a builtin renders as `- knowledge/standards/<id>.md`
+  // — reconstructing today's exact `- knowledge/standards/${file}` string
+  // id-for-id, so a project with no ai-specs/standards/ gets byte-identical
+  // output. A resolving project standard renders with its own real path
+  // (never the built-in's), tagged so the assistant knows which file
+  // actually governs.
+  const standardsBlock = standardItems.length ? `\nProject standards to follow:\n\n${standardItems.map((s) => s.source === "builtin"
+    ? `- knowledge/standards/${s.id}.md`
+    : `- ai-specs/standards/${s.id}.md${s.overridesBuiltin ? " [project override]" : " [project]"}`).join("\n")}\n` : "";
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
     ? `- ${s.name || s.id}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
     : `- ${s.name || s.id}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
@@ -1211,7 +1260,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { const parsed = parseArgs(args); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose: Boolean(parsed.verbose) }); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs(args); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose: Boolean(parsed.verbose) }); printStandardsReport({ verbose: Boolean(parsed.verbose) }); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a

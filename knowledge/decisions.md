@@ -4,6 +4,79 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-025: `aief prompt` is the primary consumer of project `ai-specs/standards/`; `aief doctor --verbose` gains a conditional report; the shared resolver is extracted from ADR-024's Skill wiring
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0055](../changes/0055-lidr-standards-integration/)'s planning artifacts (`spec.md`/`tasks.md`); the second activation of the resolver [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left dormant, after [ADR-024](#adr-024-aief-doctor-is-the-first-and-this-change-only-consumer-of-the-ai-specs-resolver-activation-is-directory-presence-never-a-changes-manifestjson)'s Skill wiring.
+
+**Decision.**
+
+> `cli/src/core/domain/ai-specs.js` gains a shared internal `resolveResourceRecommendations(builtins,
+> projectResources, resourceDirLabel)`, extracted from ADR-024's `resolveSkillRecommendations()`
+> (refactored to call it, with proven-identical output — Change 0054's own test suite re-run
+> unmodified as the regression proof) and reused by a new `resolveStandardRecommendations(builtins,
+> cwd)`. The description heuristic is renamed `deriveResourceDescription`;
+> `deriveSkillDescription` remains exported, identical, for backward compatibility.
+>
+> **`aief prompt` — not `aief doctor` — is this Change's primary integration point**, because it is
+> the one existing surface that already both lists *and consumes* standards: its `standardsBlock`
+> is real text inside the prompt an assistant receives, not a side report. The rendering is
+> designed so a builtin-only project reconstructs today's exact
+> `- knowledge/standards/<file>` line, id for id — provably byte-identical, never a re-derived
+> approximation. A project standard resolves to its own real path
+> (`ai-specs/standards/<id>.md`), tagged `[project]`/`[project override]` — an assistant reading the
+> generated prompt is pointed at the file that actually governs, not a stale built-in copy.
+>
+> `aief doctor --verbose` gains a **conditional** "Standards:" report — present only when
+> `discoverAiSpecs(cwd).standards` is non-empty. Unlike Skills (ADR-024), `doctor` never displayed
+> anything about standards before this Change, so there is no existing section to extend
+> compatibly; making the whole section's *appearance* conditional (not just its detail) is what
+> keeps every project without `ai-specs/standards/` — the overwhelming majority — byte-identical,
+> matching the compatibility bar Change 0054 established via a different mechanism (there, an
+> always-present section gained an optional tag; here, an always-absent section gains a
+> conditional appearance).
+
+**Why `prompt`, reversing ADR-024's choice of `doctor`.** ADR-024 deliberately chose the
+lowest-risk, write-free surface (`doctor`) over `prompt`'s assistant-facing content, precisely
+because Skills already had a rich, per-item description in `doctor` to extend non-disruptively.
+Standards have no such existing `doctor` surface — extending `doctor` unconditionally would have
+meant printing a brand-new "Standards:" header for every project, a real compatibility break the
+commissioning instruction explicitly forbade ("no cambies el comportamiento de proyectos que no
+tengan ai-specs/standards/"). `prompt`'s existing bullet-per-file convention, by contrast, can be
+reconstructed exactly for the common case, making it the *safer* choice here despite touching
+assistant-facing text — the opposite ranking from ADR-024, for a concretely different reason, not
+a reversal of ADR-024's own reasoning.
+
+**Relationship to ADR-023/ADR-024.** `discoverAiSpecs()`/`resolveResources()` are unmodified — zero
+diff lines. `resolveSkillRecommendations()`'s public contract and observable output are unchanged;
+only its internal implementation now delegates to the shared helper this ADR introduces.
+
+**Relationship to ADR-013/ADR-015.** No new command; `doctor --verbose` reuses the flag Change
+0054 already added. Neither ADR is implicated.
+
+**Alternatives considered.**
+
+- **Make `doctor` the primary integration point, as with Skills.** Rejected — see above; no
+  existing `doctor` output to extend compatibly for standards.
+- **Duplicate the tagging/precedence-rendering logic between Skills and Standards instead of
+  extracting a shared helper.** Rejected — directly contradicts the commissioning instruction
+  ("no dupliques la lógica de precedencia") and would let the two drift silently.
+- **Copy the project's resolved standard into `knowledge/standards/` so `prompt` needs no new
+  rendering logic.** Rejected outright — violates "AIEF consume LIDR, nunca lo copia" (ADR-023)
+  and would create exactly the driftable duplicate ADR-023 already rejected for Skills.
+
+**Consequences.**
+
+- `cli/src/detect.js`, `analyze()`, `createStandards()`, `standardsForProject()`,
+  `bootstrapHere()`, and `resolveSkillRecommendations()`'s observable output are untouched by this
+  Entrega — zero diff lines, zero behavioral change.
+- `aief prompt` output is byte-identical to before this Change for any project without
+  `ai-specs/standards/`; `aief doctor`'s output (with or without `--verbose`) is likewise
+  byte-identical when `ai-specs/standards/` is empty or absent.
+- A future Change wiring `bootstrap`/`analyze` to the same Standards resolver must cite this ADR
+  and ADR-023/ADR-024 rather than inventing a fourth precedence or activation rule.
+
+---
+
 ## ADR-024: `aief doctor` is the first (and, this Change, only) consumer of the ai-specs resolver; activation is directory presence, never a Change's `manifest.json`
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0054](../changes/0054-lidr-skill-recommendations/)'s planning artifacts (`spec.md`/`tasks.md`); activates the wiring [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left deliberately dormant.

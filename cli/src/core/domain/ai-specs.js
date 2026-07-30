@@ -119,41 +119,43 @@ export function resolveResources(builtins, projectResources) {
   return { resources: [...resolved.values()], warnings };
 }
 
-// deriveSkillDescription(content) -> a short, human-readable description for
-// a project-sourced Skill file (AIEF 3.1, Change 0054/ADR-024). The file's
-// first non-empty line, with a leading Markdown heading marker stripped —
-// never throws, never returns empty.
-export function deriveSkillDescription(content) {
+// deriveResourceDescription(content) -> a short, human-readable description
+// for a project-sourced resource file (Skill or Standard alike; AIEF 3.1,
+// Change 0054/ADR-024, generalized in Change 0055/ADR-025). The file's first
+// non-empty line, with a leading Markdown heading marker stripped — never
+// throws, never returns empty.
+export function deriveResourceDescription(content) {
   const lines = String(content || "").split(/\r?\n/);
   const firstNonEmpty = lines.find((line) => line.trim().length > 0);
-  if (!firstNonEmpty) return "Project-defined skill";
+  if (!firstNonEmpty) return "Project-defined resource";
   const stripped = firstNonEmpty.replace(/^#+\s*/, "").trim();
-  return stripped || "Project-defined skill";
+  return stripped || "Project-defined resource";
 }
 
-// resolveSkillRecommendations(builtins, cwd) ->
-//   { items, warnings, invalidCount, aiSpecsPresent }
+// Stable alias kept for Change 0054 callers/tests — identical behavior,
+// generic "resource" fallback text aside (a Skill-specific fallback string
+// was never actually reachable for a `state: "present"` resource, so this
+// is not an observable behavior change for any real Skill file).
+export const deriveSkillDescription = deriveResourceDescription;
+
+// resolveResourceRecommendations(builtins, projectResources, resourceDirLabel)
+//   -> { items, warnings, invalidCount }
 //
-// Thin composition over discoverAiSpecs()/resolveResources() — adds only
-// what rendering a Skill recommendation needs (Change 0054/ADR-024). Does
-// not know about `aief doctor`, console output, or any other presentation
-// concern; that lives entirely in cli.js's printSkills().
-//
-// `builtins` is normally `recommendSkills(project)`'s output (each entry
-// already carrying `id`/`description`/`because`) — this function does not
-// import or call `recommendSkills()` itself, keeping `cli/src/detect.js`
-// untouched.
+// Shared by resolveSkillRecommendations() and resolveStandardRecommendations()
+// (Change 0055/ADR-025, extracted from Change 0054's original Skill-only
+// implementation) — adds only what rendering a recommendation needs on top
+// of resolveResources(); does not know about `aief doctor`/`aief prompt`,
+// console output, or any other presentation concern.
 //
 // `invalidCount` is counted separately from `warnings.length`: an override
 // warning describes a *successful* precedence decision (already visible via
 // an item's `overridesBuiltin`/`[project override]` tag), not a problem —
 // only a genuinely unusable project resource (read_error/duplicate/empty)
 // should make a caller surface a "something was ignored" hint.
-export function resolveSkillRecommendations(builtins, cwd) {
-  const aiSpecs = discoverAiSpecs(cwd);
-  const { resources, warnings } = resolveResources(builtins, aiSpecs.skills);
+function resolveResourceRecommendations(builtins, projectResources, resourceDirLabel) {
+  const { resources, warnings } = resolveResources(builtins, projectResources);
   const builtinIds = new Set(builtins.filter((b) => b && typeof b.id === "string").map((b) => b.id));
-  const invalidCount = aiSpecs.skills.filter((resource) => resource.state !== "present").length;
+  const invalidCount = projectResources.filter((resource) => resource.state !== "present").length;
 
   const items = resources.map((entry) => {
     if (entry.source === "builtin") {
@@ -162,19 +164,49 @@ export function resolveSkillRecommendations(builtins, cwd) {
         description: entry.value.description,
         because: entry.value.because || [],
         source: "builtin",
-        path: null,
+        path: entry.value.path ?? null,
         overridesBuiltin: false
       };
     }
     return {
       id: entry.id,
-      description: deriveSkillDescription(entry.value.content),
-      because: [`ai-specs/skills/${entry.id}.md present in project`],
+      description: deriveResourceDescription(entry.value.content),
+      because: [`ai-specs/${resourceDirLabel}/${entry.id}.md present in project`],
       source: "project",
       path: entry.value.path,
       overridesBuiltin: builtinIds.has(entry.id)
     };
   });
 
-  return { items, warnings, invalidCount, aiSpecsPresent: aiSpecs.present };
+  return { items, warnings, invalidCount };
+}
+
+// resolveSkillRecommendations(builtins, cwd) ->
+//   { items, warnings, invalidCount, aiSpecsPresent }
+//
+// `builtins` is normally `recommendSkills(project)`'s output (each entry
+// already carrying `id`/`description`/`because`) — this function does not
+// import or call `recommendSkills()` itself, keeping `cli/src/detect.js`
+// untouched.
+export function resolveSkillRecommendations(builtins, cwd) {
+  const aiSpecs = discoverAiSpecs(cwd);
+  return { ...resolveResourceRecommendations(builtins, aiSpecs.skills, "skills"), aiSpecsPresent: aiSpecs.present };
+}
+
+// resolveStandardRecommendations(builtins, cwd) ->
+//   { items, warnings, invalidCount, aiSpecsStandardsPresent }
+//
+// `builtins` is normally cli.js's `builtinStandardsList()` output (Change
+// 0055/ADR-025) — `{ id, description, path }` per file under
+// `knowledge/standards/`. `aiSpecsStandardsPresent` is true whenever
+// `ai-specs/standards/` contributed at least one entry (valid or not) — the
+// signal a caller (e.g. `aief doctor`) uses to decide whether to show
+// anything at all, keeping a project with no such directory fully
+// unaffected (ADR-025).
+export function resolveStandardRecommendations(builtins, cwd) {
+  const aiSpecs = discoverAiSpecs(cwd);
+  return {
+    ...resolveResourceRecommendations(builtins, aiSpecs.standards, "standards"),
+    aiSpecsStandardsPresent: aiSpecs.standards.length > 0
+  };
 }

@@ -77,6 +77,11 @@ Editable project standards, created by `aief bootstrap` from
 `aief prompt` instructs the assistant to follow every file present here. Edit them freely — they
 are a property of your project, not of AIEF.
 
+A project's own `ai-specs/standards/<id>.md` (LIDR/SpecBoot convention) is discovered and resolved
+against these built-ins — project always wins on a matching id, referenced from its own real
+location, never copied here (Change 0055/ADR-025). See [CLI Reference](cli.md#work) (`aief
+prompt`) and `templates/specboot/README.md`.
+
 ## `knowledge/skills.md`
 
 Generated once by `aief bootstrap` as a readable view of the Skill Catalog's recommendations for this
