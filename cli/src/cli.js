@@ -20,6 +20,7 @@ import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/serv
 import { buildEvent, buildHookContext } from "./core/services/hook-context.js";
 import { evaluateEvent } from "./core/services/hook-service.js";
 import { resolveHarnessConfig, partitionOutcome, describeHarnessRegistry, hookTitle, formatHookLogSection, formatHookResultsBlock, describeFailingHooks } from "./core/services/harness-service.js";
+import { resolveLoopConfig, countPreviousAttempts, decideLoopOutcome, formatLoopSummary, formatLoopLogEntry } from "./core/services/loop-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
@@ -265,6 +266,29 @@ function printHarnessRegistry() {
   console.log(`${descriptors.length} Hook(s) registered (built-in, not user-authored — see docs/workflow.md#hooks-runtime):`);
   for (const d of descriptors) {
     console.log(`- ${d.id}: fires on ${d.events.join(", ")} — ${d.description}`);
+  }
+}
+// Called from doctor() only under --verbose (Change 0057/ADR-027) —
+// read-only scan of open Changes for `loop.verify` configuration. Never
+// writes loop.md (only `aief verify --change <id>` does). Absent entirely
+// when no open Change configures Loop, so `doctor --verbose` for a project
+// that doesn't use Loop is unaffected by this Change (same conditional
+// discipline as Change 0056's Harness-in-doctor and Change 0055's
+// Standards-in-doctor).
+function printLoopRegistry() {
+  const entries = [];
+  for (const dir of openChangeDirs()) {
+    const change = loadChangeUnified(dir);
+    const config = resolveLoopConfig(change.manifest);
+    if (!config.configured) continue;
+    const logPath = path.join(dir, "loop.md");
+    const attempt = countPreviousAttempts(fs.existsSync(logPath) ? read(logPath) : "");
+    entries.push({ id: change.basename, attempt, maxRetries: config.maxRetries });
+  }
+  if (!entries.length) return;
+  console.log("\nLoop:");
+  for (const e of entries) {
+    console.log(`- ${e.id}: ${e.attempt} attempt(s) so far, limit ${e.maxRetries} — see aief verify --change ${e.id}`);
   }
 }
 function standardsForProject(project) {
@@ -973,6 +997,26 @@ function runVerifyCompletedHooks(changeDir, report, inspection) {
   }
   if (harnessConfig.log && changeDir) appendHookLog(changeDir, { operation: "verify", event: outcome.event, entries: active, passed: report.passed });
 }
+// Loop (Change 0057/ADR-027) — Verify -> Feedback -> Retry (if applicable)
+// -> Final result. Only ever called for a single targeted Change
+// (`aief verify --change <id>`); whole-project verify has no manifest to
+// read Loop config from, so it is never touched. `report.errors` (already
+// computed, already printed by renderReport()) is reused as Feedback —
+// nothing new is derived. Never re-invokes verify, a Hook, or anything else
+// — "retry" is reported as available, never performed.
+function runLoop(changeDir, change, report) {
+  const loopConfig = resolveLoopConfig(change?.manifest);
+  if (!loopConfig.configured) return;
+  const logPath = path.join(changeDir, "loop.md");
+  const already = fs.existsSync(logPath);
+  const attempt = countPreviousAttempts(already ? read(logPath) : "") + 1;
+  const outcome = decideLoopOutcome({ attempt, maxRetries: loopConfig.maxRetries, passed: report.passed });
+  const changeId = path.basename(changeDir);
+  console.log(formatLoopSummary(outcome, changeId));
+  const header = "# Loop Log\n\nVisible, append-only record of `aief verify` attempts for this Change (Change 0057, ADR-027). Feedback lines are Structural Verification's own error messages, reused as-is — nothing else is recorded, and nothing here ever re-runs verify automatically.\n";
+  const entry = formatLoopLogEntry({ timestamp: new Date().toISOString(), outcome, feedback: report.errors });
+  writeFile(logPath, `${already ? read(logPath) : header}\n${entry}`, true);
+}
 // Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
 // opt-in flag: Structural Verification (renderReport, above) always runs
 // first, unchanged; this function only ever ADDS a section after it, never
@@ -1019,6 +1063,7 @@ function verify(args = []) {
     const inspection = explainWorkflow(changeDir, cwd());
     runVerifyCompletedHooks(changeDir, report, inspection);
     if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
+    runLoop(changeDir, inspection.change, report);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -1328,7 +1373,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) printHarnessRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a

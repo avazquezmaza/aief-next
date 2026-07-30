@@ -109,6 +109,21 @@ for presentation (`aief prompt`'s Hook section, and `<changeDir>/hooks.md` when 
 `harness.log`). `aief doctor --verbose` and `aief status --change <id>` are the two read surfaces;
 neither can enable a Hook capability the registry itself doesn't already declare.
 
+## Loop
+
+`loop-service.js` (Change 0057, ADR-027) is a small, pure module — no filesystem access, no
+command execution — providing `resolveLoopConfig()` (reads a Change's optional `manifest.json`
+`loop.verify` field, same structural-validation-in-`change-manifest.js` precedent as `harness`/
+`sdd`), `countPreviousAttempts()` (parses `## Attempt` headers out of already-read `loop.md`
+content), `decideLoopOutcome()` (a pure function of `{attempt, maxRetries, passed}` into
+`passed`/`retry_available`/`exhausted`), and `formatLoopSummary()`/`formatLoopLogEntry()`
+(presentation only). `cli.js`'s `verify()` (the `--change` branch only) is the sole writer of
+`<changeDir>/loop.md`, reusing `VerificationReport.errors` — already computed by
+`change-verifier.js` — as Feedback; nothing about Structural Verification's own computation
+changes. `aief doctor --verbose` reads (never writes) every open Change's Loop state for a
+project-wide registry view. No Hook, no new lifecycle event, no automatic re-invocation of
+anything — "retry" is a reported outcome, never an action Loop performs.
+
 ## Verification Engine
 
 `verification-rule.js` defines the Verification Rule contract (scope, capabilities, `appliesTo()`,

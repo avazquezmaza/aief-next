@@ -126,5 +126,25 @@ export function validateManifest(value) {
     }
   }
 
+  // loop is optional (Change 0057, ADR-027): its absence never produces an
+  // error, and this block never runs for any Change that predates it. Same
+  // discipline as harness/sdd above — shape only; loop-service.js owns
+  // runtime behavior (attempt counting, outcome decision), never this
+  // module.
+  if (value.loop !== undefined) {
+    if (value.loop === null || typeof value.loop !== "object" || Array.isArray(value.loop)) {
+      require("loop", "must be an object when present");
+    } else if (value.loop.verify !== undefined) {
+      if (value.loop.verify === null || typeof value.loop.verify !== "object" || Array.isArray(value.loop.verify)) {
+        require("loop.verify", "must be an object when present");
+      } else if (value.loop.verify.maxRetries !== undefined) {
+        const maxRetries = value.loop.verify.maxRetries;
+        if (!(Number.isInteger(maxRetries) && maxRetries >= 1)) {
+          require("loop.verify.maxRetries", `must be a positive integer when present, got ${JSON.stringify(maxRetries)}`);
+        }
+      }
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }

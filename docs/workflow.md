@@ -149,6 +149,41 @@ A Change's `manifest.json` may opt into Harness configuration:
 No `harness` field (every Change before this one, and any Change that doesn't need it) behaves
 exactly as before — `aief doctor` (default), `aief prompt`, `aief verify` are byte-identical.
 
+## Loop — Verify, Feedback, Retry
+
+**Loop** (Change 0057, ADR-027) is opt-in, per-Change attempt tracking over `aief verify --change
+<id>`: **Verify → Feedback → Retry (if applicable) → Final result.** "Retry" names an outcome —
+nothing in AIEF re-runs `verify`, an assistant, or any command automatically; a retry is always
+the next manual `aief verify --change <id>` you (or an assistant, on your instruction) run.
+
+```json
+{
+  "loop": {
+    "verify": {
+      "maxRetries": 3
+    }
+  }
+}
+```
+
+- The current attempt number is derived from `<changeDir>/loop.md` itself (the count of prior
+  attempts already logged, plus one) — never a hidden counter, never a `manifest.json` write.
+- **Feedback** is exactly `aief verify`'s own Structural Verification error lines — nothing new is
+  computed or fetched.
+- The **outcome** is one of three states: `passed` (Loop complete), `retry_available` (still
+  failing, under the limit — fix the items above and run `aief verify` again), or `exhausted`
+  (failing at or beyond `maxRetries` — manual review required, `loop.md` has the full history).
+  None of these ever changes `aief verify`'s own PASS/FAIL or exit code.
+- `loop.verify` present with no `maxRetries` defaults to `3`.
+- `aief doctor --verbose` lists every open Change with `loop.verify` configured and its current
+  attempt count — read-only, never writes `loop.md` itself.
+
+No `loop` field (every Change before this one) behaves exactly as before — `aief verify`
+(whole-project and `--change`) and `aief doctor` (default and `--verbose`) are byte-identical, and
+`loop.md` is never created. Loop does not gate `aief close` and has no `aief status --change`
+section — `aief verify`'s own output and `loop.md` already answer every question a third surface
+would only duplicate.
+
 ## Verification
 
 `aief verify` always runs **Structural Verification** first: are the Change's required files

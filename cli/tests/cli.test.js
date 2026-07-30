@@ -1724,6 +1724,141 @@ test("bootstrap/analyze/LIDR Skills/Standards are unaffected by Harness (Change 
   assert.match(doctorDefault.out, /pair-programming \[project\]/, "0054's Skill wiring still works, untouched by Harness");
 });
 
+// --- Change 0057/ADR-027: Loop (verify -> feedback -> retry -> final result) ---
+
+function loopChange(dir, name, manifestOverrides = {}) {
+  aief(dir, ["new-change", name]);
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const changeDir = fs.readdirSync(path.join(dir, "changes")).find((d) => d.endsWith(slug));
+  const full = path.join(dir, "changes", changeDir);
+  fs.writeFileSync(path.join(full, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: changeDir.split("-")[0], slug, title: name, status: "open", ...manifestOverrides
+  }), "utf8");
+  return { changeDir, full };
+}
+
+test("verify --change: with no loop field, output is byte-identical to the pre-Change-0057 baseline, no loop.md is ever created", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir, full } = loopChange(dir, "loop-baseline");
+  const { out, status } = aief(dir, ["verify", "--change", changeDir]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /\nLoop:/);
+  assert.ok(!fs.existsSync(path.join(full, "loop.md")));
+});
+
+test("doctor: with no loop field anywhere, default and --verbose output are unaffected", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  loopChange(dir, "loop-doctor-baseline");
+  const plain = aief(dir, ["doctor"]);
+  const verbose = aief(dir, ["doctor", "--verbose"]);
+  assert.doesNotMatch(plain.out, /\nLoop:/);
+  assert.doesNotMatch(verbose.out, /\nLoop:/);
+});
+
+test("whole-project verify (no --change) is unaffected by any Change's loop config", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  loopChange(dir, "loop-whole-project", { loop: { verify: { maxRetries: 1 } } });
+  const { out } = aief(dir, ["verify"]);
+  assert.doesNotMatch(out, /\nLoop:/);
+});
+
+test("verify --change: a Change configured with loop.verify and failing verification reports attempt 1, retry available, and creates loop.md", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir, full } = loopChange(dir, "loop-first-fail", { loop: { verify: { maxRetries: 2 } } });
+  fs.writeFileSync(path.join(full, "spec.md"), "", "utf8"); // force a FAIL (empty required file)
+  const { out, status } = aief(dir, ["verify", "--change", changeDir]);
+  assert.equal(status, 1, "Structural Verification's own FAIL exit code is unaffected by Loop");
+  assert.match(out, /Loop: attempt 1 of 2 — FAIL/);
+  assert.match(out, /Retry available — fix the items above, then run: aief verify --change/);
+  const logPath = path.join(full, "loop.md");
+  assert.ok(fs.existsSync(logPath));
+  const content = fs.readFileSync(logPath, "utf8");
+  assert.match(content, /# Loop Log/);
+  assert.match(content, /## Attempt 1 —/);
+  assert.match(content, /Result: FAIL/);
+  assert.match(content, /Feedback:\n- .*spec\.md.*empty/);
+  assert.match(content, /Decision: Retry available \(1\/2\)\./);
+});
+
+test("verify --change: a second failing attempt reaches the retry limit, loop.md accumulates (append, never overwrite)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir, full } = loopChange(dir, "loop-exhausted", { loop: { verify: { maxRetries: 2 } } });
+  fs.writeFileSync(path.join(full, "spec.md"), "", "utf8");
+  aief(dir, ["verify", "--change", changeDir]);
+  const { out, status } = aief(dir, ["verify", "--change", changeDir]);
+  assert.equal(status, 1);
+  assert.match(out, /Loop: attempt 2 of 2 — FAIL/);
+  assert.match(out, /Retry limit reached \(2\/2\) — manual review required\. See changes\//);
+  assert.doesNotMatch(out, /Retry available/);
+  const content = fs.readFileSync(path.join(full, "loop.md"), "utf8");
+  assert.equal((content.match(/# Loop Log/g) || []).length, 1, "the header is written exactly once");
+  assert.equal((content.match(/^## Attempt \d+ —/gm) || []).length, 2, "both attempts are recorded, the first one untouched");
+  assert.match(content, /## Attempt 1 —/);
+  assert.match(content, /## Attempt 2 —/);
+});
+
+test("verify --change: a passing attempt reports Loop complete, never a retry hint", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir } = loopChange(dir, "loop-pass", { loop: { verify: { maxRetries: 2 } } });
+  const { out, status } = aief(dir, ["verify", "--change", changeDir]);
+  assert.equal(status, 0);
+  assert.match(out, /Loop: attempt 1 of 2 — PASS/);
+  assert.match(out, /Loop complete — Change verified\./);
+  assert.doesNotMatch(out, /Retry/);
+});
+
+test("verify --change: loop.verify with no maxRetries defaults to 3", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir } = loopChange(dir, "loop-default-retries", { loop: { verify: {} } });
+  const { out } = aief(dir, ["verify", "--change", changeDir]);
+  assert.match(out, /Loop: attempt 1 of 3 —/);
+});
+
+test("verify --change: an invalid loop.verify.maxRetries is a structural manifest error surfaced by status --change", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "loop-bad-config"]);
+  const changeDir = "0001-loop-bad-config";
+  fs.writeFileSync(path.join(dir, "changes", changeDir, "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "loop-bad-config", title: "x", status: "open",
+    loop: { verify: { maxRetries: 0 } }
+  }), "utf8");
+  const { out, status } = aief(dir, ["status", "--change", changeDir]);
+  assert.equal(status, 1);
+  assert.match(out, /Manifest: invalid/);
+  assert.match(out, /loop\.verify\.maxRetries/);
+});
+
+test("doctor --verbose: lists an open Change's Loop attempt count only when loop.verify is configured", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { changeDir, full } = loopChange(dir, "loop-registry", { loop: { verify: { maxRetries: 2 } } });
+  fs.writeFileSync(path.join(full, "spec.md"), "", "utf8");
+  aief(dir, ["verify", "--change", changeDir]); // one recorded attempt
+  const { out, status } = aief(dir, ["doctor", "--verbose"]);
+  assert.equal(status, 0);
+  assert.match(out, /\nLoop:/);
+  assert.match(out, new RegExp(`- ${changeDir}: 1 attempt\\(s\\) so far, limit 2`));
+});
+
+test("doctor --verbose: never writes loop.md itself (read-only registry scan)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { full } = loopChange(dir, "loop-readonly-doctor", { loop: { verify: { maxRetries: 2 } } });
+  aief(dir, ["doctor", "--verbose"]);
+  assert.ok(!fs.existsSync(path.join(full, "loop.md")));
+});
+
+test("Harness/LIDR Skills/Standards/Bootstrap are unaffected by Loop (Change 0057 touches only verify --change and doctor --verbose)", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
+  });
+  const bootstrap = aief(dir, ["bootstrap"]);
+  assert.equal(bootstrap.status, 0);
+  assert.doesNotMatch(bootstrap.out, /\nLoop:/);
+  const doctorVerbose = aief(dir, ["doctor", "--verbose"]);
+  assert.match(doctorVerbose.out, /pair-programming \[project\]/, "0054's Skill wiring still works, untouched by Loop");
+  assert.match(doctorVerbose.out, /\nHarness:/, "0056's Harness registry still works, untouched by Loop");
+});
+
 // --- Entrega 7 (Change 0049, ADR-021) — Verification Engine, `verify` integration ---
 
 test("verify --change is byte-identical without --requirements (Entrega 7 default stays legacy)", () => {

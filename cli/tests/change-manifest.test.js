@@ -170,3 +170,41 @@ test("validateManifest: an unknown Hook id inside a known event's disabled list 
   const { valid } = validateManifest({ ...VALID_MANIFEST, harness: { hooks: { "prompt.prepared": { disabled: ["totally-made-up-hook"] } } } });
   assert.equal(valid, true);
 });
+
+// --- Change 0057/ADR-027: loop structural validation ---
+
+test("validateManifest: no loop field is valid (the default for every existing Change)", () => {
+  const { valid, errors } = validateManifest(VALID_MANIFEST);
+  assert.equal(valid, true);
+  assert.deepEqual(errors, []);
+});
+
+test("validateManifest: loop.verify present with no maxRetries is structurally valid (default applied at runtime)", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, loop: { verify: {} } });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: a valid loop.verify.maxRetries passes", () => {
+  const { valid } = validateManifest({ ...VALID_MANIFEST, loop: { verify: { maxRetries: 5 } } });
+  assert.equal(valid, true);
+});
+
+test("validateManifest: loop must be an object when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, loop: "yes" });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "loop"));
+});
+
+test("validateManifest: loop.verify must be an object when present", () => {
+  const { valid, errors } = validateManifest({ ...VALID_MANIFEST, loop: { verify: "yes" } });
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.field === "loop.verify"));
+});
+
+test("validateManifest: loop.verify.maxRetries must be a positive integer", () => {
+  for (const bad of [0, -1, 1.5, "three", null, []]) {
+    const { valid, errors } = validateManifest({ ...VALID_MANIFEST, loop: { verify: { maxRetries: bad } } });
+    assert.equal(valid, false, `maxRetries ${JSON.stringify(bad)} must be rejected`);
+    assert.ok(errors.some((e) => e.field === "loop.verify.maxRetries"));
+  }
+});

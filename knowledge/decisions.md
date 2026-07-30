@@ -4,6 +4,108 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-027: Loop is opt-in, per-Change attempt tracking over the unmodified verify pipeline — feedback is reused, never recomputed; retry is always a manual re-invocation, never automatic; `loop.md` mirrors ADR-026's `hooks.md` exactly
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0057](../changes/0057-loop-verify-feedback-retry/)'s planning artifacts (`spec.md`/`tasks.md`); the third opt-in `manifest.json` extension following the pattern [ADR-026](#adr-026-harness-configuration-is-per-change-keyed-by-event-id-opt-in-via-manifestjson-disabling-and-logging-are-post-evaluation-filters-over-the-unmodified-adr-020-hook-runtime--never-a-second-hook-system-never-command-execution-never-blocking) established for Harness.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `loop: { verify: { maxRetries: <positive integer,
+> default 3> } }`. When present, `aief verify --change <id>` becomes attempt-aware: the current
+> attempt number is `(the count of "## Attempt" sections already in <changeDir>/loop.md) + 1` —
+> derived from the visible file itself, never a hidden counter and never a `manifest.json` write
+> (verify stays a read-mostly command; only `loop.md`, an opt-in artifact exactly like Harness's
+> `hooks.md`, is ever written, and only by the calling command, never by any Hook or Skill).
+> **Feedback is `VerificationReport.errors`** — the exact strings Structural Verification already
+> computed and already prints — never a second, parallel analysis. The **outcome** is a pure
+> function of three already-known facts (`passed`, `attempt`, `maxRetries`): `passed` →
+> `"passed"`; `!passed && attempt < maxRetries` → `"retry_available"`; `!passed && attempt >=
+> maxRetries` → `"exhausted"`. Loop prints one additive summary line after the existing report and
+> Hook output, and appends one dated entry to `loop.md` — it never touches `report.passed`,
+> `renderReport()`'s already-decided exit code, or `close()`'s own readiness check.
+>
+> **"Retry" names an outcome, never an action.** No code path introduced by this Change re-invokes
+> `verify`, a Hook, a Skill, an assistant, or any process — a "retry" is the human or assistant
+> running `aief verify --change <id>` again, by their own decision, exactly as they always could.
+> Loop does not gain, and this Change does not introduce, any capability to execute anything
+> automatically.
+>
+> `aief doctor --verbose` gains a conditional, read-only "Loop:" registry — every open Change with
+> `loop.verify` configured, and its current attempt/status, computed the same way `aief verify`
+> would but never writing `loop.md` itself. Absent entirely when no open Change configures Loop.
+> `aief status --change <id>` gains **no** Loop section, and `aief close` gains **no** Loop
+> gating — see "Why no `status`/`close` integration" below.
+
+**Why this needs its own ADR.** A third opt-in `manifest.json` field with its own schema, a new
+service module, a new per-Change persisted artifact, and a decision about which commands surface
+it are each independently ADR-triggering (same bar ADR-016 through ADR-026 applied) — and because
+"retry" is a word that, read carelessly, could imply automatic re-execution; this ADR exists
+partly to foreclose that reading explicitly, the same way ADR-020 forecloses Hook command
+execution.
+
+**Why `loop.md` mirrors `hooks.md`, field for field.** Change 0056 already solved every structural
+question this Change would otherwise re-litigate: visible vs. hidden state (ADR-009), append vs.
+overwrite, what "safe to log" means (already-computed, already-printed strings only — never raw
+content that wasn't already going to the terminal), and where responsibility for the write sits
+(the orchestrating command, never the thing being observed). Reusing that shape exactly is not
+laziness — it is the same "don't build a second Hook system" instruction this session has applied
+consistently, generalized to "don't build a second opt-in-log system."
+
+**Why no `status`/`close` integration.** `aief verify --change <id>`'s own Loop summary plus
+`loop.md` already answer every question `status --change` could — a third surface for the same
+three facts (attempt, last result, decision) either duplicates them or invites drift between two
+independently-maintained renderers. `close()` gating was never requested and would be a real new
+authority (Loop deciding whether a Change *may* close) — a materially bigger decision than
+"visibility," explicitly out of this Entrega's scope; if wanted later, it is a separate, explicit,
+separately-reviewed Change, not an implication of this one.
+
+**Why attempt counting reads `loop.md` instead of a manifest field.** A `manifest.json` write from
+`verify()` — a command documented as "Writes nothing" for the whole-project case and, before this
+Change, for the `--change` case too — would be a materially bigger behavioral shift than adding
+one more opt-in artifact file, and would blur `manifest.json`'s existing role (human-authored
+configuration, never runtime-mutated by any command in this codebase — `close()` itself writes
+`change.md`, never the manifest, per Change 0043's own B1 finding). `loop.md` is additive,
+visible, and answers "how many attempts so far" exactly as honestly as counting real attempts
+requires — deleting or hand-editing it changes future numbering, which is the expected,
+transparent consequence of Markdown being the source of truth (ADR-009), not a bug to guard
+against.
+
+**Relationship to ADR-020/ADR-026.** No new Hook event; `hook.js`'s closed catalog, `hooks/
+index.js`, `hook-service.js`, `harness-service.js` are all untouched — zero diff. Loop is
+verify-command bookkeeping, not a Hook reacting to `verify.completed`.
+
+**Relationship to ADR-016 (`manifest.json`).** `loop` joins `sdd`/`track`/`harness` as another
+optional, additive top-level field — required-field set unchanged; a legacy Change (no manifest,
+or a manifest without `loop`) is entirely unaffected.
+
+**Alternatives considered.**
+
+- **Store the attempt counter in `manifest.json` itself.** Rejected — see "Why attempt counting
+  reads `loop.md`" above; would make `verify()` write to a file no command in this codebase writes
+  to today, a bigger and riskier precedent than one more opt-in log file.
+- **Auto re-run `aief verify` (or invoke an assistant) when a retry is "available."** Rejected
+  outright, per the commissioning instruction's explicit prohibition — Loop reports an outcome,
+  it never acts on it.
+- **A `status --change` Loop section, mirroring Harness's own conditional section exactly.**
+  Considered; rejected for this Entrega — see "Why no `status`/`close` integration."
+- **Gate `aief close` on `exhausted`.** Considered; rejected — a real new authority decision, not
+  requested, and out of proportion to "visibility," this Entrega's stated goal.
+
+**Consequences.**
+
+- `cli/src/core/domain/hook.js`, `cli/src/hooks/index.js`, `cli/src/core/services/hook-service.js`,
+  `cli/src/core/services/hook-context.js`, `cli/src/core/services/harness-service.js`,
+  `cli/src/core/domain/ai-specs.js`, `cli/src/detect.js`, and `change-verifier.js`'s report
+  computation are untouched by this Entrega — zero diff lines.
+- A Change with no `loop` field sees byte-identical `aief verify` (whole-project and `--change`)
+  and `aief doctor` (default and `--verbose`) output, and `loop.md` is never created.
+- `aief close`'s readiness check and `aief status --change`'s existing sections are unaffected —
+  no new authority, no new read surface introduced there.
+- A future Change proposing automatic retry execution, `status`/`close` integration, or a
+  manifest-persisted counter must amend or supersede this ADR first, not merely cite it.
+
+---
+
 ## ADR-026: Harness configuration is per-Change, keyed by event id, opt-in via `manifest.json`; disabling and logging are post-evaluation filters over the unmodified ADR-020 Hook Runtime — never a second Hook system, never command execution, never blocking
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0056](../changes/0056-harness-hooks-visibility/)'s planning artifacts (`spec.md`/`tasks.md`); the first user-facing configuration surface over the Hook Runtime [ADR-020](#adr-020-a-hook-is-a-versioned-capability-gated-closed-catalog-event-observer-blocking-authority-is-contractually-reserved-but-structurally-inert-this-entrega-effects-deferred)

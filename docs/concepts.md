@@ -109,6 +109,16 @@ append-only execution log (`manifest.harness.log`, written to `<changeDir>/hooks
 --verbose` shows every registered Hook; `aief status --change <id>` shows a Change's effective
 Harness configuration, only when declared. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
 
+## Loop
+
+Opt-in, per-Change attempt tracking over `aief verify --change <id>` (Change 0057):
+**Verify → Feedback → Retry (if applicable) → Final result.** Feedback reuses Structural
+Verification's own error lines; the outcome (`passed`/`retry_available`/`exhausted`) is a pure
+decision over the attempt number (derived from `<changeDir>/loop.md` itself) and
+`manifest.loop.verify.maxRetries`. "Retry" is always a manual re-invocation — Loop never re-runs
+`verify`, a Hook, or anything else automatically, and never changes `verify`'s own PASS/FAIL or
+exit code. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
+
 ## Verification Rule / Requirement Verification
 
 `aief verify --requirements` runs **Requirement Verification**: for each requirement a Change's

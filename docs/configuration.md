@@ -35,10 +35,12 @@ into the Workflow Engine and/or the SDD Provider.
 | `sdd.change_id` | no | non-empty string | The identifier the provider resolves against (e.g. the OpenSpec change's own directory name). |
 | `harness.log` | no | boolean | Opts into a visible, append-only `<changeDir>/hooks.md` execution log. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration). |
 | `harness.hooks."<event>".disabled` | no | array of Hook id strings | Excludes listed Hook ids from that event's output/log. `<event>` must be `"prompt.prepared"` or `"verify.completed"` — any other key is an invalid-manifest error. An unknown Hook id inside the array is a visible warning (`aief status --change <id>`), never a crash and never disables anything real. |
+| `loop.verify.maxRetries` | no | positive integer, default `3` | Opts the Change into Loop attempt tracking for `aief verify --change <id>`. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry). |
 
-An invalid manifest (bad JSON, wrong schema, missing required field, or — since Change 0056 — an
-unrecognized `harness` shape) is reported as a distinct, visible state by `aief status` — it is
-never silently treated as "no manifest," and never falls back to inferring the missing fields.
+An invalid manifest (bad JSON, wrong schema, missing required field, or — since Change 0056/0057 —
+an unrecognized `harness`/`loop` shape) is reported as a distinct, visible state by `aief status`
+— it is never silently treated as "no manifest," and never falls back to inferring the missing
+fields.
 
 ## Workflow track definitions — `cli/src/workflows/*.json`
 
@@ -128,6 +130,16 @@ Change's `manifest.harness.log` is `true`; appended to on every `aief prompt`/`a
 active (non-disabled) Hook evaluated for the fired event: id, event, status, and the Hook's own
 short summary — never raw command output, full context, or a credential. Absent by default. See
 [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
+
+## `changes/<id>-<slug>/loop.md`
+
+Optional, per-Change, visible Loop attempt log (Change 0057/ADR-027). Written only when that
+Change's `manifest.loop.verify` is declared; appended to on every `aief verify --change <id>` call
+targeting it — never truncated or rewritten. Each entry records: attempt number, timestamp,
+PASS/FAIL, Feedback (Structural Verification's own error lines, reused as-is), and the decision
+(`retry available`/`retry limit reached`/`loop complete`). The current attempt number is derived
+by counting this file's own prior entries — never a hidden counter, never a `manifest.json` write.
+Absent by default. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
 
 ## CI gate
 
