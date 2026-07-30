@@ -64,9 +64,9 @@ test("root AGENTS.md is byte-identical to the canonical template", () => {
   assert.equal(root, canonical, "repo-root AGENTS.md has drifted from cli/templates/agents/AGENTS.md");
 });
 
-test("aief adopt writes AGENTS.md byte-identical to the canonical", () => {
+test("aief bootstrap writes AGENTS.md byte-identical to the canonical", () => {
   const dir = makeProject({ "package.json": '{"name":"x"}' });
-  aief(dir, ["adopt"]);
+  aief(dir, ["bootstrap"]);
   const generated = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
   const canonical = fs.readFileSync(CANONICAL, "utf8");
   assert.equal(generated, canonical, "adopt produced an AGENTS.md that differs from the canonical");
@@ -74,7 +74,7 @@ test("aief adopt writes AGENTS.md byte-identical to the canonical", () => {
 
 test("adopted AGENTS.md contains 100% of the canonical normative rules", () => {
   const dir = makeProject({ "package.json": '{"name":"x"}' });
-  aief(dir, ["adopt"]);
+  aief(dir, ["bootstrap"]);
   const generated = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
   for (const rule of CANONICAL_RULES) {
     assert.ok(generated.includes(rule), `adopted AGENTS.md is missing the rule: "${rule}"`);
@@ -83,7 +83,7 @@ test("adopted AGENTS.md contains 100% of the canonical normative rules", () => {
 
 test("adopted AGENTS.md carries the human and review gates the old stub omitted", () => {
   const dir = makeProject({ "package.json": '{"name":"x"}' });
-  aief(dir, ["adopt"]);
+  aief(dir, ["bootstrap"]);
   const generated = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
   assert.match(generated, /\(human\)/, "missing (human) gate");
   assert.match(generated, /\(review\)/, "missing (review) gate");
@@ -92,28 +92,28 @@ test("adopted AGENTS.md carries the human and review gates the old stub omitted"
 
 test("adopted AGENTS.md keeps the assistant-file pointer (the rule only the stub had)", () => {
   const dir = makeProject({ "package.json": '{"name":"x"}' });
-  aief(dir, ["adopt"]);
+  aief(dir, ["bootstrap"]);
   const generated = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
   for (const f of ["CLAUDE.md", "GEMINI.md", "CODEX.md", "CURSOR.md"]) {
     assert.ok(generated.includes(f), `assistant pointer lost: ${f}`);
   }
 });
 
-test("adopt never overwrites an existing AGENTS.md (idempotence, ADR-005)", () => {
+test("bootstrap never overwrites an existing AGENTS.md (idempotence, ADR-005)", () => {
   const custom = "# My own rules\n\nKeep these.\n";
   const dir = makeProject({ "package.json": '{"name":"x"}', "AGENTS.md": custom });
-  aief(dir, ["adopt"]);
+  aief(dir, ["bootstrap"]);
   assert.equal(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8"), custom, "adopt overwrote a user's AGENTS.md");
 });
 
-test("no adoption path produces a divergent AGENTS.md (adopt vs init are the same)", () => {
+test("no adoption path produces a divergent AGENTS.md (bootstrap with vs without a name)", () => {
   const a = makeProject({ "package.json": '{"name":"x"}' });
-  aief(a, ["adopt"]);
+  aief(a, ["bootstrap"]);
   const b = makeProject({ "package.json": '{"name":"x"}' });
-  aief(b, ["init"]);
+  aief(b, ["bootstrap"]);
   assert.equal(
     fs.readFileSync(path.join(a, "AGENTS.md"), "utf8"),
     fs.readFileSync(path.join(b, "AGENTS.md"), "utf8"),
-    "adopt and init produced different AGENTS.md"
+    "bootstrap produced different AGENTS.md across runs"
   );
 });

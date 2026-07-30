@@ -4,6 +4,57 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-022: ADR-015's freeze is explicitly thawed for AIEF 3.1, by the project owner's direct decision — not by Change 0042's consolidation
+
+**Status: Accepted (2026-07-30), by the project owner.**
+
+**Decision.**
+
+> ADR-015 froze **new commands**, **onboarding**, and **documentation simplification** until Change
+> 0042's usability study ran and its evidence was consolidated. That study was never run —
+> `changes/0042-usability-validation-protocol/consolidation.md` is still the empty template
+> (`## 1. Sessions summary` with no data filled in). ADR-015 itself anticipated exactly this kind
+> of override: *"The thaw is a separate, later, explicit decision — it does not happen
+> automatically when the study ends; it happens when a human reads the consolidation and says
+> so."* This ADR **is** that explicit decision, made directly by the project owner on 2026-07-30,
+> commissioning **AIEF 3.1** — without waiting for Change 0042 to run. The freeze is lifted
+> specifically for the AIEF 3.1 initiative (tracked under `feat/v3.1` and its Changes, starting at
+> Change 0052); it is not a blanket repeal of ADR-015's reasoning for any future initiative.
+
+**Why override rather than run the study first.** The owner weighed the study's evidentiary value
+against the cost of the wait (recruiting ≥5 participants across experience levels, an independent
+moderator, session time) and chose to proceed on the same reframe ADR-013/ADR-015 already
+established as the goal — discoverability and ease of adoption, informed by the real dogfooding
+signal already on record (`docs/history/dogfooding-findings.md`) and by the Core 3.0 build itself
+(Changes 0043–0051) — rather than block AIEF 3.1 on a study that has not started. This is a
+judgment call by the accountable human, exactly the authority ADR-015 §"Consequences" reserved for
+the owner alone.
+
+**What stays true from ADR-015, unweakened.** DELETE/ARCHIVE candidates (R10/R11/R13/R14/R12, the
+Change 0038 map) and Type↔Track ([Change 0039](../changes/0039-type-track-derivation-design/))
+remain frozen — this thaw is scoped to the three items AIEF 3.1 actually needs (new commands,
+onboarding, documentation simplification) and does not touch the rest of ADR-015's list. Change
+0042's protocol is not discarded — running it later, on AIEF 3.1's result, remains available and
+arguably more useful once there is a redesigned onboarding flow to test.
+
+**Relationship to ADR-013.** AIEF 3.1's first Change (0052) must still name what it removes, not
+merely add — the merge of `init`/`adopt` into `aief bootstrap` (see Change 0052) is the concrete
+instance: `bootstrap` replaces both as the public commands (their logic becomes internal, invoked
+only by `bootstrap`), not an additive third command living beside the two it overlaps with. This
+ADR does not itself waive ADR-013 — each Change under AIEF 3.1 must independently satisfy it.
+
+**Consequences.**
+
+- Change 0052 (and subsequent AIEF 3.1 Changes) may introduce new command surface and touch
+  onboarding/documentation, where every prior Core 3.0 Change (0043–0051) was structurally
+  required to avoid both.
+- Each AIEF 3.1 Change must still individually satisfy ADR-013 (name what it removes/merges).
+- The DELETE/ARCHIVE map and Type↔Track design stay frozen — unaffected by this ADR.
+- Change 0042's protocol remains valid and un-superseded; it may still be run later, against
+  AIEF 3.1's result, as a separate, later, explicit decision.
+
+---
+
 ## ADR-021: Verification splits into Structural (existing) and Requirement (new, evidence-based, deterministic) layers; evidence is consumed and normalized, never generated; `close()` and Workflow-gate integration are deferred
 
 **Status: Accepted (2026-07-27)** — status line updated by [Change 0051](../changes/0051-core3-documentation-rebuild/) to reflect [Change 0049](../changes/0049-core3-verification-engine/)'s own closure record (`change.md`: "Status: Closed (2026-07-27)"); the decision text below is unchanged. Proposed alongside the rest of Change 0049's planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation completed and the Change closed the following day, per that Change's own evidence.

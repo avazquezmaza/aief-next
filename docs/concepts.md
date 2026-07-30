@@ -92,7 +92,7 @@ reports one of seven honest statuses (`ready`, `completed`, `not_applicable`, `b
 release is **instructions-only**: it hands the assistant guidance to follow, it does not write
 files, execute commands, or reach the network on its own.
 
-This is distinct from the **Skill Catalog** (`aief doctor`/`aief adopt`'s recommended Skills,
+This is distinct from the **Skill Catalog** (`aief doctor`/`aief bootstrap`'s recommended Skills,
 written to `knowledge/skills.md`) — that is passive, static, contextual knowledge; the Skills
 Runtime above is a registered, invocable contract. See [CLI Reference](cli.md#prompt) for both.
 

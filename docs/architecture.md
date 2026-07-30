@@ -147,7 +147,7 @@ editing the catalog.
 
 AIEF ships as a root npm package exposing the `aief` binary from `cli/bin/aief.js`. No runtime
 dependencies. `aief doctor` checks the environment in three levels (required / recommended /
-optional); `aief init`/`aief adopt` create only visible structure, never application code, and are
+optional); `aief bootstrap` creates only visible structure, never application code, and is
 idempotent. See [Getting Started](getting-started.md).
 
 ## What is deliberately absent

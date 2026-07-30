@@ -21,11 +21,13 @@ existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
 
 ## Bootstrap and adoption
 
+`aief bootstrap` (AIEF 3.1, Change 0052) replaces the former `aief init`/`aief adopt` commands —
+both now print a one-line redirect and exit 1.
+
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief init` | `AGENTS.md`, `changes/`, PATH (OpenSpec/SpecBoot) | `AGENTS.md` if missing, `changes/`, `knowledge/`, `profiles/` | Initialize the current directory. Never touches application code. |
-| `aief init <name>` | Nothing | `<name>/` project skeleton | Create a new project. |
-| `aief adopt` | `README.md`, `AGENTS.md`, `package.json` | Same as `init` (no argument), plus an adoption Change | Prepare an existing project for AIEF. |
+| `aief bootstrap` | `AGENTS.md`, `changes/`, PATH (OpenSpec/SpecBoot, TTY) | `AGENTS.md` if missing, `changes/`, `knowledge/`, `profiles/`, starter standards, `knowledge/skills.md`, the CI gate, an `adopt-aief` Change, and `knowledge/sdd-provider.json` only when the SDD Provider choice is ambiguous and you are prompted | Bootstrap the current directory. Never touches application code, never overwrites existing files. |
+| `aief bootstrap <name>` | Nothing | `<name>/` project skeleton | Create a new project. |
 | `aief analyze [name]` | Detected project signals | `changes/<id>-<name>/`, seeded with signals/Skills/standards | Create an Analysis Change. |
 
 ## Work

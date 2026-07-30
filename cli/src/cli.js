@@ -11,7 +11,8 @@ import { loadWorkflowDefinition, KNOWN_TRACKS } from "./core/domain/workflow-def
 import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
 import { evaluateGates } from "./core/services/gate-evaluator.js";
 import { resolveState } from "./core/services/transition-engine.js";
-import { resolveSddProvider } from "./core/domain/sdd-provider-resolver.js";
+import { resolveSddProvider, sddProviderConfigPath } from "./core/domain/sdd-provider-resolver.js";
+import { getProvider } from "./sdd-providers/index.js";
 import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
 import { buildSkillContext } from "./core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
@@ -246,7 +247,7 @@ const COMMAND_HELP = {
     reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/.",
     writes: "Nothing.",
     example: "aief doctor",
-    next: "aief adopt (existing project) or aief init <name> (new project)."
+    next: "aief bootstrap (current directory) or aief bootstrap <name> (new project)."
   },
   status: {
     purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action.",
@@ -256,13 +257,13 @@ const COMMAND_HELP = {
     example: "aief status --change <id> --next",
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
-  adopt: {
-    purpose: "Prepare an existing project to use AIEF without changing application code.",
-    when: "Inside an existing project, before analysis or implementation Changes.",
-    reads: "README.md, CLAUDE.md, AGENTS.md, package.json and common project files.",
-    writes: "AGENTS.md if missing, changes/, knowledge/, profiles/README.md, and changes/<next-id>-adopt-aief/ if missing. Never modifies application code.",
-    example: "aief adopt",
-    next: "aief verify, then aief analyze."
+  bootstrap: {
+    purpose: "Bootstrap a project to use AIEF: detects what it can, asks only what it must (the SDD Provider, only when genuinely ambiguous), and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
+    when: "Right after cloning, or the first time an existing project starts using AIEF.",
+    reads: "AGENTS.md, changes/, openspec/, specboot markers, PATH (OpenSpec/SpecBoot CLIs, TTY), package.json, README.md and common project files.",
+    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, the CI gate, changes/<next-id>-adopt-aief/, and knowledge/sdd-provider.json only when the SDD Provider choice is ambiguous and you are prompted. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
+    example: "aief bootstrap   (or: aief bootstrap my-project)",
+    next: "aief verify, then aief analyze or aief new-change <name>."
   },
   analyze: {
     purpose: "Create an Analysis Change for an existing project.",
@@ -328,14 +329,6 @@ const COMMAND_HELP = {
     example: "aief release 0.2.0",
     next: "Fill in the release notes, then tag the release."
   },
-  init: {
-    purpose: "Initialize the current directory for AIEF (no argument), or create a new project skeleton (with a name).",
-    when: "Right after cloning or when starting to use AIEF in a project.",
-    reads: "AGENTS.md, changes/, openspec/, specboot markers and PATH (OpenSpec/SpecBoot CLIs).",
-    writes: "Without argument: visible AIEF structure only (AGENTS.md if missing, changes/, knowledge/, profiles/) via the adopt logic — never application code, never a hidden .aief/ directory. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/.",
-    example: "aief init",
-    next: "aief doctor, then aief new-change <name>."
-  },
   "use-profile": {
     purpose: "Print a minimal prompt header for a role profile.",
     when: "When you want the assistant to act as a specific role.",
@@ -369,8 +362,8 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status [--change change-id] [--next]\n\nAdoption:\n  aief init                 (initialize the current directory)\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
-              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status [--change change-id] [--next]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -395,7 +388,7 @@ function analysisContextSection(context) {
     "",
     "### Available Standards",
     "",
-    standards.length ? standards.map((f) => `- knowledge/standards/${f}`).join("\n") : "- None yet — run `aief adopt` to create starter standards.",
+    standards.length ? standards.map((f) => `- knowledge/standards/${f}`).join("\n") : "- None yet — run `aief bootstrap` to create starter standards.",
     "",
     "### Initial Risks (inferred from detected technologies — confirm or discard)",
     "",
@@ -593,14 +586,18 @@ ${artifactLines}
 Run \`aief analyze\` to create the analysis Change.
 `;
 }
-function adopt(args) {
-  section("AIEF Adopt"); console.log("Purpose: prepare an existing project to use AIEF without changing application code.");
-  runAdoption();
-  printNext("aief verify", "aief analyze");
+// `init`/`adopt` were replaced by `aief bootstrap` in Change 0052 (ADR-013:
+// bootstrap merges them rather than sitting beside them). Their
+// implementations are kept as internal functions, called only from
+// bootstrap()'s dispatch — never exposed as public commands again.
+function commandRemoved(oldName) {
+  console.error(`aief ${oldName} has been replaced by aief bootstrap. Run: aief bootstrap`);
+  process.exitCode = 1;
 }
-// Shared by adopt and init (no argument): creates only visible AIEF structure
-// (AGENTS.md, changes/, knowledge/, profiles/) — never a hidden .aief/
-// directory (ADR-009: no hidden state) and never application code.
+// Shared by bootstrap: creates only visible AIEF structure (AGENTS.md,
+// changes/, knowledge/, profiles/) — never a hidden .aief/ directory
+// (ADR-009: no hidden state) and never application code. Returns the list of
+// newly created artifacts (empty when everything already existed).
 function runAdoption() {
   const project = detectProject();
   const skills = recommendSkills(project);
@@ -633,6 +630,7 @@ function runAdoption() {
     writeFile(path.join(dir, "evidence.md"), adoptionEvidence(project, skills, artifacts));
     console.log(`✓ Created changes/${id}-adopt-aief (evidence generated automatically)`);
   } else console.log("✓ Adoption Change already exists");
+  return artifacts;
 }
 function analyze(args) {
   const parsed = parseArgs(args);
@@ -1023,7 +1021,7 @@ function statusOverview(project = detectProject(), showNext = true) {
   }
   console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`);
   if (!showNext) return;
-  if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief adopt"); return; }
+  if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief bootstrap"); return; }
   if (!changes.length) { printNext("aief analyze"); return; }
   if (open.length > 1) { printNext("aief prompt --change <id>", "aief close --yes --change <id>"); return; }
   // ADR-018 §1 (Change 0046): for the one case where this suggestion and the
@@ -1193,14 +1191,51 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : "aief analyze"); }
-function initProject(name) { if (!name) return initHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
-// `aief init` without arguments prepares the current directory. It creates
-// only visible structure via runAdoption() and reports how AIEF fits with
-// OpenSpec and SpecBoot — it informs, it does not install them.
-function initHere() {
-  section("AIEF Init");
-  console.log("Purpose: initialize the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
+function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
+// Blocking, dependency-free stdin read — only ever called after an isTTY
+// check (bootstrap's ambiguous-provider case), so it never hangs a
+// non-interactive shell (CI, piped input, the test suite).
+function promptSync(question) {
+  process.stdout.write(question);
+  const buffer = Buffer.alloc(2048);
+  let bytesRead = 0;
+  try { bytesRead = fs.readSync(0, buffer, 0, buffer.length, null); } catch { bytesRead = 0; }
+  return buffer.toString("utf8", 0, bytesRead).trim();
+}
+// Implements sdd-provider-resolver.js's step 2 (project-level configuration)
+// from the bootstrap side (spec.md R4). Only ever prompts when the choice is
+// genuinely ambiguous (OpenSpec available AND a specboot/LIDR marker
+// present) and stdin is a TTY; every other case is silent and deterministic.
+// knowledge/sdd-provider.json, once written, is never overwritten (R7).
+function configureSddProvider(specbootMarker) {
+  const projectCwd = process.cwd();
+  const configPath = sddProviderConfigPath(projectCwd);
+  if (fs.existsSync(configPath)) {
+    const resolved = resolveSddProvider({ manifest: null }, projectCwd);
+    return resolved.error
+      ? `knowledge/sdd-provider.json is invalid (${resolved.error}) — falling back, see aief doctor.`
+      : `${resolved.provider.PROVIDER_ID} (from knowledge/sdd-provider.json, already configured — never overwritten)`;
+  }
+  const openspecAvailable = getProvider("openspec").detect(projectCwd).available;
+  const ambiguous = openspecAvailable && specbootMarker;
+  if (ambiguous && process.stdin.isTTY) {
+    const answer = promptSync('Both OpenSpec and SpecBoot were detected. Which SDD Provider should AIEF use for this project — "openspec" or "local"? [openspec]: ').toLowerCase();
+    const choice = answer === "local" ? "local" : "openspec";
+    writeFile(configPath, `${JSON.stringify({ provider: choice, setBy: "bootstrap", date: new Date().toISOString().slice(0, 10) }, null, 2)}\n`);
+    return `${choice} (your choice — saved to knowledge/sdd-provider.json)`;
+  }
+  const resolved = resolveSddProvider({ manifest: null }, projectCwd);
+  const reason = ambiguous ? "non-interactive shell, using the deterministic default" : resolved.source === "detected" ? "OpenSpec detected" : "default";
+  return `${resolved.provider.PROVIDER_ID} (${reason})`;
+}
+// `aief bootstrap` (current directory) replaces `init`/`adopt` (Change
+// 0052). It creates only visible structure via runAdoption(), reports how
+// AIEF fits with OpenSpec and SpecBoot, resolves the SDD Provider (R4), and
+// ends with one recommended next command.
+function bootstrapHere() {
+  section("AIEF Bootstrap");
+  console.log("Purpose: bootstrap the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
   const openspecCli = commandExists("openspec") || commandExists("opsx");
   const openspecProject = exists("openspec") || exists(".openspec");
   const specboot = commandExists("specboot") || exists("specboot") || exists(".specboot");
@@ -1210,13 +1245,24 @@ function initHere() {
   console.log(openspecCli ? "✓ OpenSpec CLI" : "○ OpenSpec CLI: not detected");
   console.log(openspecProject ? "✓ OpenSpec project structure (openspec/)" : "○ OpenSpec project structure: not detected");
   console.log(specboot ? "✓ SpecBoot" : "○ SpecBoot: not detected");
-  runAdoption();
+  const artifacts = runAdoption();
+  const sddMessage = configureSddProvider(specboot);
+  console.log("\nSDD Provider:");
+  console.log(`  ${sddMessage}`);
+  console.log(`\n${"─".repeat(60)}`);
+  console.log(artifacts.length
+    ? `Bootstrap complete — created ${artifacts.length} new artifact(s) (see above).`
+    : "Bootstrap complete — this directory was already bootstrapped, nothing new to create.");
   console.log("\nNext steps:");
   console.log("  1. Run: aief doctor");
   console.log("  2. Install OpenSpec if missing: npm install -g @fission-ai/openspec@latest");
   console.log("  3. Initialize OpenSpec if needed: openspec init");
-  console.log("  4. Apply SpecBoot if needed: see adapters/specboot/README.md in the AIEF repo");
-  console.log("  5. Create your first AIEF change: aief new-change <name>");
+  if (specboot) console.log("  4. SpecBoot detected — see adapters/specboot/README.md (deeper LIDR integration is a following AIEF 3.1 Change).");
+  console.log(`  ${specboot ? "5" : "4"}. Create your first AIEF change: aief new-change <name>`);
+}
+function bootstrap(args) {
+  const parsed = parseArgs(args);
+  initProject(parsed._[0]);
 }
 // Validate the OpenSpec CLI contract before delegating. Never assume
 // "openspec propose <idea>" exists: check installation, version and
@@ -1278,4 +1324,4 @@ function printVersion() {
   const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"));
   console.log(`aief ${pkg.version}`);
 }
-export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}
+export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "bootstrap": bootstrap(rest); break; case "adopt": commandRemoved("adopt"); break; case "analyze": analyze(rest); break; case "init": commandRemoved("init"); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

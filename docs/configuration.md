@@ -66,7 +66,7 @@ transition as available. See [Architecture — Workflow Engine](architecture.md#
 
 ## `knowledge/standards/*.md`
 
-Editable project standards, created by `aief adopt`/`aief init` from
+Editable project standards, created by `aief bootstrap` from
 `cli/templates/standards/` and never overwritten afterward:
 
 - Always: `base-standards.md`, `documentation-standards.md`, `testing-standards.md`,
@@ -79,7 +79,7 @@ are a property of your project, not of AIEF.
 
 ## `knowledge/skills.md`
 
-Generated once by `aief adopt` as a readable view of the Skill Catalog's recommendations for this
+Generated once by `aief bootstrap` as a readable view of the Skill Catalog's recommendations for this
 project (detector, reason, prompt context, common risks). Never overwritten on re-adoption; edit it
 to add project-specific notes. This is the Skill *Catalog* (static, contextual, unexecuted) — not
 to be confused with the Skills *Runtime* (`aief prompt --skill <id>`), which is a registered,
@@ -105,9 +105,17 @@ fills the facts), `jira` (reads a **local export file** at `requirements/jira/<i
 or any path via `--file` — no network call, no credentials). Requesting an unimplemented provider
 (`notion`, `github`, `azure-devops`) fails loudly, naming what is and isn't implemented.
 
+## `knowledge/sdd-provider.json`
+
+Optional, project-level SDD Provider choice (`{ "provider": "openspec" | "local", "setBy":
+"bootstrap", "date": "..." }`). Written only by `aief bootstrap`, only when the choice is
+genuinely ambiguous (OpenSpec and SpecBoot both detected) and you are prompted for it in an
+interactive shell. Absent by default — a Change's own `manifest.sdd.provider` still wins over it.
+See `sdd-provider-resolver.js`'s step 2.
+
 ## CI gate
 
-`aief adopt` creates `.github/workflows/aief-verify.yml` from
+`aief bootstrap` creates `.github/workflows/aief-verify.yml` from
 `cli/templates/ci/aief-verify.yml` if missing (never overwritten) — one job that runs
 `npx aief verify` on every push and pull request. Not on GitHub Actions? The gate is one command
 you can wire into any CI system yourself: `npx aief verify`.

@@ -30,19 +30,21 @@ and your current project's AIEF readiness. Writes nothing.
 **Existing project (the primary use case)** — run from your project's root:
 
 ```bash
-aief init        # visible AIEF structure only — never touches application code
+aief bootstrap   # visible AIEF structure only — never touches application code
 aief verify      # confirm the structure
 aief analyze     # create an Analysis Change, seeded with everything doctor detected
 ```
 
-`aief init` (identical logic to `aief adopt`) creates `AGENTS.md` if missing, `changes/`,
-`knowledge/` with starter standards matched to your stack, and an adoption Change. It is
-idempotent and never overwrites an existing file.
+`aief bootstrap` creates `AGENTS.md` if missing, `changes/`, `knowledge/` with starter standards
+matched to your stack, and an adoption Change. It also resolves which SDD Provider (OpenSpec or
+local) to use — it only asks when that choice is genuinely ambiguous (both OpenSpec and SpecBoot
+detected); otherwise it decides and reports silently. It is idempotent and never overwrites an
+existing file.
 
 **New project:**
 
 ```bash
-aief init my-project
+aief bootstrap my-project
 cd my-project
 ```
 

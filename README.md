@@ -49,7 +49,7 @@ AIEF deliberately does **not**:
 flowchart LR
     subgraph L1["Level 1: Context & Setup"]
         direction TB
-        A["aief doctor<br/>Environment & stack check"] --> B["aief init / adopt<br/>Adopt project without code edits"]
+        A["aief doctor<br/>Environment & stack check"] --> B["aief bootstrap<br/>Adopt project without code edits"]
         B --> C["aief new-change / enrich<br/>Create Change & specs"]
     end
 
@@ -106,7 +106,7 @@ Full install steps and a first-Change walkthrough: [docs/getting-started.md](doc
 
 ```bash
 aief doctor                              # environment + project readiness
-aief init                                # adopt AIEF in the current project (existing project)
+aief bootstrap                           # adopt AIEF in the current project (existing project)
 aief new-change add-login                # create a Change
 aief prompt claude --profile developer   # generate a context-complete prompt for your assistant
 aief verify                              # check structure and evidence
