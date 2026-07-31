@@ -12,6 +12,7 @@ import { verifyProject, verifyChange, checkChangeReadiness } from "./core/servic
 import { evaluateGates } from "./core/services/gate-evaluator.js";
 import { resolveState } from "./core/services/transition-engine.js";
 import { resolveSddProvider, sddProviderConfigPath } from "./core/domain/sdd-provider-resolver.js";
+import { ASSISTANT_FILES, hasAssistant, assistantIds, assistantConfigPath, resolveAssistant, readProjectAssistantConfig } from "./core/domain/assistant-resolver.js";
 import { getProvider } from "./sdd-providers/index.js";
 import { resolveSkillRecommendations, resolveStandardRecommendations, deriveResourceDescription } from "./core/domain/ai-specs.js";
 import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
@@ -416,11 +417,11 @@ const COMMAND_HELP = {
     next: "Review the proposal, then aief prompt."
   },
   prompt: {
-    purpose: "Generate a ready-to-paste, assistant-agnostic prompt (native file for Claude, Gemini, Codex or Cursor; a generic AGENTS.md-only prompt for any other assistant, e.g. OpenCode).",
-    when: "After creating a Change. With several open Changes, name the target with --change <id>.",
-    reads: "AGENTS.md, assistant files, profiles and the selected Change (implicit only when exactly one Change is open).",
-    writes: "Nothing.",
-    example: "aief prompt gemini --profile architect --change 0002-add-login   (single open Change: aief prompt gemini)",
+    purpose: "Generate a ready-to-paste, assistant-agnostic prompt (native file for Claude, Gemini, Codex or Cursor; a generic AGENTS.md-only prompt for any other assistant, e.g. OpenCode). With no assistant named, resolves one automatically: explicit argument/--assistant > AIEF_ASSISTANT env var > knowledge/assistant.json > passive detection of a single native file present > an interactive choice on a TTY when 2+ native files are found and nothing else disambiguates them (a non-interactive shell fails instead of guessing). Never picks Claude as a silent default.",
+    when: "After creating a Change. With several open Changes, name the target with --change <id>. Use --set-assistant/--show-assistant/--clear-assistant to manage the saved project preference.",
+    reads: "AGENTS.md, assistant files, AIEF_ASSISTANT, knowledge/assistant.json, profiles and the selected Change (implicit only when exactly one Change is open).",
+    writes: "Nothing for a normal prompt (including the interactive TTY choice — that applies to the current run only, never saved). --set-assistant writes/overwrites knowledge/assistant.json; --clear-assistant deletes it if present. --show-assistant writes nothing.",
+    example: "aief prompt gemini --profile architect --change 0002-add-login   (single open Change: aief prompt gemini; set a default: aief prompt --set-assistant claude)",
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
@@ -481,7 +482,8 @@ function printCommandHelp(command) {
 function help(topic) {
   if (topic) return printCommandHelp(topic);
   console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
-              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
+              (long form: --assistant gemini; no name given: resolves automatically)
+              (aief prompt --set-assistant <name> | --show-assistant | --clear-assistant)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -763,22 +765,109 @@ function analyze(args) {
   // name its target instead of relying on implicit "latest open".
   printNext(dir ? `aief prompt claude --profile architect --change ${path.basename(dir)}` : "aief prompt claude --profile architect");
 }
-const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
+// `aief prompt --set-assistant/--show-assistant/--clear-assistant` (Change
+// 0061) manage knowledge/assistant.json — the only writes this file
+// performs, and each is an explicit, separately-named flag (never implied
+// by plain `aief prompt`). Kept next to prompt() rather than as a new
+// command verb: ADR-013 requires every AIEF 3.1 Change to name what it
+// removes/merges, and this Change removes nothing — it only fixes an
+// existing asymmetry in prompt()'s own resolution — so it extends the
+// existing surface instead of adding one (see ADR-031).
+function setAssistantPreference(requested) {
+  section("AIEF Assistant"); console.log("Purpose: persist the project's default assistant to knowledge/assistant.json. This writes a file.\n");
+  if (requested === true || !String(requested || "").trim()) {
+    console.error(`--set-assistant requires a value.\n\nKnown assistants:\n\n${assistantIds().map((a) => `- ${a}`).join("\n")}\n\nExample: aief prompt --set-assistant claude`);
+    process.exitCode = 1;
+    return;
+  }
+  const id = String(requested).toLowerCase();
+  if (!hasAssistant(id)) {
+    console.error(`Unknown assistant "${requested}".\n\nKnown assistants:\n\n${assistantIds().map((a) => `- ${a}`).join("\n")}`);
+    process.exitCode = 1;
+    return;
+  }
+  const configPath = assistantConfigPath(process.cwd());
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, `${JSON.stringify({ defaultAssistant: id, updatedAt: new Date().toISOString(), configuredBy: "aief prompt --set-assistant" }, null, 2)}\n`, "utf8");
+  console.log(`Saved: knowledge/assistant.json now sets the default assistant to "${id}".`);
+  printNext("aief prompt (uses the saved preference automatically)");
+}
+function clearAssistantPreference() {
+  section("AIEF Assistant"); console.log("Purpose: remove the project's saved default assistant from knowledge/assistant.json. This writes (deletes) a file.\n");
+  const configPath = assistantConfigPath(process.cwd());
+  if (!fs.existsSync(configPath)) { console.log("knowledge/assistant.json does not exist — nothing to clear."); return; }
+  fs.rmSync(configPath);
+  console.log("Removed: knowledge/assistant.json. Future runs fall back to AIEF_ASSISTANT, passive detection, or an interactive prompt.");
+}
+function showAssistantPreference() {
+  section("AIEF Assistant"); console.log("Purpose: show the configured preference, the resolved assistant, and where it came from. Writes nothing.\n");
+  const projectCwd = process.cwd();
+  const projectConfig = readProjectAssistantConfig(projectCwd);
+  console.log(`Configured preference (knowledge/assistant.json): ${projectConfig ? (projectConfig.error ? `invalid — ${projectConfig.error}` : projectConfig.assistantId) : "not set"}`);
+  const envRaw = typeof process.env.AIEF_ASSISTANT === "string" ? process.env.AIEF_ASSISTANT.trim().toLowerCase() : "";
+  const resolution = resolveAssistant({ env: envRaw || undefined, cwd: projectCwd });
+  if (resolution.error) { console.log(`Resolved assistant: none — ${resolution.error}`); process.exitCode = 1; return; }
+  if (resolution.source === "ambiguous") { console.log(`Resolved assistant: ambiguous — multiple native files detected (${resolution.ambiguous.join(", ")}); aief prompt will ask interactively or fail in non-interactive shells.`); return; }
+  if (resolution.source === "none") { console.log("Resolved assistant: none — no override, AIEF_ASSISTANT, saved preference, or native assistant file found; aief prompt uses a generic, AGENTS.md-only prompt."); return; }
+  const sourceLabel = { env: "AIEF_ASSISTANT (local, not versioned)", "project-config": "knowledge/assistant.json (project preference)", detected: "passive detection (native file present)" }[resolution.source] || resolution.source;
+  console.log(`Resolved assistant: ${resolution.assistantId} (source: ${sourceLabel})`);
+}
 function prompt(args) {
   const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer";
+  if (parsed["set-assistant"] !== undefined) return setAssistantPreference(typeof parsed["set-assistant"] === "string" ? parsed["set-assistant"] : "");
+  if (parsed["clear-assistant"] === true) return clearAssistantPreference();
+  if (parsed["show-assistant"] === true) return showAssistantPreference();
   // Assistant selection: positional (aief prompt gemini) or --assistant; the
   // explicit flag wins when both are given. Unknown values are a hard error —
-  // never a silent fallback.
+  // never a silent fallback. This branch is unchanged from before Change
+  // 0061 — an explicit override always wins, full stop.
   const requested = typeof parsed.assistant === "string" ? parsed.assistant : (parsed._[0] || "");
-  const assistant = requested.toLowerCase();
-  if (requested && !ASSISTANT_FILES[assistant]) {
-    console.error(`Unknown assistant "${requested}".\n\nKnown assistants:\n\n${Object.keys(ASSISTANT_FILES).map((a) => `- ${a}`).join("\n")}\n\nIf you meant a role, use:\n\n--profile ${requested}`);
+  let assistant = requested.toLowerCase();
+  if (requested && !hasAssistant(assistant)) {
+    console.error(`Unknown assistant "${requested}".\n\nKnown assistants:\n\n${assistantIds().map((a) => `- ${a}`).join("\n")}\n\nIf you meant a role, use:\n\n--profile ${requested}`);
     process.exitCode = 1;
     return;
   }
   if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project${exists("CLAUDE.md") ? "; including CLAUDE.md instead" : ""}.`);
+  // Change 0061: with no explicit override, resolve symmetrically through
+  // AIEF_ASSISTANT -> knowledge/assistant.json -> passive detection (every
+  // registered assistant's native file checked the same way — no assistant
+  // gets a structural advantage). Only when 2+ native files are found and
+  // neither an env var nor a saved preference disambiguates them does this
+  // reach the TTY/non-interactive branch below (AR-R5/AR-R6). Zero files
+  // found is not an error — it is the existing, valid generic-prompt case.
+  let resolutionNote = "";
+  if (!requested) {
+    const envRaw = typeof process.env.AIEF_ASSISTANT === "string" ? process.env.AIEF_ASSISTANT.trim().toLowerCase() : "";
+    const resolution = resolveAssistant({ env: envRaw || undefined, cwd: process.cwd() });
+    if (resolution.error) {
+      console.error(`Could not resolve an assistant: ${resolution.error}\n\nFix this with:\n\n- AIEF_ASSISTANT=<name> aief prompt\n- aief prompt --set-assistant <name>\n- aief prompt <name>`);
+      process.exitCode = 1;
+      return;
+    }
+    if (resolution.source === "ambiguous") {
+      if (process.stdin.isTTY) {
+        const choices = resolution.ambiguous;
+        console.log(`Multiple assistant files detected: ${choices.join(", ")}.`);
+        const answer = promptSync(`Which one should this prompt target — ${choices.join("/")}? `).toLowerCase();
+        if (!choices.includes(answer)) {
+          console.error(`No valid selection made among: ${choices.join(", ")}.`);
+          process.exitCode = 1;
+          return;
+        }
+        assistant = answer;
+        resolutionNote = `\nNote: "${assistant}" was chosen interactively for this run only — nothing was saved. Run "aief prompt --set-assistant ${assistant}" to persist it.\n`;
+      } else {
+        console.error(`Multiple assistant files detected (${resolution.ambiguous.join(", ")}) and no interactive terminal to choose.\n\nResolve this by:\n\n- aief prompt <name>\n- AIEF_ASSISTANT=<name> aief prompt\n- aief prompt --set-assistant <name>`);
+        process.exitCode = 1;
+        return;
+      }
+    } else {
+      assistant = resolution.assistantId || "";
+    }
+  }
   const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
-  section("AIEF Prompt"); console.log("Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n");
+  section("AIEF Prompt"); console.log(`Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n${resolutionNote}`);
   // Entrega 5 (Change 0047, ADR-019) — Skills Runtime, additive flag, no new
   // command verb (ADR-015). A static registry listing: no Change is
   // resolved, no Skill is run, no SDD provider is touched — only

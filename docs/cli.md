@@ -42,9 +42,12 @@ both now print a one-line redirect and exit 1.
 | `aief enrich <provider> <source-id> [--file path]` | The Requirement Source, read-only | A new Change (`Requires Human Review`) | Seed a Change from Jira/manual instead of an idea. See [Workflow — Requirement Sources](workflow.md#starting-from-a-requirement-source). |
 | `aief propose "<idea>"` | OpenSpec availability, `changes/` | OpenSpec output, or a local Change + `proposal.md` | Turn an idea into a proposal, delegating to OpenSpec when available. |
 | `aief propose --change <id>` | The existing Change | Only `proposal.md` inside it | Continue an existing Change (e.g. after `enrich` + Human Review) without forking a new one. |
-| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, profile, standards (`knowledge/standards/` + a project's `ai-specs/standards/`, project wins on id collision — Change 0055/ADR-025), the selected Change, its `manifest.harness` (if any) | Nothing, unless the Change's `manifest.harness.log` is `true` — then appends to `<changeDir>/hooks.md` (Change 0056/ADR-026) | Generate a ready-to-paste, context-complete prompt. With no `ai-specs/standards/` and no `harness` field, output is byte-identical to before Changes 0055/0056. A Hook the Change disabled is excluded; a `failed`/`invalid` Hook result is now shown (previously silently dropped), never affecting the command's own exit code. |
+| `aief prompt [assistant] [--profile role] [--change id]` | `AGENTS.md`, assistant file, `AIEF_ASSISTANT`, `knowledge/assistant.json`, profile, standards (`knowledge/standards/` + a project's `ai-specs/standards/`, project wins on id collision — Change 0055/ADR-025), the selected Change, its `manifest.harness` (if any) | Nothing, unless the Change's `manifest.harness.log` is `true` — then appends to `<changeDir>/hooks.md` (Change 0056/ADR-026) | Generate a ready-to-paste, context-complete prompt. With no explicit assistant argument, resolves one automatically — see [Assistants](#assistants) below (Change 0061/ADR-031). With no `ai-specs/standards/` and no `harness` field, output is byte-identical to before Changes 0055/0056. A Hook the Change disabled is excluded; a `failed`/`invalid` Hook result is now shown (previously silently dropped), never affecting the command's own exit code. |
 | `aief prompt --skill <id> [...]` | The Skill's declared context | Nothing | Attach one registered Skill's output to the prompt. Unknown id, or a `invalid`/`failed` Skill result, exits 1 before any prompt is printed. |
 | `aief prompt --list-skills` | The Skill registry | Nothing | List every registered Skill (id, version, title, description). |
+| `aief prompt --set-assistant <name>` | The assistant registry | `knowledge/assistant.json` (creates or overwrites) | Persist the project's default assistant. Unknown `<name>` exits 1 and writes nothing (Change 0061/ADR-031). |
+| `aief prompt --show-assistant` | `AIEF_ASSISTANT`, `knowledge/assistant.json`, assistant files | Nothing | Report the configured preference, the resolved assistant, and its source. |
+| `aief prompt --clear-assistant` | `knowledge/assistant.json` | Deletes `knowledge/assistant.json` if present | Remove the saved preference. Exit 0, no error, if nothing was saved. |
 
 ## Governance
 
@@ -80,6 +83,33 @@ list of known ones — never a silent fallback. No assistant is required and non
 specially by the engine: `AGENTS.md` is the one instruction file every prompt tells the assistant
 to read first, generated identically no matter which (if any) assistant name is passed.
 
+### Resolving the assistant automatically (Change 0061/ADR-031)
+
+With no explicit argument, `aief prompt` resolves an assistant deterministically, in this order —
+stopping at the first layer that produces a signal:
+
+1. **Explicit override** — `aief prompt <name>` / `--assistant <name>`, as above.
+2. **`AIEF_ASSISTANT` environment variable** — developer-local configuration, not committed to the
+   repository (`AIEF_ASSISTANT=gemini aief prompt`). Use this for a personal default that differs
+   from the team's, or in a shell profile.
+3. **`knowledge/assistant.json`** — the project's own, versioned preference, the repository's
+   source of truth for this setting. Set it with `aief prompt --set-assistant <name>`, inspect it
+   with `--show-assistant`, remove it with `--clear-assistant`.
+4. **Passive detection** — every registered assistant's native file is checked the same way; if
+   exactly one is present, it is used. No assistant is checked before another and none is a
+   fallback for another (Claude included).
+5. **Interactive choice** — only reached when 2+ native files are found and nothing above
+   disambiguates them, and only on a TTY. The choice applies to that run only and is never saved;
+   the output suggests `--set-assistant` to persist it.
+6. **Non-interactive ambiguity error** — the same 2+-candidates case off a TTY (CI, a script, a
+   piped shell) exits non-zero with the candidates and the three ways to resolve it, instead of
+   guessing.
+
+Zero native files and no other signal is not an error — `aief prompt` produces the same generic,
+`AGENTS.md`-only prompt it always has. An invalid `AIEF_ASSISTANT` value or an invalid
+`knowledge/assistant.json` (malformed JSON, unknown assistant) is always a loud error — never
+silently skipped in favor of the next layer.
+
 `aief bootstrap` never creates any of `CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` — they are
 optional, hand-authored, per-assistant adaptations of format only (this repository's own four are
 an example: each says "follow `AGENTS.md`," "do not duplicate it," and adds only tone/emphasis
@@ -103,7 +133,10 @@ the known names — never a silent fallback to the generic form. Simplified summ
 
 ## Guarantees
 
-- `doctor`, `status`, `prompt`, and `verify` never write files.
+- `doctor`, `status`, and `verify` never write files. `prompt` never writes files either, with
+  three explicitly named exceptions: `--set-assistant` (writes `knowledge/assistant.json`),
+  `--clear-assistant` (deletes it), and `--show-assistant` (reads only, still writes nothing). A
+  plain `aief prompt` — including its interactive assistant choice — never writes, in every case.
 - `close` writes exactly one thing — a `## Status` section in `change.md` — and only with `--yes`
   after every readiness check passes.
 - `init`/`adopt`/`analyze` never modify application code and never overwrite an existing file.

@@ -520,10 +520,124 @@ test("prompt --assistant selects the matching instruction file", () => {
   const gemini = aief(dir, ["prompt", "--assistant", "gemini"]);
   assert.match(gemini.out, /- GEMINI\.md/);
   assert.doesNotMatch(gemini.out, /- CLAUDE\.md/);
-  const fallback = aief(dir, ["prompt"]);
-  assert.match(fallback.out, /- CLAUDE\.md/);
   const unknown = aief(dir, ["prompt", "--assistant", "clippy"]);
   assert.match(unknown.out, /Unknown assistant "clippy"/);
+});
+
+// Change 0061: deliberate, documented behavior change. Before this Change, a
+// bare `aief prompt` with both CLAUDE.md and GEMINI.md present silently fell
+// back to Claude — the exact "biased toward Claude" asymmetry this Change
+// fixes (this test previously encoded that bias as `fallback.out` matching
+// `- CLAUDE\.md`). With no override/env/config to disambiguate and no TTY
+// (the test harness's stdin is piped, not a TTY), passive detection now
+// correctly reports both candidates and refuses to guess, matching
+// spec.md's AR-R2/AR-R6.
+test("prompt with no explicit assistant and 2+ native files never silently picks one — no more Claude bias", () => {
+  const dir = makeProject({ "GEMINI.md": "# Gemini rules", "CLAUDE.md": "# Claude rules" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt"]);
+  assert.equal(r.status, 1);
+  assert.match(r.out, /Multiple assistant files detected/);
+  assert.match(r.out, /claude/);
+  assert.match(r.out, /gemini/);
+  assert.doesNotMatch(r.out, /Copy this prompt/);
+});
+
+test("prompt resolves GEMINI.md, CODEX.md and CURSOR.md symmetrically when they are the only native file present (previously only CLAUDE.md was detected)", () => {
+  for (const [id, file] of [["gemini", "GEMINI.md"], ["codex", "CODEX.md"], ["cursor", "CURSOR.md"]]) {
+    const dir = makeProject({ [file]: `# ${id} rules` });
+    aief(dir, ["new-change", "thing"]);
+    const r = aief(dir, ["prompt"]);
+    assert.equal(r.status, 0, `prompt must succeed for ${id}`);
+    assert.match(r.out, new RegExp(`- ${file.replace(".", "\\.")}`), `prompt must include ${file} for a bare aief prompt`);
+  }
+});
+
+test("AIEF_ASSISTANT resolves the assistant without naming it on the command line, and wins over other native files", () => {
+  const dir = makeProject({ "GEMINI.md": "#g", "CLAUDE.md": "#c" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt"], { AIEF_ASSISTANT: "gemini" });
+  assert.equal(r.status, 0);
+  assert.match(r.out, /- GEMINI\.md/);
+  assert.doesNotMatch(r.out, /- CLAUDE\.md/);
+});
+
+test("an unknown AIEF_ASSISTANT value fails clearly instead of silently falling back", () => {
+  const dir = makeProject({ "CLAUDE.md": "#c" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt"], { AIEF_ASSISTANT: "clippy" });
+  assert.equal(r.status, 1);
+  assert.match(r.out, /Could not resolve an assistant/);
+  assert.match(r.out, /unknown assistant/);
+});
+
+test("knowledge/assistant.json resolves the default assistant without naming it on the command line", () => {
+  const dir = makeProject({ "GEMINI.md": "#g", "CLAUDE.md": "#c", "knowledge/assistant.json": JSON.stringify({ defaultAssistant: "gemini" }) });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt"]);
+  assert.equal(r.status, 0);
+  assert.match(r.out, /- GEMINI\.md/);
+});
+
+test("an invalid knowledge/assistant.json fails clearly instead of silently falling back to detection", () => {
+  const dir = makeProject({ "CLAUDE.md": "#c", "knowledge/assistant.json": "{not json" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt"]);
+  assert.equal(r.status, 1);
+  assert.match(r.out, /not valid JSON/);
+});
+
+test("aief prompt --set-assistant writes knowledge/assistant.json and validates against the registry", () => {
+  const dir = makeProject();
+  const bad = aief(dir, ["prompt", "--set-assistant", "clippy"]);
+  assert.equal(bad.status, 1);
+  assert.match(bad.out, /Unknown assistant "clippy"/);
+  assert.equal(fs.existsSync(path.join(dir, "knowledge", "assistant.json")), false);
+
+  const ok = aief(dir, ["prompt", "--set-assistant", "claude"]);
+  assert.equal(ok.status, 0);
+  assert.match(ok.out, /writes a file/);
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, "knowledge", "assistant.json"), "utf8"));
+  assert.equal(saved.defaultAssistant, "claude");
+  assert.equal(saved.configuredBy, "aief prompt --set-assistant");
+});
+
+test("aief prompt --show-assistant reports the configured preference, the resolved assistant and its source, without writing", () => {
+  const dir = makeProject({ "GEMINI.md": "#g" });
+  const before = aief(dir, ["prompt", "--show-assistant"]);
+  assert.equal(before.status, 0);
+  assert.match(before.out, /Configured preference.*not set/);
+  assert.match(before.out, /Resolved assistant: gemini \(source: passive detection/);
+  assert.equal(fs.existsSync(path.join(dir, "knowledge")), false);
+
+  aief(dir, ["prompt", "--set-assistant", "claude"]);
+  const after = aief(dir, ["prompt", "--show-assistant"]);
+  assert.match(after.out, /Configured preference.*claude/);
+  assert.match(after.out, /Resolved assistant: claude \(source: knowledge\/assistant\.json/);
+});
+
+test("aief prompt --clear-assistant removes the saved preference, and is a no-op (exit 0) when nothing is saved", () => {
+  const dir = makeProject();
+  const noop = aief(dir, ["prompt", "--clear-assistant"]);
+  assert.equal(noop.status, 0);
+  assert.match(noop.out, /nothing to clear/);
+
+  aief(dir, ["prompt", "--set-assistant", "gemini"]);
+  assert.equal(fs.existsSync(path.join(dir, "knowledge", "assistant.json")), true);
+  const cleared = aief(dir, ["prompt", "--clear-assistant"]);
+  assert.equal(cleared.status, 0);
+  assert.equal(fs.existsSync(path.join(dir, "knowledge", "assistant.json")), false);
+});
+
+test("a plain aief prompt never writes to the filesystem, across every resolution path", () => {
+  const dir = makeProject({ "GEMINI.md": "#g" });
+  aief(dir, ["new-change", "thing"]);
+  const snapshot = () => JSON.stringify(fs.readdirSync(dir, { recursive: true }).sort());
+  const before = snapshot();
+  aief(dir, ["prompt"]);
+  aief(dir, ["prompt", "gemini"]);
+  aief(dir, ["prompt"], { AIEF_ASSISTANT: "gemini" });
+  assert.equal(snapshot(), before, "aief prompt must never create, modify or delete files");
 });
 
 test("verify fails when a change file is missing and stays calm about in-progress evidence", () => {
