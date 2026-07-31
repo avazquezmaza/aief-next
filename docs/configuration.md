@@ -99,8 +99,31 @@ invocable contract with no per-project configuration file.
 
 `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md` at the project root — one per assistant, selected
 by `aief prompt [assistant]`. Each should extend `AGENTS.md`, never contradict it. Only the one
-matching the requested assistant is included in a given prompt; if it's missing, `aief prompt`
-warns and falls back to `CLAUDE.md` if present.
+matching the requested assistant is included in a given prompt; if an *explicitly requested*
+assistant's file is missing, `aief prompt` warns and falls back to `CLAUDE.md` if present
+(unchanged, explicit-argument-only behavior).
+
+With no assistant argument, `aief prompt` resolves one automatically instead of requiring it on
+every invocation — see [`docs/cli.md` — Assistants](cli.md#assistants) for the full precedence
+order (explicit → `AIEF_ASSISTANT` → `knowledge/assistant.json` → passive detection → interactive
+choice on a TTY → non-interactive error). Passive detection checks every registered assistant's
+file the same way; none is a fallback for another.
+
+## `AIEF_ASSISTANT` (environment variable)
+
+Developer-local default assistant, e.g. `AIEF_ASSISTANT=gemini` in a shell profile. Read by `aief
+prompt` only when no explicit assistant argument is given; wins over `knowledge/assistant.json`
+and passive detection. Not versioned, not visible to the rest of the team — for a preference the
+whole project should share, use `knowledge/assistant.json` instead.
+
+## `knowledge/assistant.json`
+
+Optional, project-level default assistant (`{ "defaultAssistant": "claude", "updatedAt": "...",
+"configuredBy": "aief prompt --set-assistant" }`). The repository's own source of truth for this
+preference — versioned, visible to every contributor. Written only by `aief prompt
+--set-assistant <name>` (validated against the known assistants; creates or overwrites), removed
+only by `aief prompt --clear-assistant`, inspected by `aief prompt --show-assistant`. Absent by
+default. See `assistant-resolver.js`.
 
 ## Profiles — `profiles/`
 

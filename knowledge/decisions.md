@@ -4,6 +4,59 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-031: `aief prompt`'s assistant resolution gains a deterministic, symmetric precedence (explicit → `AIEF_ASSISTANT` → `knowledge/assistant.json` → passive detection → interactive/error); persistence lands as `--set-assistant`/`--show-assistant`/`--clear-assistant` flags on `prompt`, not a new `use-assistant` command
+
+**Status: Accepted (2026-07-31), by the project owner.** Change
+[0061](../changes/0061-smart-assistant-resolution/) fixes two things at once: a real asymmetry
+(`aief prompt` with no argument only ever fell back to `CLAUDE.md`, never `GEMINI.md`/`CODEX.md`/
+`CURSOR.md`, even when one of those was the only native file present) and the friction of having
+to name an assistant on every invocation once a project or developer has an obvious, stable
+default.
+
+**Decision.** With no explicit assistant argument, `aief prompt` resolves through: (1) the
+existing explicit override, unchanged; (2) `AIEF_ASSISTANT` (developer-local, environment,
+never committed); (3) `knowledge/assistant.json` (project-level, versioned, the repository's own
+source of truth for this preference); (4) passive detection, checking every registered assistant's
+native file the same way — none is a fallback for another, Claude included; (5) an interactive
+choice, only on a TTY, only for that run, never persisted; (6) a loud, non-zero-exit error off a
+TTY when passive detection alone leaves 2+ candidates. Zero signal at all is unchanged, valid
+behavior (the existing generic, `AGENTS.md`-only prompt) — never an error. An invalid
+`AIEF_ASSISTANT` or `knowledge/assistant.json` is always an error, never silently skipped.
+
+**Why a project-level JSON file, not a new pattern.** `knowledge/sdd-provider.json`
+(`sdd-provider-resolver.js`, Change 0045/0052) already established this exact shape: a small,
+versioned, project-scoped preference file, read by a pure precedence function, written only by an
+explicit human action or an interactive prompt gated on `stdin.isTTY`, with "invalid is an error,
+never a silent substitution" as a hard rule. `knowledge/assistant.json` and
+`assistant-resolver.js` reuse that shape file-for-file rather than inventing a second mechanism
+for the same kind of decision.
+
+**Why this stayed three flags on `prompt`, not a new `use-assistant` command.** ADR-022 thaws
+ADR-015's "no new commands" freeze for AIEF 3.1, but restates explicitly that ADR-013 ("no new
+capability enters the core unless it first removes, merges or replaces an equivalent one") still
+binds every individual 3.1 Change. This Change removes nothing — a `use-assistant` command would
+be pure addition, the exact pattern ADR-013 exists to catch, and Change 0052's `bootstrap`
+(replacing `init`+`adopt` outright) is the standing example of what satisfying ADR-013 actually
+looks like for a new command. Landing as `--set-assistant`/`--show-assistant`/`--clear-assistant`
+on the existing `prompt` command instead follows the precedent every other AIEF 3.1/Core 3.0
+addition already set — `--list-skills`/`--skill` (0047), `--graph`/`--next` (0058/0059),
+`doctor --verbose` — and needs no ADR-013 removal argument because it adds no verb.
+
+**Consequences.**
+
+- `aief prompt claude`, `aief prompt gemini`, `--assistant <name>`, the unknown-assistant error,
+  and the explicit-but-missing-file `CLAUDE.md` fallback quirk are byte-for-byte unchanged — this
+  ADR only touches the *no-explicit-assistant* path.
+- A project with `CLAUDE.md` and `GEMINI.md` both present, no `AIEF_ASSISTANT`, no
+  `knowledge/assistant.json`, run outside a TTY (CI, a script) now gets a loud ambiguity error from
+  a bare `aief prompt` where it previously got a silent, Claude-biased prompt. This is the intended
+  fix, recorded as a deliberate behavior change (the same discipline Change 0059/ADR-029 applied
+  to `status --next`'s multi-open-Changes case) — the superseded test assertion was updated, not
+  deleted silently.
+- `ASSISTANT_FILES` now has exactly one definition (`assistant-resolver.js`); `cli.js` imports it.
+
+---
+
 ## ADR-030: The assistant-agnostic contract is formalized as three official compatibility categories (Native target / Generic prompt compatible / Not currently supported); `AGENTS.md` is reconfirmed as the sole universal instruction file for AIEF 3.1; `scripts/generate_workflow_diagram.py` is the canonical, only-edit-here source of the workflow diagram
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed as part of [Change
