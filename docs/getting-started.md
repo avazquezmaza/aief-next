@@ -41,16 +41,46 @@ local) to use — it only asks when that choice is genuinely ambiguous (both Ope
 detected); otherwise it decides and reports silently. It is idempotent and never overwrites an
 existing file.
 
-**New project:**
-
-```bash
-aief bootstrap my-project
-cd my-project
-```
-
 After adoption you'll typically have two open Changes (`adopt-aief` and the Analysis) — that's
 expected. With more than one Change open, commands that act on one require an explicit
 `--change <id>` instead of guessing.
+
+### Starting a new project
+
+`aief bootstrap <name>` is a different command from plain `aief bootstrap` — it never touches the
+current directory. It creates `<name>/` from scratch with only engineering governance structure:
+`README.md`, a minimal `AGENTS.md`, and empty `changes/`, `knowledge/`, `src/`, `tests/`
+directories. **AIEF is not an application framework** — no `package.json`, no dependencies, no
+starter code. Fails with an error if `<name>/` already exists, so you only run it once per project.
+
+```bash
+aief bootstrap sample-app          # 1. create the skeleton — run from the parent directory
+cd sample-app                      # 2. enter the new project
+ls -la                             # 3. inspect what was generated: README.md, AGENTS.md,
+                                    #    changes/, knowledge/, src/, tests/ (all empty)
+aief doctor                        # 4. confirm the local toolchain is ready
+aief verify                        # 5. confirm the skeleton is structurally valid
+```
+
+There's no existing architecture to capture here, so `analyze` adds little value in a fresh
+skeleton — it's optional, not part of this path. Once the skeleton is in place:
+
+```bash
+# 6. add or initialize your chosen application stack yourself (npm init, a framework
+#    CLI, etc.) — this step is entirely yours; AIEF has no opinion on which stack you use
+
+aief new-change initial-setup            # 7. create the first Delivery Change
+# edit change.md and spec.md             #    define what "initial setup" means for your stack
+aief prompt claude --profile developer   # 8. generate a context-complete prompt
+# paste into your assistant              #    the assistant implements inside the Change
+# add evidence to evidence.md            #    record what actually happened
+aief verify                              # 9. check structure and evidence
+aief close --yes                         # 10. readiness checks pass -> Change marked Closed
+```
+
+The same six-step "first Change" loop (`new-change` -> `prompt` -> implement -> evidence -> `verify`
+-> `close`) applies to every Change after this one, in both the new-project and existing-project
+paths — see [Your first Change](#your-first-change) below.
 
 ### Adopting an existing project
 
@@ -167,6 +197,46 @@ aief enrich manual TEST-001
 
 Creates a Change requiring human review before implementation — see
 [Workflow — Starting from a Requirement Source](workflow.md#starting-from-a-requirement-source).
+
+## Multiple open Changes
+
+It's normal to have several open Changes at once — most commonly the Adoption Change and the
+Analysis Change right after adopting an existing project, or several Delivery Changes in flight on
+a larger project. List them with:
+
+```bash
+aief status
+```
+
+Each row shows the Change's id and slug, e.g. `0001-adopt-aief`, `0002-analyze-current-architecture`.
+`prompt`, `close`, and `status --change` all act on **exactly one** Change: with zero open Changes
+they error; with exactly one open Change they select it automatically; with two or more, they
+require an explicit `--change <id>` and otherwise fail with an error listing every open Change
+instead of guessing.
+
+```bash
+aief status --change 0001-adopt-aief
+aief prompt claude --change 0002-analyze-current-architecture
+aief close --yes --change 0001-adopt-aief
+```
+
+`--change` accepts the full slug, just the numeric id, or any unambiguous substring of the
+basename. `aief status --next` is the exception — with several open Changes it recommends one
+eligible Change instead of erroring, but it only ever recommends; it never acts on your behalf.
+
+## Safe stopping points
+
+You can pause at any of these points without losing anything or leaving the project in a bad
+state:
+
+- **After `doctor`** — it never writes, so stopping here leaves the project untouched.
+- **After `bootstrap` and reviewing the diff** — `git status`/`git diff --stat` show exactly the
+  new files; if you don't like them, `git restore --staged` and delete them, or simply don't
+  commit.
+- **After `verify`** — a read-only structural check; passing or failing, nothing changes.
+- **Before `analyze`** — it's optional; skip it and come back later, or never run it at all.
+- **Before generating a prompt** — `new-change`/`enrich` only create Markdown files; there's no
+  commitment to implement until you actually paste a prompt into an assistant.
 
 ## Next
 

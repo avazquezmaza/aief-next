@@ -375,3 +375,42 @@ project (see `evidence.md`).
       throughout (`rg` verification in `evidence.md`).
 - [x] No CLI behavior, command, flag, or manifest field changed; Change 0060 reused, not a new
       Change; no `package.json` version bump; no push, tag, or release.
+
+## Sixth pass — new-project path parity and diagram determinism (2026-07-31)
+
+**F12.** `docs/getting-started.md`'s new-project path (`aief bootstrap <name>`) was two lines
+versus the existing-project path's full 14-question Q&A and asset table — asymmetric depth for a
+path the fifth pass's own commissioning instruction treated as equally important. Confirmed live
+(scratch `bootstrap sample-app` run, see `evidence.md`) that the skeleton is exactly `README.md`, a
+minimal `AGENTS.md`, and empty `changes/`/`knowledge/`/`src/`/`tests/` — no application code.
+
+- [x] `docs/getting-started.md` gained a "### Starting a new project" subsection with the same
+      structural depth as "### Adopting an existing project": exact skeleton contents, why
+      `analyze` doesn't apply to a project with no existing architecture, and a ten-step walkthrough
+      from `bootstrap <name>` through the first Delivery Change's `close --yes`.
+- [x] `docs/getting-started.md` gained "## Multiple open Changes" (explicit `--change` examples and
+      the implicit-selection-only-with-one-open-Change rule) and "## Safe stopping points" as their
+      own headings, applicable to both paths — previously only scattered inside the
+      existing-project Q&A.
+- [x] `docs/cli.md`'s `aief bootstrap <name>` row expanded from "Nothing" / "`<name>/` project
+      skeleton" to the exact file/directory list and its exit-1-on-collision behavior — verified
+      live, not invented.
+
+**F13.** `scripts/diagrams/generate_all.py`'s ImageMagick PNG-rendering branch was not
+byte-deterministic in this environment (no `rsvg-convert` installed): ImageMagick embeds
+`date:create`/`date:modify`/`date:timestamp` metadata by default, and even after stripping it, zlib
+compression filter/strategy selection was not pinned, so regenerating produced a different byte
+stream each time despite identical decoded pixels (confirmed with a Pillow pixel comparison). The
+fifth pass hit this same issue and worked around it by reverting the incidental diffs rather than
+fixing the renderer invocation.
+
+- [x] Added `-strip` plus `-define png:compression-filter=0 -define png:compression-level=9
+      -define png:compression-strategy=0` to the ImageMagick invocation in
+      `scripts/diagrams/generate_all.py`.
+- [x] Verified three consecutive full regenerations of all eight PNGs are now byte-identical
+      (`cmp` clean); confirmed no SVG output changed (SVGs are plain text, never affected).
+- [x] Regenerated and committed all eight `docs/images/*.png` with the deterministic output.
+- [x] Re-ran the repo-wide contradiction search from the fifth pass's F11 checklist — no new
+      contradictions found beyond the F12/F13 gaps above.
+- [x] No CLI behavior, command, flag, or manifest field changed; Change 0060 reused, not a new
+      Change; no `package.json` version bump; no push, tag, or release.

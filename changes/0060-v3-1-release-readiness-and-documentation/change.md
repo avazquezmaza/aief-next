@@ -223,6 +223,52 @@ already exists, what OpenSpec/SpecBoot coexistence looks like, an asset-by-asset
 **Still out of scope:** any CLI behavior, command, flag, or manifest field change; a new Change;
 `package.json`'s version bump; `git push`, tag, or release.
 
+## Reopened — sixth pass, new-project path parity and diagram determinism (2026-07-30)
+
+Commissioned as Senior Documentation Engineer / Release Readiness Operator for a full onboarding
+pass across both journeys (existing-project adoption and new-project start). Re-audited
+`bootstrapHere()`/`initProject()`/`analyze()`/`verify()`/`status()`/`close()` in `cli/src/cli.js`
+against `cli/tests/cli.test.js`, confirmed behavior live in two scratch projects (an
+`aief bootstrap <name>` skeleton and a synthetic existing repository with its own `package.json`,
+`src/`, `test/`, `.github/workflows/ci.yml`, and a base commit), and found the fifth pass's
+existing-project coverage already accurate and thorough. Two real gaps remained:
+
+1. **New-project path was asymmetric.** `docs/getting-started.md`'s "Bootstrap a project" section
+   gave the new-project path two lines (`aief bootstrap my-project` / `cd my-project`) versus the
+   existing-project path's full 14-question Q&A and asset table. Fixed by adding a "### Starting a
+   new project" subsection with the same depth: what `bootstrap <name>` actually generates
+   (confirmed live: `README.md`, a minimal `AGENTS.md`, empty `changes/`/`knowledge/`/`src/`/`tests/`
+   — no application code, no `package.json`), why `analyze` is optional there, and a full
+   ten-step walkthrough through the first Delivery Change. `docs/cli.md`'s
+   `aief bootstrap <name>` row was also thin ("Nothing" / "`<name>/` project skeleton") — expanded
+   to list the exact files/directories created and the exit-1-if-exists collision behavior.
+2. **`docs/images/*.png` regeneration was non-deterministic.** Running `scripts/diagrams/generate_all.py`
+   twice in this environment (ImageMagick renderer, no `rsvg-convert` installed) produced
+   byte-different PNGs each time — ImageMagick embeds `date:create`/`date:modify`/`date:timestamp`
+   metadata by default. This is exactly what the fourth pass's "regeneration is a byte-for-byte
+   no-op" claim depends on, and it silently didn't hold under this renderer. `-strip` alone removed
+   the metadata chunks but a second gap remained: decoded pixel content was confirmed identical
+   run-to-run (byte-for-byte pixel comparison via Pillow), yet the compressed PNG bytes still
+   differed — ImageMagick's default zlib filter/strategy selection is not deterministic across
+   invocations. Fixed by pinning `png:compression-filter=0`, `png:compression-level=9`, and
+   `png:compression-strategy=0` alongside `-strip` in the ImageMagick invocation in
+   `scripts/diagrams/generate_all.py`; confirmed byte-identical output (`cmp`) across three
+   consecutive full regenerations of all eight PNGs after the fix. SVGs were never affected (text
+   output, no embedded timestamps, no compression) — only the ImageMagick PNG path had this gap.
+
+Also added `docs/getting-started.md` "## Multiple open Changes" and "## Safe stopping points"
+sections (present in the fifth pass only as scattered Q&A answers, not as their own headings), and
+reran the full repo-wide contradiction search from `spec.md`'s F-list — no contradictions found
+beyond the two gaps above.
+
+**In scope for this pass:** `docs/getting-started.md` (new-project subsection, Multiple open
+Changes, Safe stopping points), `docs/cli.md` (`bootstrap <name>` row), `scripts/diagrams/generate_all.py`
+(`-strip` fix), regenerated `docs/images/*.png` (byte content only — no SVG changed, no new
+diagram).
+
+**Still out of scope:** any CLI behavior, command, flag, or manifest field change; a new Change;
+`package.json`'s version bump; `git push`, tag, or release.
+
 ## Status
 
 Closed (2026-07-30)

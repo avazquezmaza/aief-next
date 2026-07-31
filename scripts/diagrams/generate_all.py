@@ -55,7 +55,13 @@ def render_png(renderer, svg_path, png_path):
     elif renderer == "imagemagick":
         tool = "magick" if shutil.which("magick") else "convert"
         args = [tool] if tool == "magick" else []
-        args += ["-background", "white", "-density", "150", svg_path, "-flatten", png_path]
+        args += [
+            "-background", "white", "-density", "150", svg_path, "-flatten", "-strip",
+            "-define", "png:compression-filter=0",
+            "-define", "png:compression-level=9",
+            "-define", "png:compression-strategy=0",
+            png_path,
+        ]
         subprocess.run(args, check=True)
     elif renderer == "inkscape":
         subprocess.run(["inkscape", svg_path, "--export-type=png", "--export-filename=" + png_path, "--export-dpi=150"], check=True)

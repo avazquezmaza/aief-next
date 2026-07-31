@@ -939,3 +939,186 @@ flag, or manifest field changed; no test needed updating beyond the new diagram 
 
 **Confirmation.** No push. No tag. No release. No version bump. No new Change created — Change
 0060 reused and kept Closed.
+
+## Sixth pass — new-project path parity and diagram determinism
+
+### Code/test audit (subagent, foreground)
+
+Re-confirmed, with `file:line` citations against `cli/src/cli.js`/`cli/tests/cli.test.js`, that the
+fifth pass's documented behavior for `doctor`/`bootstrap`/`bootstrap <name>`/`verify`/`analyze`/
+`new-change`/`enrich`/`prompt`/`status`/`close`/`--change` resolution had not drifted. Confirmed
+`bootstrap <name>` generates only `README.md`, a minimal `AGENTS.md`, and empty `changes/`,
+`knowledge/`, `src/`, `tests/` — no application code — and fails with exit 1 if `<name>/` already
+exists. Confirmed there is no code-level Change "type" enum distinguishing Adoption/Analysis/
+Delivery (naming convention only, per `docs/concepts.md`). Confirmed OpenSpec/SpecBoot are optional,
+never hard dependencies.
+
+### Baseline before edits
+
+```
+$ git branch --show-current
+feat/v3.1
+$ git status --short
+(clean)
+$ git remote -v
+origin  git@github.com:avazquezmaza/aief-next.git (fetch/push)
+$ rg -n '```mermaid' . --glob '*.md' --glob '!node_modules/**' --glob '!.git/**'
+changes/0060-.../evidence.md (historical mentions only)
+changes/0050-core3-documentation-architecture/design.md:330:```mermaid   (documented exception)
+$ npm test
+1..737 / pass 737 / fail 0
+$ tail -8 changes/0060-.../change.md
+Closed (2026-07-30)
+```
+
+### Scratch test — new project (outside the repository, in the session scratchpad)
+
+```
+$ cd $SCRATCHPAD && node <repo>/cli/bin/aief.js bootstrap sample-app
+Created AIEF project: .../sample-app
+$ find sample-app -mindepth 1
+sample-app/AGENTS.md
+sample-app/changes
+sample-app/knowledge
+sample-app/README.md
+sample-app/src
+sample-app/tests
+$ cat sample-app/AGENTS.md
+# Project Agent Instructions
+
+AI assists. Humans decide.
+$ cd sample-app && node <repo>/cli/bin/aief.js doctor    # 0 Changes, "No strong signals detected", Next: aief analyze
+$ node <repo>/cli/bin/aief.js verify
+✓ README.md / ✓ AGENTS.md / ✓ changes / ✓ knowledge/
+Result: PASS
+Next: no open Change — aief new-change <name> or aief analyze
+```
+
+Confirms: no application code or `package.json` generated; `doctor`'s generic "Next: aief analyze"
+hint is a context-free suggestion, not a requirement (nothing gates on it); `verify` passes on a
+freshly generated skeleton. `sample-app` deleted after the check — never part of the tracked repo.
+
+### Scratch test — existing project (re-run of the fifth pass's checks, to catch regressions)
+
+```
+$ mkdir existing-svc && cd existing-svc && git init -q
+$ create src/index.js, test/index.test.js, package.json, .github/workflows/ci.yml, README.md
+$ git add -A && git commit -qm base
+$ md5sum package.json src/index.js test/index.test.js .github/workflows/ci.yml   # recorded
+$ node <repo>/cli/bin/aief.js doctor      # git status --short: (clean) -> doctor writes nothing
+$ node <repo>/cli/bin/aief.js bootstrap
+$ git status --short
+?? .github/workflows/aief-verify.yml
+?? AGENTS.md
+?? changes/
+?? knowledge/
+?? profiles/
+$ node <repo>/cli/bin/aief.js bootstrap    # second run
+Bootstrap complete — this directory was already bootstrapped, nothing new to create.
+$ md5sum (recheck all four original files)   # all four unchanged
+$ git log --oneline    # unchanged (1 commit, "base")
+```
+
+Confirms: `doctor` never writes; `bootstrap` preserves `package.json`, application source, tests,
+CI config, and Git history byte-for-byte; only the documented governance artifacts are created;
+second `bootstrap` is idempotent. `existing-svc` deleted after the check.
+
+### Gap 1 — new-project path was thin relative to existing-project path
+
+`docs/getting-started.md`'s "Bootstrap a project" section gave the new-project case two lines
+versus the existing-project case's full 14-question Q&A plus asset table. Added a "### Starting a
+new project" subsection: skeleton contents (verified against the scratch test above), why `analyze`
+doesn't apply to a project with no existing architecture (optional, not part of this path), and a
+ten-step walkthrough from `bootstrap <name>` through the first Delivery Change's `close --yes`.
+Expanded `docs/cli.md`'s `aief bootstrap <name>` row from "Nothing" / "`<name>/` project skeleton"
+to the exact file/directory list and the exit-1-on-collision behavior (confirmed live: bootstrapping
+an already-existing directory name fails immediately, nothing written).
+
+Also added `docs/getting-started.md` "## Multiple open Changes" (explicit `--change` examples: id
+formats accepted, implicit-selection-only-with-one-open-Change behavior, `status --next`'s
+recommend-don't-execute exception) and "## Safe stopping points" (five concrete pause points) as
+their own headings — previously these facts existed only as scattered answers inside the
+existing-project Q&A, not as a New-project-applicable reference.
+
+### Gap 2 — `docs/images/*.png` regeneration was not byte-deterministic
+
+```
+$ python3 scripts/diagrams/generate_all.py; cp docs/images/*.png /tmp/run1/
+$ python3 scripts/diagrams/generate_all.py
+$ git status --short docs/images
+ M docs/images/adoption-workflow.png   (and all 7 other PNGs)
+$ which rsvg-convert
+(not found)
+$ identify -verbose docs/images/workflow.png | grep date
+date:create / date:modify / date:timestamp   (ImageMagick default metadata)
+```
+
+Root-caused to two independent issues in the ImageMagick PNG-rendering branch of
+`scripts/diagrams/generate_all.py`'s `render_png()`:
+
+1. ImageMagick embeds `date:create`/`date:modify`/`date:timestamp` metadata in every PNG by
+   default — fixed by adding `-strip`.
+2. Even with metadata stripped, a Pillow pixel-by-pixel comparison (`Image.open(...).getdata()`)
+   confirmed the *decoded image content* was already identical run-to-run — the remaining byte
+   difference was purely in zlib compression (filter/strategy selection is not pinned by default).
+   Fixed by pinning `-define png:compression-filter=0 -define png:compression-level=9
+   -define png:compression-strategy=0` alongside `-strip`.
+
+```
+$ python3 scripts/diagrams/generate_all.py; cp docs/images/workflow.png /tmp/a.png
+$ python3 scripts/diagrams/generate_all.py; cmp /tmp/a.png docs/images/workflow.png   # clean
+$ python3 scripts/diagrams/generate_all.py; cmp (repeat once more)                     # clean
+```
+
+Confirmed deterministic across three consecutive full regenerations, for all eight PNGs. No SVG
+byte changed (SVGs are plain text with no embedded timestamps or compression, so they were never
+affected). The fifth pass had hit this same non-determinism and worked around it by reverting the
+incidental diffs rather than fixing the renderer invocation (see its `tasks.md` entry) — this pass
+fixes it at the root so future regenerations in this environment are safe to commit directly.
+
+### Contradiction search (re-run)
+
+```
+$ rg -n 'bootstrap|adopt|adoption|analyze|existing project|new project|greenfield|brownfield|never overwrite|no code edits|OpenSpec|SpecBoot|AGENTS.md|--change' README.md docs knowledge changes
+```
+
+Reviewed every relevant hit in README/docs. No claims found that `analyze` is mandatory, that
+`bootstrap` writes application code, that `bootstrap` overwrites `AGENTS.md`, or that OpenSpec/
+SpecBoot are required. Every `prompt`/`verify`/`close` example without `--change` is a context where
+exactly one Change is open at that point in the tutorial (confirmed by re-reading each surrounding
+section) — consistent with `prompt`/`close`'s actual implicit-selection rule. `docs/workflow.md` and
+`docs/architecture.md` position `analyze` alongside `new-change`/`enrich` as one of several
+Change-creation options at Level 1, not a gate — consistent with README/getting-started.
+
+### Full validation suite (final, after all sixth-pass edits)
+
+```
+$ npm test
+1..737 / pass 737 / fail 0
+
+$ node cli/bin/aief.js verify
+Result: PASS
+
+$ node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation
+Result: PASS
+
+$ git diff --check
+(clean)
+
+$ rg -n '```mermaid' . --glob '*.md' --glob '!node_modules/**' --glob '!.git/**'
+changes/0060-.../evidence.md and tasks.md (historical text only)
+changes/0050-core3-documentation-architecture/design.md:330 (documented, unchanged exception)
+
+$ python3 scripts/diagrams/generate_all.py   # fourth consecutive run
+$ cmp <previous-run-copy> docs/images/workflow.png   # clean, deterministic
+```
+
+### Files touched this pass
+
+`docs/getting-started.md`, `docs/cli.md`, `scripts/diagrams/generate_all.py`, all eight
+`docs/images/*.png` (byte content only — regenerated with the deterministic renderer invocation; no
+SVG changed, no new diagram), this Change's own `change.md`/`tasks.md`/`evidence.md`. No `cli/src/`
+file was touched; no CLI command, flag, or manifest field changed.
+
+**Confirmation.** No push. No tag. No release. No version bump. No new Change created — Change
+0060 reused and kept Closed.

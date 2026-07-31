@@ -162,6 +162,56 @@
 - [x] Extended this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`; kept the Change Closed.
 - [x] No push, tag, release, or version bump; no new Change created.
 
+## Sixth pass — new-project path parity and diagram determinism
+
+- [x] Confirmed branch (`feat/v3.1`), HEAD, and a clean working tree before editing.
+- [x] Delegated a fresh code/test audit (all commands, `--change` resolution, Adoption/Analysis/
+      Delivery Change distinction, OpenSpec/SpecBoot/assistant-adapter integration, `changes/`/
+      `knowledge/` reuse) to confirm the fifth pass's documented behavior still matches
+      `cli/src/cli.js`/`cli/tests/cli.test.js` — no drift found.
+- [x] Ran `rg -n '```mermaid'` — zero live hits in README/docs (only the same documented
+      Change-0050 historical exception).
+- [x] Ran `npm test` (737/737 PASS) and `node cli/bin/aief.js verify` (PASS) as a baseline before
+      any edit.
+- [x] Ran `scripts/diagrams/generate_all.py` twice and diffed `docs/images/` — found all eight
+      PNGs (not just the new one) byte-differ between runs under this environment's ImageMagick
+      renderer (`date:create`/`date:modify`/`date:timestamp` metadata), reproducing the exact
+      non-determinism the fifth pass worked around by reverting rather than fixing. `-strip` alone
+      removed the metadata but decoded-pixel comparison (Pillow) showed the compressed bytes still
+      differed — ImageMagick's zlib filter/strategy selection isn't deterministic by default.
+      Fixed at the root: added `-strip` plus pinned `png:compression-filter=0`,
+      `png:compression-level=9`, `png:compression-strategy=0` to the ImageMagick invocation in
+      `scripts/diagrams/generate_all.py`. Verified fix: three consecutive full regenerations of all
+      eight PNGs now produce byte-identical output (`cmp` clean); confirmed no SVG output changed.
+- [x] Scratch-tested a new-project skeleton (`aief bootstrap sample-app` in a temp parent
+      directory, outside version control): confirmed the generated tree is exactly `README.md`, a
+      minimal `AGENTS.md`, and empty `changes/`, `knowledge/`, `src/`, `tests/` — no application
+      code, no `package.json`; `doctor`/`verify` both ran clean inside it.
+- [x] Compared that scratch result against `docs/getting-started.md`'s new-project coverage:
+      found it was two lines versus the existing-project path's full Q&A depth. Added a
+      "### Starting a new project" subsection (skeleton contents, why `analyze` is optional there,
+      a ten-step walkthrough to the first Delivery Change) and expanded `docs/cli.md`'s
+      `aief bootstrap <name>` row with the exact files/dirs and its exit-1-on-collision behavior.
+- [x] Added `docs/getting-started.md`'s "Multiple open Changes" and "Safe stopping points" as their
+      own headings (previously only scattered inside the existing-project Q&A).
+- [x] Scratch-tested the existing-project journey again end to end (synthetic repo with
+      `package.json`, `src/`, `test/`, `.github/workflows/ci.yml`, a base commit; md5 checksums and
+      `git log` before/after): confirmed `doctor` writes nothing, `bootstrap` preserves every
+      existing file and the Git history, and a second `bootstrap` is idempotent — matches the
+      fifth pass's findings exactly, no regression.
+- [x] Reran the repo-wide contradiction search (`bootstrap|adopt|adoption|analyze|existing
+      project|new project|greenfield|brownfield|never overwrite|no code edits|OpenSpec|SpecBoot|
+      AGENTS.md|--change`) across README/docs/knowledge/changes — no contradictions found beyond
+      the new-project thinness already fixed above.
+- [x] Deleted both scratch projects (`sample-app`, the synthetic existing repo) from the session
+      scratchpad — never created inside the tracked repository.
+- [x] Ran full validation: `npm test` (737/737), `node cli/bin/aief.js verify` (PASS),
+      `node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation` (PASS),
+      `git diff --check` (clean), a third `generate_all.py` run confirming `git diff --exit-code --
+      docs/images` reports no further changes after the fix is committed.
+- [x] Extended this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`; kept the Change Closed.
+- [x] No push, tag, release, or version bump; no new Change created.
+
 ## Fifth pass — existing-project adoption clarity
 
 - [x] Confirmed branch (`feat/v3.1`), HEAD, and a clean working tree before editing.
