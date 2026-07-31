@@ -23,6 +23,12 @@ export const MANIFEST_STATUS_VALUES = new Set(["open", "closed"]);
 // layer; both lists are small and change together deliberately, not
 // accidentally (Entrega 3, Change 0045, design.md §12).
 export const SDD_PROVIDER_VALUES = new Set(["local", "openspec"]);
+// Harness event ids known to the closed catalog (cli/src/core/domain/hook.js's
+// EVENT_CATALOG). Duplicated as a constant here (not imported), same
+// reasoning as SDD_PROVIDER_VALUES above — the catalog is documented there
+// as closed-by-design, so this duplication is a small, deliberate,
+// rarely-changing decision, not registry coupling (Change 0056, ADR-026).
+export const HARNESS_EVENT_VALUES = new Set(["prompt.prepared", "verify.completed"]);
 
 // parseManifest(raw) -> { ok: true, value } | { ok: false, error }
 // Never throws: a malformed manifest.json is a reportable Change-level
@@ -81,6 +87,74 @@ export function validateManifest(value) {
         require("sdd.change_id", "must be a non-empty string when present");
       }
     }
+  }
+
+  // harness is optional (Change 0056, ADR-026): its absence never produces
+  // an error, and this block never runs for any Change that predates it.
+  // Same discipline as sdd above — shape only, checked against a small,
+  // deliberately duplicated HARNESS_EVENT_VALUES (never an import of the
+  // Hook Registry); real Hook-id existence is a runtime concern
+  // (harness-service.js), not a structural validation one.
+  if (value.harness !== undefined) {
+    if (value.harness === null || typeof value.harness !== "object" || Array.isArray(value.harness)) {
+      require("harness", "must be an object when present");
+    } else {
+      if (value.harness.log !== undefined && typeof value.harness.log !== "boolean") {
+        require("harness.log", "must be a boolean when present");
+      }
+      if (value.harness.hooks !== undefined) {
+        if (value.harness.hooks === null || typeof value.harness.hooks !== "object" || Array.isArray(value.harness.hooks)) {
+          require("harness.hooks", "must be an object when present");
+        } else {
+          for (const eventId of Object.keys(value.harness.hooks)) {
+            if (!HARNESS_EVENT_VALUES.has(eventId)) {
+              require(`harness.hooks.${eventId}`, `is not a known Harness event — known: ${[...HARNESS_EVENT_VALUES].join(", ")}`);
+              continue;
+            }
+            const eventConfig = value.harness.hooks[eventId];
+            if (eventConfig === null || typeof eventConfig !== "object" || Array.isArray(eventConfig)) {
+              require(`harness.hooks.${eventId}`, "must be an object when present");
+              continue;
+            }
+            if (eventConfig.disabled !== undefined) {
+              const isValidList = Array.isArray(eventConfig.disabled) && eventConfig.disabled.every((id) => typeof id === "string" && id.trim());
+              if (!isValidList) require(`harness.hooks.${eventId}.disabled`, "must be an array of non-empty strings when present");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // loop is optional (Change 0057, ADR-027): its absence never produces an
+  // error, and this block never runs for any Change that predates it. Same
+  // discipline as harness/sdd above — shape only; loop-service.js owns
+  // runtime behavior (attempt counting, outcome decision), never this
+  // module.
+  if (value.loop !== undefined) {
+    if (value.loop === null || typeof value.loop !== "object" || Array.isArray(value.loop)) {
+      require("loop", "must be an object when present");
+    } else if (value.loop.verify !== undefined) {
+      if (value.loop.verify === null || typeof value.loop.verify !== "object" || Array.isArray(value.loop.verify)) {
+        require("loop.verify", "must be an object when present");
+      } else if (value.loop.verify.maxRetries !== undefined) {
+        const maxRetries = value.loop.verify.maxRetries;
+        if (!(Number.isInteger(maxRetries) && maxRetries >= 1)) {
+          require("loop.verify.maxRetries", `must be a positive integer when present, got ${JSON.stringify(maxRetries)}`);
+        }
+      }
+    }
+  }
+
+  // dependsOn is optional (Change 0058, ADR-028): its absence never produces
+  // an error, and this block never runs for any Change that predates it.
+  // Shape only — referential validity (does the named Change exist? is
+  // there a cycle?) is a cross-Change, project-wide fact only
+  // change-graph.js can determine, never this single-manifest validator
+  // (same discipline sdd.change_id already established).
+  if (value.dependsOn !== undefined) {
+    const isValidList = Array.isArray(value.dependsOn) && value.dependsOn.every((id) => typeof id === "string" && id.trim());
+    if (!isValidList) require("dependsOn", "must be an array of non-empty strings when present");
   }
 
   return { valid: errors.length === 0, errors };

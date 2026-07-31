@@ -4,6 +4,833 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-030: The assistant-agnostic contract is formalized as three official compatibility categories (Native target / Generic prompt compatible / Not currently supported); `AGENTS.md` is reconfirmed as the sole universal instruction file for AIEF 3.1; `scripts/generate_workflow_diagram.py` is the canonical, only-edit-here source of the workflow diagram
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed as part of [Change
+0060](../changes/0060-v3-1-release-readiness-and-documentation/)'s release-readiness audit, after
+that audit found AIEF 3.1's visual documentation (`docs/images/workflow.svg`, the README's Mermaid
+source) still described AIEF Core 3.0 and had never once claimed formal, verified assistant
+compatibility levels — a gap serious enough to block the assistant-agnostic promise from being
+demonstrably true rather than merely asserted. Extends [ADR-004](#adr-004-agentsmd-is-the-primary-source-of-rules)
+(which established `AGENTS.md` as the primary rules source) with the specific claims Change 0060's
+audit needed to make durable.
+
+**Decision.**
+
+> 1. **Compatibility categories.** Any AI assistant's relationship to `aief prompt` is described
+>    with exactly one of these labels — never a single undifferentiated "supported":
+>    - **Native target** — a recognized `aief prompt <name>` value with its own instruction file
+>      (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` today).
+>    - **Generic prompt compatible** — not a recognized `aief prompt` value, but able to consume
+>      the generic `aief prompt` output (`AGENTS.md` plus Change context, Skills, Standards) as-is,
+>      pasted manually. OpenCode is this category today: `aief prompt opencode` is a hard,
+>      documented error (unknown assistant name); `aief prompt` with no name works because the
+>      generic prompt was already assistant-neutral by construction, not because of any
+>      OpenCode-specific code.
+>    - **Not currently supported** — reserved for a claim this project cannot back with either of
+>      the above; never used to describe an assistant this repository has not actually run `aief
+>      prompt` against as either Native or Generic.
+>    A "documented workflow only" claim (a written recipe with no live verification) must say so
+>    explicitly and never borrow the word "supported" alone.
+> 2. **`AGENTS.md` is the universal contract, confirmed for AIEF 3.1.** Every `aief prompt` output,
+>    for every assistant and for none, opens with "Use AGENTS.md." first — verified unchanged by
+>    reading `cli/src/cli.js`'s `prompt()` (Change 0060 audit, `evidence.md`). An assistant file
+>    only ever adds format-level adaptation (tone, phrasing, emphasis); it must never state an
+>    engineering rule `AGENTS.md` doesn't already state or contradicts it — confirmed true today for
+>    all four of this repository's own assistant files. `aief bootstrap` never creates any
+>    assistant-specific file (confirmed live, Change 0060 `evidence.md`): a freshly bootstrapped
+>    project has `AGENTS.md` and nothing else, and `aief prompt` still produces a complete prompt.
+> 3. **Canonical diagram source.** `scripts/generate_workflow_diagram.py` is the only file ever
+>    hand-edited to change `docs/images/workflow.svg`; the SVG itself is a generated artifact
+>    (regenerate with `python3 scripts/generate_workflow_diagram.py`), and `docs/images/workflow.png`
+>    is, in turn, rendered from that SVG, never edited or produced independently of it.
+>    ~~The README's Mermaid block is a second, independently-maintained representation of the same
+>    architecture — it does not have to be visually identical to the SVG, but it must stay
+>    semantically equivalent (same commands, same three levels, same opt-in/non-blocking
+>    capabilities) — see `docs/maintainer.md` "Regenerating the workflow diagram."~~
+>    **Amended (2026-07-30, same Change, third pass).** Each doc's diagram now answers a different
+>    question and is explicitly not required to be visually or structurally identical to any other:
+>    README carries a single, simplified product-workflow Mermaid diagram (linear flow + one
+>    opt-in-capabilities band, no three-level structure) aimed at a first-time reader;
+>    `docs/workflow.md` keeps the three-level Mermaid as the detailed-lifecycle diagram;
+>    `docs/architecture.md` carries the system-structure diagrams. `docs/images/workflow.svg`/`.png`
+>    remain buildable from the script and are kept as a standalone illustrated export (decks, blog
+>    posts, non-GitHub contexts) — no longer embedded in any Markdown doc, so no doc's prose is
+>    coupled to its exact shape. The script and its outputs are unchanged by this amendment; only
+>    the requirement that README's Mermaid mirror them was dropped.
+>    **Amended (2026-07-30, same Change, fourth pass).** Every Mermaid block in the docs set —
+>    README's product-workflow diagram, `docs/workflow.md`'s three-level lifecycle diagram, and
+>    `docs/architecture.md`'s four structural diagrams — is replaced by a generated SVG (with a
+>    matching PNG) under `docs/images/`, produced by one generator script per diagram under the new
+>    `scripts/diagrams/` package (`scripts/diagrams/common.py` holds only the shared palette,
+>    fonts, arrow markers, and card/badge helpers; `scripts/diagrams/generate_all.py` is the single
+>    canonical command that regenerates and validates every asset). `docs/images/workflow.svg`/
+>    `.png` remain the standalone illustrated export at their original path and command
+>    (`python3 scripts/generate_workflow_diagram.py`); that script is now a thin wrapper calling
+>    `scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()`, so the export and
+>    `docs/workflow.md`'s embedded diagram share one source instead of drifting independently. The
+>    six-diagram semantic map from the prior amendment (README = product question, `workflow.md` =
+>    lifecycle question, `architecture.md` = structural questions, no requirement that any two be
+>    visually identical) is unchanged; only the rendering technology, and the fact that
+>    `docs/workflow.md` and README now embed their diagram (a Markdown image reference, not inline
+>    Mermaid source), changed. See `docs/maintainer.md` "Regenerating the diagrams."
+
+**Why this needs its own ADR.** Three durable, easily-second-guessed claims are being formalized at
+once: an official compatibility taxonomy (previously undocumented — the pre-3.1 diagram and docs
+used one undifferentiated "supported" concept), a confirmation that `AGENTS.md`'s primacy
+(ADR-004) still holds unchanged through eight more Changes (0052–0059), and a single source of
+truth for a generated artifact that had drifted silently before (the pre-3.1 SVG still said "AIEF
+CORE 3.0" and "aief init / adopt"). Each is exactly the kind of decision ADR-004's own "Alternatives
+considered" anticipated might need revisiting as the project grew; recording it here means a future
+Change can cite or amend it explicitly instead of re-deriving it from scratch or silently drifting
+again.
+
+**Why "Not currently supported" exists as a category, not just "Native"/"Generic."** The
+commissioning instruction for Change 0060 was explicit that no assistant may be declared compatible
+without evidence this repository actually produced. An assistant nobody has run `aief prompt`
+against — Native or Generic — is honestly "not currently supported," not silently omitted or
+lumped in with the Generic row by default.
+
+**Relationship to ADR-004.** ADR-004 is not superseded — its core claim (`AGENTS.md` is the primary
+source of rules) is reaffirmed, re-verified against the current codebase, and given the specific
+3.1-era evidence (bootstrap creates no assistant file; every prompt path opens with "Use
+AGENTS.md.") that ADR-004 itself predates.
+
+**Alternatives considered.**
+
+- **Declare OpenCode (and similar tools) "supported" without qualification**, matching the informal
+  tone of the pre-3.1 diagram's "Claude, Gemini, Codex, Cursor...". Rejected — indistinguishable
+  from Native-target support to a reader, which is not true and not verifiable from this repo alone.
+- **Add an `OPENCODE.md`/native adapter now to make OpenCode a Native target.** Rejected as out of
+  scope for a release-readiness consolidation Change (Change 0060's own scope explicitly excludes
+  new subsystems or adapters); nothing in the audit found a functional gap, only a documentation
+  gap — OpenCode already works today via the generic prompt.
+- **Make `docs/images/workflow.png` the canonical artifact and hand-edit it directly (or hand-edit
+  the SVG) instead of maintaining a generator script.** Rejected — the pre-3.1 drift (SVG still
+  reading "AIEF CORE 3.0 WORKFLOW LIFECYCLE" and "aief init / adopt" long after both were renamed)
+  is exactly the failure mode a hand-edited-only artifact produces; a script diffs like code and
+  can be reviewed for what actually changed.
+
+**Consequences.**
+
+- `docs/cli.md` "Assistants", `README.md` "Assistant compatibility", and
+  `changes/0060-*/evidence.md` all cite these three category labels identically — a future doc
+  change introducing a fourth label, or reusing "supported" bare, contradicts this ADR and should
+  be caught in review.
+- A future native adapter (e.g. an `OPENCODE.md` template) is a new Change, not a silent edit to
+  `ASSISTANT_FILES` — and should update this ADR's category table when it lands.
+- `scripts/generate_workflow_diagram.py` changes and `docs/images/workflow.svg`/`.png` changes must
+  land in the same commit; a PR touching one without the other is a review-time defect per this ADR.
+
+---
+
+## ADR-029: `aief status --next` gains deterministic next-Change selection for the multiple-open-Changes case, deliberately superseding the prior ambiguity error; eligibility is six existing, already-official facts — never Change id, folder name, or date; tie-break is the project's existing id-sort convention, applied only after eligibility is decided
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0059](../changes/0059-smart-workflow-next-change-selection/)'s planning artifacts (`spec.md`/`tasks.md`); builds directly on [ADR-028](#adr-028-dependson-is-the-official-change-dependency-field-the-graph-is-derived-pure-and-read-only--construction-and-validation-are-one-pass-status---graph-is-the-full-view-statuss-overview-gets-a-conditional-summary-verify-gets-a-non-blocking-note-doctor-gets-nothing)'s Graph and [ADR-018](#adr-018-user-workflow-is-a-thin-application-layer-whats-next-has-one-canonical-source-exposure-is-gated-by-adr-015)'s Workflow Engine gates, the two mechanisms this Change reuses rather than reinventing.
+
+**Decision.**
+
+> `aief status --next` (no `--change`) already has three paths (Change 0046, ADR-018): zero open
+> Changes (error), exactly one (implicit selection, unchanged by this Change), and more than one
+> — which, until now, was an unconditional "select one explicitly" error. **This Change replaces
+> only that third path** with a deterministic recommendation, computed by a new, pure
+> `next-change-service.js`'s `selectNextChange(changes, graph)`.
+>
+> A Change is **eligible** when all six hold: open; valid manifest (absence is fine, an *existing*
+> invalid one is not); every declared dependency exists (no `missing_dependency`/
+> `self_dependency`/`duplicate_dependency` Graph issue names it); every dependency is closed
+> (checked against `buildGraph()`'s own resolved edges — never recomputed); not a cycle member;
+> and not blocked by the Workflow Engine's own gates (`resolveWorkflowFor()`'s
+> `state.blockers` — a Change with no `track` trivially passes this one). **Loop and Harness are
+> deliberately excluded** — both are non-blocking by explicit design (ADR-026/027); reusing either
+> here would silently hand them authority neither ADR granted. When more than one Change is
+> eligible, the **lowest Change id wins** (string-ascending comparison of directory basenames) —
+> `getChangeDirs()`'s own existing sort, the same order `buildGraph()`'s `nodes` and
+> `statusOverview()`'s listings already use — applied strictly *after* the eligible set is fully
+> determined from real dependency/Workflow facts, never used to infer eligibility itself.
+>
+> Output is always fully explained: a recommendation names the winning Change, its eligibility
+> reasons (dependency state, Graph validity, Workflow gate state), the tie-break rule when it
+> mattered, and the other eligible ids; a "no eligible Change" result names every open Change and
+> its specific blocking reason(s) — never a bare "nothing found." Exit code is `0` either way — an
+> honest report of cross-Change state, not an error, matching `aief status`/`aief status --graph`'s
+> own convention. Nothing is written, cached, or mutated — purely observational.
+
+**Why this needs its own ADR.** A new service module and, more importantly, a **deliberate,
+documented behavior change** to an existing, previously-locked-in error path are each independently
+ADR-triggering — the behavior change specifically needs its own record because it reverses a prior
+ADR's own explicit "never guess" stance for one narrow case, and that reversal must be traceable to
+an explicit instruction, not discovered later as an unexplained diff.
+
+**Why this is a deliberate replacement, not an accidental regression.** ADR-018 (Change 0046)
+established `resolveImplicitChange()`'s "more than one open Change → error, never guess" rule
+*because no eligibility model existed yet* — guessing among undifferentiated open Changes would
+have been arbitrary. Change 0058 (ADR-028) then built the one thing that makes a principled choice
+possible: real, derived dependency structure. This Change is the direct, instructed continuation
+that ADR-028's own "Consequences" section anticipated ("a future Change implementing `status
+--next` ... must build on `buildGraph()`'s existing shape"). The single- and zero-open-Change paths
+— which never needed disambiguation — are untouched, byte-identical, and still covered by their
+original, unmodified tests.
+
+**Why Loop and Harness are excluded.** Both Change 0056 and Change 0057 went to considerable
+length — an entire ADR each — establishing that neither Hooks nor Loop attempts may ever block
+`verify`/`close`/any exit code; that is their whole design center, not an incidental property.
+Silently reading Loop's `exhausted` state or a Harness issue as an eligibility blocker here would
+be handing them exactly the blocking authority those ADRs went out of their way to deny, through a
+back door neither anticipated. If a future Change wants that, it must amend ADR-026/027 explicitly,
+not ride in on this one.
+
+**Why the tie-break is id-sort, not evidence of priority.** The commissioning instruction is
+explicit: never infer dependencies (or, by the same reasoning, priority) from Change id, folder
+name, or date. The id-sort here is not used for that — it never participates in deciding *whether*
+a Change is eligible (that is entirely conditions 1–6, all derived from real declared facts); it
+only breaks a tie *among Changes already known to be equally eligible*, using the one ordering this
+codebase already treats as canonical everywhere else. Recorded explicitly so the distinction is
+never conflated in a future reading of this ADR.
+
+**Relationship to ADR-018.** `resolveImplicitChange()`, the compact Normalized Action view
+(`nextAction()`/`deriveNextAction()`), and `aief status --change <id> --next` are unmodified —
+zero diff. This ADR only changes what happens when `resolveImplicitChange()`'s own "ambiguous"
+branch would otherwise fire, and only for the `--next` (no `--change`) invocation.
+
+**Relationship to ADR-028.** `buildGraph()`, `change-graph.js`, and `buildProjectGraph()` are
+unmodified — zero diff. `selectNextChange()` consumes a `buildGraph()` result as-is.
+
+**Alternatives considered.**
+
+- **Keep the ambiguity error, add selection only behind a new flag (e.g. `--next --smart`).**
+  Rejected — the commissioning instruction is explicit that `aief status --next` itself must gain
+  this capability; a parallel flag would leave the commissioned command's actual behavior
+  unchanged and create two ways to ask the same question.
+- **Use Change id/folder name/date as a selection signal (not just a tie-break).** Rejected
+  outright, per the commissioning instruction's explicit prohibition.
+- **Treat Loop `exhausted` or any Harness issue as blocking.** Rejected — see "Why Loop and
+  Harness are excluded" above.
+- **Recommend the first still-open Change with the most closed dependencies, or some other
+  "progress" heuristic.** Rejected — no cited evidence such a heuristic outperforms "lowest id
+  among the eligible set" (ADR-008), and it would obscure exactly the auditable, one-sentence
+  tie-break rule this Change is required to document precisely.
+- **Non-zero exit code when no Change is eligible.** Rejected — this is a normal, expected state
+  (e.g. everything genuinely is blocked on human review), not a tool failure; `aief status`/`aief
+  status --graph` already established exit `0` for "informative, unremarkable cross-Change report."
+
+**Consequences.**
+
+- `cli/src/core/domain/change-graph.js`, `cli/src/core/services/harness-service.js`,
+  `cli/src/core/services/loop-service.js`, `resolveWorkflowFor()`, `nextAction()`/
+  `deriveNextAction()`, and `aief status --change <id> --next`/`--graph` are untouched by this
+  Entrega — zero diff lines.
+- `aief status --next` with 0 or 1 open Changes is byte-identical to before this Change.
+- The one existing test asserting the superseded ambiguity-error message for 2+ open Changes is
+  updated to assert the new, documented behavior — recorded in `evidence.md`, not silently edited.
+- A future Change wanting Loop/Harness to influence eligibility, or wanting multi-step planning,
+  must amend or supersede this ADR (and, for Loop/Harness specifically, ADR-026/027 too) rather
+  than extend `selectNextChange()` informally.
+
+---
+
+## ADR-028: `dependsOn` is the official Change dependency field; the Graph is derived, pure, and read-only — construction and validation are one pass; `status --graph` is the full view, `status`'s overview gets a conditional summary, `verify` gets a non-blocking note, `doctor` gets nothing
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0058](../changes/0058-change-graph-dependency-model/)'s planning artifacts (`spec.md`/`tasks.md`); the foundation `status --next`, automatic planning and Change navigation will read later — none of those are implemented here.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `dependsOn: [<other Change id>, ...]` — an array of other
+> Changes' directory basenames, the same identifier `--change <id>` already accepts everywhere
+> else. Structural shape (array of non-empty strings) is validated in `change-manifest.js`,
+> mirroring `sdd.change_id`'s own precedent exactly: **referential validity is never checked at
+> the manifest layer** — whether a named Change exists, or participates in a cycle, is a
+> cross-Change, project-wide fact only the Graph itself can determine.
+>
+> `cli/src/core/domain/change-graph.js` exports one pure function, `buildGraph(nodes)`, taking a
+> plain `[{id, dependsOn}]` array (no filesystem access, no CLI dependency) and returning
+> `{nodes, edges, order, cycles, issues}`. **Construction and validation are one pass, not two**:
+> building the edge set and detecting `missing_dependency`/`duplicate_dependency`/
+> `self_dependency` happen together, per source node, so there is no second traversal that could
+> compute a different answer than what was actually built. Cycle detection uses Kahn's algorithm
+> (repeatedly remove zero-remaining-dependency nodes); any node left over is in a cycle — reported
+> once, naming every member — and `order` is `null` in that case, never a fabricated partial
+> order. Every ordering decision (node iteration, tie-breaking, the `edges` array itself) is
+> sorted by Change id, making the whole function deterministic without a priority queue or any
+> other data structure beyond what a small, synchronous CLI needs.
+>
+> `cli.js`'s `buildProjectGraph()` is the **only** place that gathers real Changes for this
+> feature — `getChangeDirs().map(loadChangeUnified)`, `dependsOn` read only from Changes with no
+> `manifestError` (mirrors `sddChanges()`/`workflowChanges()`'s own guard: an invalid manifest's
+> content is never trusted for anything). Three read surfaces, each additive and non-blocking:
+> `aief status` (overview) gains a conditional "Dependency Graph:" section, present only when at
+> least one Change declares `dependsOn`; `aief status --graph` (new flag) renders the full graph,
+> every Change as a node whether or not it has dependencies; `aief verify --change <id>` gains one
+> informational note when the targeted Change has a Graph issue, printed after Loop's own output,
+> never touching `report.passed` or the exit code. `aief doctor` gains nothing — no Graph fact is
+> doctor-shaped (doctor is environment/registry-level; the Graph is cross-Change project state,
+> which `status` already owns for Workflow/SDD/Harness alike).
+
+**Why this needs its own ADR.** A fourth optional `manifest.json` field, a new domain module, and
+an explicit decision about which commands surface cross-Change structural information (plus the
+commissioning instruction's own conditional invitation to add `status --graph` "only if it keeps
+the CLI simple, documented in the ADR") are each independently ADR-triggering, continuing the bar
+ADR-016 through ADR-027 already applied.
+
+**Why one pass, not "build, then validate."** A two-pass design (build the graph first, then walk
+it again to find problems) risks the second pass silently using different rules than the first —
+exactly the kind of drift ADR-024's Standards refactor and ADR-026/027's shared-helper extractions
+were written to prevent elsewhere in this codebase. Detecting `self_dependency`/
+`duplicate_dependency`/`missing_dependency` at the exact moment an edge would be created, and
+simply not creating it when one of those applies, makes "what got built" and "what got reported"
+provably the same computation, not two that happen to agree today.
+
+**Why cycle detection reports the whole remaining set, not decomposed simple cycles.** Kahn's
+algorithm already answers "is there a cycle, and who's in it" as a side effect of computing
+topological order — decomposing a general cyclic subgraph into its individual simple cycles is a
+harder, separate graph problem with no cited need in this codebase (ADR-008): a Change author
+staring at "these N Changes form a dependency cycle: A, B, C" has everything required to go fix
+their own `dependsOn` declarations.
+
+**Why `doctor` gets nothing.** Every prior cross-Change, project-wide fact this codebase has ever
+surfaced (Workflow status, SDD provider status, Harness's per-Change config, Loop's per-Change
+attempt state) went into `status`, never `doctor` — `doctor` answers "is my environment and this
+project's static setup usable," never "what is the current cross-Change state of my Changes."
+Adding a Graph section to `doctor` would be the first exception to that boundary with no cited
+need for it; `status`'s existing precedent already fits perfectly.
+
+**Why `status --graph` and not a required flag, or folding it into the existing overview
+unconditionally.** The overview's own "Dependency Graph:" section is deliberately conditional
+(R10) so a project with no `dependsOn` sees byte-identical `status` output — but that means it
+never shows a Change with zero dependencies, which is exactly the information someone building on
+this foundation (a future `status --next`) will need: the *whole* graph, not just the declared
+edges. A new, explicit, additive flag — never on by default — keeps `status`'s default output
+untouched while making the full picture available on request, the same opt-in-detail precedent
+`--verbose` already established for `doctor` (Changes 0054–0056).
+
+**Relationship to ADR-016 (`manifest.json`).** `dependsOn` joins `sdd`/`track`/`harness`/`loop` as
+another optional, additive top-level field — required-field set unchanged; a legacy Change (no
+manifest, or a manifest without `dependsOn`) is entirely unaffected.
+
+**Relationship to ADR-026/ADR-027.** Same manifest-field → structural-validation → pure-module →
+additive-CLI-wiring shape, applied a third time; `harness-service.js`/`loop-service.js` are
+untouched — zero diff, zero coupling in either direction.
+
+**Alternatives considered.**
+
+- **Two-pass build-then-validate.** Rejected — see "Why one pass, not 'build, then validate.'"
+  above.
+- **Decompose cycles into individual simple cycles.** Rejected for this Entrega — no cited need,
+  real added complexity (ADR-008).
+- **Add the Graph to `aief doctor` instead of/in addition to `status`.** Rejected — breaks the
+  established `status` vs. `doctor` boundary with no cited need to.
+- **Persist the built graph (a `graph.json` or similar cache).** Rejected outright — violates
+  ADR-009 (no hidden state) and this Change's own explicit "no storage beyond `manifest.json`"
+  requirement; rebuilding from `changes/*/manifest.json` on every invocation is cheap at any
+  realistic project size and guarantees the Graph can never silently go stale.
+- **Make `dependsOn` reference SDD artifacts or Workflow tracks instead of/alongside Change ids.**
+  Rejected — no cited use case; `dependsOn` names other Changes, full stop, keeping the model as
+  small as the commissioning instruction's own "sin sobrediseño" principle requires.
+
+**Consequences.**
+
+- `cli/src/core/services/harness-service.js`, `cli/src/core/services/loop-service.js`,
+  `cli/src/core/domain/ai-specs.js`, `cli/src/detect.js`, `cli/src/hooks/*`,
+  `change-verifier.js`'s report computation, and `aief doctor` are untouched by this Entrega —
+  zero diff lines.
+- A project with no `dependsOn` anywhere sees byte-identical `aief status` (overview and
+  `--change`) and `aief verify` (whole-project and `--change`) output; `aief status --graph` is a
+  brand-new flag with no prior baseline.
+- No new persisted state, no new write path — `change-graph.js` and its `cli.js` callers are
+  entirely read-only.
+- A future Change implementing `status --next`, automatic planning, or Change navigation must
+  build on `buildGraph()`'s existing `{nodes, edges, order, cycles, issues}` shape rather than
+  inventing a second graph representation.
+
+---
+
+## ADR-027: Loop is opt-in, per-Change attempt tracking over the unmodified verify pipeline — feedback is reused, never recomputed; retry is always a manual re-invocation, never automatic; `loop.md` mirrors ADR-026's `hooks.md` exactly
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0057](../changes/0057-loop-verify-feedback-retry/)'s planning artifacts (`spec.md`/`tasks.md`); the third opt-in `manifest.json` extension following the pattern [ADR-026](#adr-026-harness-configuration-is-per-change-keyed-by-event-id-opt-in-via-manifestjson-disabling-and-logging-are-post-evaluation-filters-over-the-unmodified-adr-020-hook-runtime--never-a-second-hook-system-never-command-execution-never-blocking) established for Harness.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `loop: { verify: { maxRetries: <positive integer,
+> default 3> } }`. When present, `aief verify --change <id>` becomes attempt-aware: the current
+> attempt number is `(the count of "## Attempt" sections already in <changeDir>/loop.md) + 1` —
+> derived from the visible file itself, never a hidden counter and never a `manifest.json` write
+> (verify stays a read-mostly command; only `loop.md`, an opt-in artifact exactly like Harness's
+> `hooks.md`, is ever written, and only by the calling command, never by any Hook or Skill).
+> **Feedback is `VerificationReport.errors`** — the exact strings Structural Verification already
+> computed and already prints — never a second, parallel analysis. The **outcome** is a pure
+> function of three already-known facts (`passed`, `attempt`, `maxRetries`): `passed` →
+> `"passed"`; `!passed && attempt < maxRetries` → `"retry_available"`; `!passed && attempt >=
+> maxRetries` → `"exhausted"`. Loop prints one additive summary line after the existing report and
+> Hook output, and appends one dated entry to `loop.md` — it never touches `report.passed`,
+> `renderReport()`'s already-decided exit code, or `close()`'s own readiness check.
+>
+> **"Retry" names an outcome, never an action.** No code path introduced by this Change re-invokes
+> `verify`, a Hook, a Skill, an assistant, or any process — a "retry" is the human or assistant
+> running `aief verify --change <id>` again, by their own decision, exactly as they always could.
+> Loop does not gain, and this Change does not introduce, any capability to execute anything
+> automatically.
+>
+> `aief doctor --verbose` gains a conditional, read-only "Loop:" registry — every open Change with
+> `loop.verify` configured, and its current attempt/status, computed the same way `aief verify`
+> would but never writing `loop.md` itself. Absent entirely when no open Change configures Loop.
+> `aief status --change <id>` gains **no** Loop section, and `aief close` gains **no** Loop
+> gating — see "Why no `status`/`close` integration" below.
+
+**Why this needs its own ADR.** A third opt-in `manifest.json` field with its own schema, a new
+service module, a new per-Change persisted artifact, and a decision about which commands surface
+it are each independently ADR-triggering (same bar ADR-016 through ADR-026 applied) — and because
+"retry" is a word that, read carelessly, could imply automatic re-execution; this ADR exists
+partly to foreclose that reading explicitly, the same way ADR-020 forecloses Hook command
+execution.
+
+**Why `loop.md` mirrors `hooks.md`, field for field.** Change 0056 already solved every structural
+question this Change would otherwise re-litigate: visible vs. hidden state (ADR-009), append vs.
+overwrite, what "safe to log" means (already-computed, already-printed strings only — never raw
+content that wasn't already going to the terminal), and where responsibility for the write sits
+(the orchestrating command, never the thing being observed). Reusing that shape exactly is not
+laziness — it is the same "don't build a second Hook system" instruction this session has applied
+consistently, generalized to "don't build a second opt-in-log system."
+
+**Why no `status`/`close` integration.** `aief verify --change <id>`'s own Loop summary plus
+`loop.md` already answer every question `status --change` could — a third surface for the same
+three facts (attempt, last result, decision) either duplicates them or invites drift between two
+independently-maintained renderers. `close()` gating was never requested and would be a real new
+authority (Loop deciding whether a Change *may* close) — a materially bigger decision than
+"visibility," explicitly out of this Entrega's scope; if wanted later, it is a separate, explicit,
+separately-reviewed Change, not an implication of this one.
+
+**Why attempt counting reads `loop.md` instead of a manifest field.** A `manifest.json` write from
+`verify()` — a command documented as "Writes nothing" for the whole-project case and, before this
+Change, for the `--change` case too — would be a materially bigger behavioral shift than adding
+one more opt-in artifact file, and would blur `manifest.json`'s existing role (human-authored
+configuration, never runtime-mutated by any command in this codebase — `close()` itself writes
+`change.md`, never the manifest, per Change 0043's own B1 finding). `loop.md` is additive,
+visible, and answers "how many attempts so far" exactly as honestly as counting real attempts
+requires — deleting or hand-editing it changes future numbering, which is the expected,
+transparent consequence of Markdown being the source of truth (ADR-009), not a bug to guard
+against.
+
+**Relationship to ADR-020/ADR-026.** No new Hook event; `hook.js`'s closed catalog, `hooks/
+index.js`, `hook-service.js`, `harness-service.js` are all untouched — zero diff. Loop is
+verify-command bookkeeping, not a Hook reacting to `verify.completed`.
+
+**Relationship to ADR-016 (`manifest.json`).** `loop` joins `sdd`/`track`/`harness` as another
+optional, additive top-level field — required-field set unchanged; a legacy Change (no manifest,
+or a manifest without `loop`) is entirely unaffected.
+
+**Alternatives considered.**
+
+- **Store the attempt counter in `manifest.json` itself.** Rejected — see "Why attempt counting
+  reads `loop.md`" above; would make `verify()` write to a file no command in this codebase writes
+  to today, a bigger and riskier precedent than one more opt-in log file.
+- **Auto re-run `aief verify` (or invoke an assistant) when a retry is "available."** Rejected
+  outright, per the commissioning instruction's explicit prohibition — Loop reports an outcome,
+  it never acts on it.
+- **A `status --change` Loop section, mirroring Harness's own conditional section exactly.**
+  Considered; rejected for this Entrega — see "Why no `status`/`close` integration."
+- **Gate `aief close` on `exhausted`.** Considered; rejected — a real new authority decision, not
+  requested, and out of proportion to "visibility," this Entrega's stated goal.
+
+**Consequences.**
+
+- `cli/src/core/domain/hook.js`, `cli/src/hooks/index.js`, `cli/src/core/services/hook-service.js`,
+  `cli/src/core/services/hook-context.js`, `cli/src/core/services/harness-service.js`,
+  `cli/src/core/domain/ai-specs.js`, `cli/src/detect.js`, and `change-verifier.js`'s report
+  computation are untouched by this Entrega — zero diff lines.
+- A Change with no `loop` field sees byte-identical `aief verify` (whole-project and `--change`)
+  and `aief doctor` (default and `--verbose`) output, and `loop.md` is never created.
+- `aief close`'s readiness check and `aief status --change`'s existing sections are unaffected —
+  no new authority, no new read surface introduced there.
+- A future Change proposing automatic retry execution, `status`/`close` integration, or a
+  manifest-persisted counter must amend or supersede this ADR first, not merely cite it.
+
+---
+
+## ADR-026: Harness configuration is per-Change, keyed by event id, opt-in via `manifest.json`; disabling and logging are post-evaluation filters over the unmodified ADR-020 Hook Runtime — never a second Hook system, never command execution, never blocking
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0056](../changes/0056-harness-hooks-visibility/)'s planning artifacts (`spec.md`/`tasks.md`); the first user-facing configuration surface over the Hook Runtime [ADR-020](#adr-020-a-hook-is-a-versioned-capability-gated-closed-catalog-event-observer-blocking-authority-is-contractually-reserved-but-structurally-inert-this-entrega-effects-deferred)
+established (Change 0048) as internally-registered and unconfigurable.
+
+**Decision.**
+
+> A Change's `manifest.json` may declare `harness: { log: boolean, hooks: { "<event id>":
+> { disabled: string[] } } }` — keyed by `hook.js`'s own closed event catalog
+> (`prompt.prepared`/`verify.completed`), not by a new, invented lifecycle vocabulary. Structural
+> shape (`harness`/`harness.log`/`harness.hooks.<event>.disabled`, event ids checked against a
+> small duplicated `HARNESS_EVENT_VALUES` constant) is validated in `change-manifest.js`, mirroring
+> the existing `sdd` field's precedent exactly — including the same discipline of *not* importing
+> the runtime registry (Hook ids inside `disabled` are shape-checked only as non-empty strings
+> here). Real Hook-id existence is resolved at runtime by a new `harness-service.js`
+> (`resolveHarnessConfig()`), mirroring `sdd-provider-resolver.js`'s own separation of structural
+> validation from registry-backed resolution. `hook-service.js`/`hooks/index.js`/`hook.js` are not
+> modified — every registered Hook is still evaluated, unconditionally, for every fired event,
+> exactly as ADR-020 specified; `disabled` is implemented as a **post-evaluation filter**
+> (`partitionOutcome()`) over an already-computed `evaluateEvent()` result, never a change to what
+> gets evaluated. `manifest.harness.log === true` additionally opts the targeted Change into a
+> visible, append-only `<changeDir>/hooks.md` Markdown log of every (non-disabled) Hook's result
+> for the fired event — written by the calling command (`prompt()`/`verify()`), never by a Hook
+> itself, preserving ADR-020's "a Hook never writes a file" guarantee at the Hook level.
+>
+> `aief doctor --verbose` gains a Harness section listing the static, project-wide Hook Registry
+> (unconditional once `--verbose` is passed, since `--verbose` output has no backward-compatibility
+> promise — Change 0054/0055 precedent). `aief status --change <id>` gains a Harness section
+> present only when that Change's manifest declares `harness` — reporting **configuration**
+> (log on/off, disabled Hooks per event, unknown-id warnings), never a fabricated execution-count
+> summary, since `status` never fires a Hook and cannot honestly report a last-run outcome without
+> either lying or re-deriving it from `hooks.md` as a second, driftable source of the same fact.
+
+**Why this needs its own ADR.** A new, user-facing `manifest.json` field with its own nested
+schema, a new service-layer module, a new per-Change persisted artifact (`hooks.md`), and a
+decision about how far Hook visibility extends into `doctor`/`status` are each independently
+ADR-triggering (same bar ADR-016 through ADR-025 applied) — and because this Change touches the
+one subsystem (Hooks) whose entire design center, ADR-020, is a set of hard capability/authority
+limits this ADR must explicitly reaffirm rather than quietly erode.
+
+**What this ADR explicitly does NOT change (ADR-020 restated, not superseded).** No Hook capability
+gains `writeFiles`/`executeCommands`/`network` — `FORBIDDEN_CAPABILITIES` in `hook.js` is untouched,
+and no code introduced by this Change spawns a process, reads `manifest.json` as a command string,
+or otherwise executes anything (verified by grep as closing evidence, spec.md R9). No Hook gains
+blocking authority — `canBlock` in `hook-service.js` still requires `capabilities.block === true`
+**and** a `phase: "pre"` event, and the catalog still contains none; a `disabled` Hook is simply
+excluded from rendering, and a `failed`/`invalid` Hook (now visible for the first time) still
+cannot flip `prompt`/`verify`'s own exit code or PASS/FAIL. `hooks.md` is written by the
+orchestrating command, never by a Hook's own `evaluate()` return value — a Hook still, structurally,
+never touches the filesystem.
+
+**Why keyed by event id, not the commissioning brief's illustrative `beforePrompt`/`afterPrompt`/
+`beforeVerify`/`afterVerify` names.** Those names describe a four-phase pre/post split that does
+not exist in this codebase — `hook.js`'s catalog is two events, both already `phase: "post"`
+(ADR-020 §"why the event catalog is closed and evidence-based, not adopted from the vision
+document"). Inventing a four-key config surface over a two-event, no-`pre`-phase runtime would let
+a user configure something (`beforePrompt`) that can never fire — a worse compatibility/honesty
+trade than adapting the brief's *intent* (name the moment a Hook fires) to the *real* catalog.
+
+**Why `status --change` reports configuration, not execution counts.** Considered the
+commissioning brief's own illustrative `Hooks: 3 configured, 2 passed, 1 not run` line; rejected
+as a literal design for this Entrega specifically because `status` is a pure, no-fire inspector —
+producing that line would require either (a) `status` silently firing Hooks itself (a new,
+surprising side effect for a command documented as "Writes nothing" and, worse, semantically wrong
+since Hooks fire *from* `prompt`/`verify`, not from inspecting one), or (b) parsing `hooks.md` back
+into counts, creating a second, driftable representation of the same historical fact. Configuration
+(what *would* run, what's disabled) is the one thing `status` can report honestly without firing
+anything or re-deriving a fact it already wrote once, in `hooks.md`, in its original form.
+
+**Relationship to ADR-016 (`manifest.json`)/ADR-017 (`sdd`).** `harness` joins `sdd`/`track`/etc. as
+another optional, additive top-level manifest field — `MANIFEST_SCHEMA_VERSION`/required-field set
+unchanged; a legacy Change (no manifest) is entirely unaffected, per ADR-016's own precedent.
+
+**Alternatives considered.**
+
+- **Let a Change's manifest define brand-new, user-authored Hooks (arbitrary command/id/event).**
+  Rejected outright — recreates exactly the "second Hook system" the commissioning instruction
+  warned against, and reopens Model C (command execution) that ADR-020 deliberately closed off;
+  any such proposal must first amend or supersede ADR-020, not ride in on this Change.
+- **Execute a shell command declared in `manifest.json` when a Hook "fires."** Rejected outright,
+  for the same reason, and because the commissioning instruction explicitly required reviewing
+  existing conventions before any shell execution — the existing convention is that nothing in
+  this codebase executes an arbitrary command from configuration; introducing the repository's
+  first one inside the Hook Runtime, of all places, would contradict ADR-020's whole point.
+- **Thread `disabled` into `hook-service.js`'s `evaluateEvent()` so a disabled Hook is never even
+  evaluated.** Considered; rejected for this Entrega — every registered Hook is pure and
+  side-effect-free (ADR-020), so the wasted evaluation is free, and keeping `hook-service.js`
+  untouched (zero diff) is a stronger compatibility/review guarantee than a small performance
+  optimization with no observable difference.
+- **Make `doctor`'s Harness section unconditional (not `--verbose`-gated).** Rejected — `doctor`
+  never showed anything about Hooks before this Change; an unconditional addition would change
+  every project's default `doctor` output, violating the commissioning instruction's own
+  compatibility bar (same reasoning Change 0055 applied to Standards).
+
+**Consequences.**
+
+- `cli/src/core/domain/hook.js`, `cli/src/hooks/index.js`, `cli/src/core/services/hook-service.js`,
+  `cli/src/core/services/hook-context.js` are untouched by this Entrega — zero diff lines.
+- A Change with no `harness` field sees byte-identical `doctor` (default)/`prompt`/`verify`
+  output, and no new `status --change` section.
+- `FORBIDDEN_CAPABILITIES`/blocking-authority limits (ADR-020) remain fully in force; a future
+  Change proposing command execution or blocking Hooks must amend or supersede ADR-020 first, not
+  merely cite this ADR.
+- `hooks.md`, once a Change opts in, accumulates via append only — never truncated, never rewritten
+  by this Change's own code path.
+
+---
+
+## ADR-025: `aief prompt` is the primary consumer of project `ai-specs/standards/`; `aief doctor --verbose` gains a conditional report; the shared resolver is extracted from ADR-024's Skill wiring
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0055](../changes/0055-lidr-standards-integration/)'s planning artifacts (`spec.md`/`tasks.md`); the second activation of the resolver [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left dormant, after [ADR-024](#adr-024-aief-doctor-is-the-first-and-this-change-only-consumer-of-the-ai-specs-resolver-activation-is-directory-presence-never-a-changes-manifestjson)'s Skill wiring.
+
+**Decision.**
+
+> `cli/src/core/domain/ai-specs.js` gains a shared internal `resolveResourceRecommendations(builtins,
+> projectResources, resourceDirLabel)`, extracted from ADR-024's `resolveSkillRecommendations()`
+> (refactored to call it, with proven-identical output — Change 0054's own test suite re-run
+> unmodified as the regression proof) and reused by a new `resolveStandardRecommendations(builtins,
+> cwd)`. The description heuristic is renamed `deriveResourceDescription`;
+> `deriveSkillDescription` remains exported, identical, for backward compatibility.
+>
+> **`aief prompt` — not `aief doctor` — is this Change's primary integration point**, because it is
+> the one existing surface that already both lists *and consumes* standards: its `standardsBlock`
+> is real text inside the prompt an assistant receives, not a side report. The rendering is
+> designed so a builtin-only project reconstructs today's exact
+> `- knowledge/standards/<file>` line, id for id — provably byte-identical, never a re-derived
+> approximation. A project standard resolves to its own real path
+> (`ai-specs/standards/<id>.md`), tagged `[project]`/`[project override]` — an assistant reading the
+> generated prompt is pointed at the file that actually governs, not a stale built-in copy.
+>
+> `aief doctor --verbose` gains a **conditional** "Standards:" report — present only when
+> `discoverAiSpecs(cwd).standards` is non-empty. Unlike Skills (ADR-024), `doctor` never displayed
+> anything about standards before this Change, so there is no existing section to extend
+> compatibly; making the whole section's *appearance* conditional (not just its detail) is what
+> keeps every project without `ai-specs/standards/` — the overwhelming majority — byte-identical,
+> matching the compatibility bar Change 0054 established via a different mechanism (there, an
+> always-present section gained an optional tag; here, an always-absent section gains a
+> conditional appearance).
+
+**Why `prompt`, reversing ADR-024's choice of `doctor`.** ADR-024 deliberately chose the
+lowest-risk, write-free surface (`doctor`) over `prompt`'s assistant-facing content, precisely
+because Skills already had a rich, per-item description in `doctor` to extend non-disruptively.
+Standards have no such existing `doctor` surface — extending `doctor` unconditionally would have
+meant printing a brand-new "Standards:" header for every project, a real compatibility break the
+commissioning instruction explicitly forbade ("no cambies el comportamiento de proyectos que no
+tengan ai-specs/standards/"). `prompt`'s existing bullet-per-file convention, by contrast, can be
+reconstructed exactly for the common case, making it the *safer* choice here despite touching
+assistant-facing text — the opposite ranking from ADR-024, for a concretely different reason, not
+a reversal of ADR-024's own reasoning.
+
+**Relationship to ADR-023/ADR-024.** `discoverAiSpecs()`/`resolveResources()` are unmodified — zero
+diff lines. `resolveSkillRecommendations()`'s public contract and observable output are unchanged;
+only its internal implementation now delegates to the shared helper this ADR introduces.
+
+**Relationship to ADR-013/ADR-015.** No new command; `doctor --verbose` reuses the flag Change
+0054 already added. Neither ADR is implicated.
+
+**Alternatives considered.**
+
+- **Make `doctor` the primary integration point, as with Skills.** Rejected — see above; no
+  existing `doctor` output to extend compatibly for standards.
+- **Duplicate the tagging/precedence-rendering logic between Skills and Standards instead of
+  extracting a shared helper.** Rejected — directly contradicts the commissioning instruction
+  ("no dupliques la lógica de precedencia") and would let the two drift silently.
+- **Copy the project's resolved standard into `knowledge/standards/` so `prompt` needs no new
+  rendering logic.** Rejected outright — violates "AIEF consume LIDR, nunca lo copia" (ADR-023)
+  and would create exactly the driftable duplicate ADR-023 already rejected for Skills.
+
+**Consequences.**
+
+- `cli/src/detect.js`, `analyze()`, `createStandards()`, `standardsForProject()`,
+  `bootstrapHere()`, and `resolveSkillRecommendations()`'s observable output are untouched by this
+  Entrega — zero diff lines, zero behavioral change.
+- `aief prompt` output is byte-identical to before this Change for any project without
+  `ai-specs/standards/`; `aief doctor`'s output (with or without `--verbose`) is likewise
+  byte-identical when `ai-specs/standards/` is empty or absent.
+- A future Change wiring `bootstrap`/`analyze` to the same Standards resolver must cite this ADR
+  and ADR-023/ADR-024 rather than inventing a fourth precedence or activation rule.
+
+---
+
+## ADR-024: `aief doctor` is the first (and, this Change, only) consumer of the ai-specs resolver; activation is directory presence, never a Change's `manifest.json`
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0054](../changes/0054-lidr-skill-recommendations/)'s planning artifacts (`spec.md`/`tasks.md`); activates the wiring [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left deliberately dormant.
+
+**Decision.**
+
+> `cli/src/core/domain/ai-specs.js` gains `resolveSkillRecommendations(builtins, cwd)` — a thin,
+> pure composition of ADR-023's existing `discoverAiSpecs()`/`resolveResources()`, adding only
+> what rendering needs: a derived `description` for a project-sourced Skill (its file's first
+> non-empty line, a leading `#` stripped), a fixed `because` line naming the source file, and an
+> `overridesBuiltin` boolean. `aief doctor`'s `printSkills()` — its **one and only caller** — is
+> the sole integration point: it prints a project-sourced Skill inline with built-ins, tagged
+> `[project]`/`[project override]`, in the deterministic order `resolveResources()` already
+> guarantees. A new `--verbose` flag on `doctor` reveals `source`/`path`/`overrides` per entry and
+> full resolver warning text; the default output adds at most one bracketed tag per line and, when
+> warnings exist, exactly one summary line pointing at `--verbose` — never a raw warning dump or a
+> stack trace. `bootstrap`/`analyze`/`prompt` — the Skill Catalog's three other consumers — are
+> **not** touched; each keeps calling `recommendSkills()` directly, unaware this resolver exists.
+
+**Why `doctor` and not `bootstrap`/`analyze`/`prompt`.** `printSkills()` has exactly one caller
+(`doctor()`, confirmed by inspection) and `doctor` is this codebase's only Skill-recommending
+command that never writes a file — "Doctor never modifies your project" is already its own
+documented guarantee. Wiring here first proves the resolver end-to-end at the lowest possible
+risk: no adopted project's `knowledge/skills.md` (`bootstrap`), no Analysis Change's seeded
+content (`analyze`), and no assistant-facing prompt text (`prompt`) changes as a side effect of
+this Change. Extending to those three is explicitly left to future, separately-scoped Changes.
+
+**Activation gate is directory presence, not a Change's `manifest.json`.** The commissioning
+instruction for this Change listed "no modifiques proyectos sin `manifest.json`" among its rules.
+Read literally against this repository's actual state — zero Changes under `changes/` carry a
+`manifest.json` (confirmed by inspection, same fact ADR-016/`change-loader.test.js`'s own
+zero-drift regression already established) — that reading would make the feature permanently
+unreachable, which cannot have been the intent. This Change's real gate is the one ADR-023 already
+established: `ai-specs/skills/*.md` presence in the *project* directory (not any Change's
+manifest). No file is ever written by `resolveSkillRecommendations()` or by `doctor --verbose`, in
+any project, with or without a manifest anywhere — so the literal concern the rule was protecting
+against (an unreviewed project being modified) does not arise either way. Recorded here rather
+than resolved silently, per this project's own precedent for surfacing an ambiguous instruction
+instead of guessing past it.
+
+**Relationship to ADR-023.** Fully consistent — this Change passes `recommendSkills(project)`'s
+output as ADR-023's generic `builtins` argument, exactly as ADR-023's own "alternatives
+considered" anticipated. `discoverAiSpecs()`/`resolveResources()` are unmodified; zero diff lines
+in `cli/src/core/domain/ai-specs.js`'s existing exports.
+
+**Relationship to ADR-010.** The Skill *Catalog* (`skills-catalog.json`, `recommendSkills()`,
+`detect.js`) is untouched — zero diff lines. This Change only changes what `doctor` prints after
+calling `recommendSkills()`, never what `recommendSkills()` itself computes.
+
+**Relationship to ADR-013/ADR-015.** `--verbose` is an additive, opt-in flag on an existing
+command — not a new command verb — so neither ADR is implicated; ADR-022's scoped thaw is not
+invoked because nothing here needed it.
+
+**Alternatives considered.**
+
+- **Wire into `bootstrap`/`analyze`/`prompt` in this same Change.** Rejected — out of scope by
+  explicit commissioning instruction; each is a write path (`bootstrap`) or assistant-facing
+  content (`analyze`, `prompt`), a materially higher-risk first integration than a read-only
+  report.
+- **Gate activation behind a Change's `manifest.json` field (e.g. `manifest.aiSpecs.enabled`).**
+  Considered, per the commissioning instruction's literal wording; rejected — no Change in this
+  repository has ever carried a manifest, `doctor` operates at the project level (not a single
+  Change), and ADR-023 already established directory presence as this feature's opt-in mechanism.
+- **A `--json` output mode alongside `--verbose`.** Rejected for this Entrega — no evidenced
+  consumer needs machine-readable `doctor` output yet (ADR-008); `--verbose` alone satisfies the
+  commissioning instruction's "detail behind a flag" requirement.
+
+**Consequences.**
+
+- `cli/src/detect.js`, `skillsDoc()`, `analyze()`'s context building, and `prompt()`'s
+  `skillsBlock` are untouched by this Entrega — zero diff lines, zero behavioral change.
+- `aief doctor`'s output (with or without `--verbose`) is byte-identical to before this Change for
+  any project without `ai-specs/skills/*.md`.
+- A future Change wiring `bootstrap`/`analyze`/`prompt` to the same resolver must cite this ADR
+  and ADR-023 rather than inventing a third precedence or activation rule.
+
+---
+
+## ADR-023: `ai-specs/` resources are discovered and resolved against AIEF's built-ins, never copied; project always wins on id collision; unwired (dormant) this Change
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0053](../changes/0053-lidr-integration/)'s planning artifacts (`spec.md`/`design.md`/`tasks.md`); commissioned as the first, deliberately narrow step of LIDR integration — "AIEF consume LIDR, nunca lo copia."
+
+**Decision.**
+
+> A LIDR/specboot-style project may carry an `ai-specs/skills/*.md` and/or `ai-specs/standards/*.md`
+> directory. `discoverAiSpecs(cwd)` (`cli/src/core/domain/ai-specs.js`) reads these — filename stem
+> as id, file content as-is — without ever copying a file into the AIEF-managed project structure.
+> `resolveResources(builtins, projectResources)` combines a caller-supplied list of built-in
+> resources (plain `{ id, ... }` objects — the function is generic, not coupled to the Skill
+> Catalog's or `knowledge/standards/`'s specific shape) with the discovered project resources under
+> one fixed rule: **project wins on id collision**, a human-readable warning is recorded for every
+> override, and the two definitions are **never merged field-by-field** — the resolved entry is
+> always wholly the project's or wholly AIEF's built-in, never a hybrid. A project id absent from
+> the built-ins is simply added. Read errors (an unreadable directory, e.g. a file where a
+> directory is expected) and duplicate ids *within* the project's own directory are reported as
+> diagnostics, never thrown. **This Change wires the resolver into nothing** — no command, no
+> prompt, no bootstrap step calls it yet; a project without `ai-specs/` and a project with one
+> behave, observably, identically today, because nothing observable consumes this module yet.
+
+**Why this needs its own ADR.** This is the seventh new architectural boundary this project has
+introduced (ADR-016 through ADR-022 before it) — same trigger, recorded for the same reason: a new
+external-resource contract (a project directory AIEF did not create, read by AIEF for the first
+time) and a new precedence policy are both ADR-triggering events, this Entrega introduces both.
+
+**Why unwired rather than integrated into `recommendSkills()`/`listStandards()` now.** The
+commissioning instruction for this Change is explicit and narrow: no CLI flow change, no bootstrap
+change, no observable behavior change for any project, existing or new. Wiring this resolver into
+`detect.js`'s `recommendSkills()` or `cli.js`'s `listStandards()`/`createStandards()` would change
+`aief bootstrap`/`aief analyze`/`aief prompt`'s real output for any project that adopts
+`ai-specs/skills|standards/` — a real, user-visible capability change, and exactly the kind of
+change this Change's own scope excludes ("el objetivo NO es implementar todo LIDR"). The resolver
+is therefore built, tested and documented as a complete, correct, standalone unit — the integration
+into a real command's data path is left as a distinct, later, separately-scoped Change, so that
+decision (which command, what the resulting prompt/analyze output should look like) gets its own
+review rather than riding in as a side effect of this one.
+
+**Relationship to ADR-010.** The Skill *Catalog* (`skills-catalog.json`, `recommendSkills()`) is
+untouched — zero diff lines. This ADR's resolver is generic over "a list of `{ id, ... }` objects";
+it does not know about detectors, `signal` strength, or `promptContext`. A future Change that wires
+Skill Catalog entries through it would pass `skillsCatalog.skills` as the `builtins` argument
+without this module needing to change.
+
+**Relationship to ADR-015.** Not implicated — this Change adds no new command, does not touch
+onboarding, and does not simplify or merge documentation. ADR-015's freeze (new commands,
+onboarding, documentation simplification — see [ADR-022](#adr-022-adr-015s-freeze-is-explicitly-thawed-for-aief-31-by-the-project-owners-direct-decision--not-by-change-0042s-consolidation))
+is neither invoked nor needed here.
+
+**Alternatives considered.**
+
+- **Copy `ai-specs/` content into `knowledge/`, like `aief bootstrap` does for AIEF's own
+  standards templates.** Rejected outright — violates the explicit commissioning principle
+  ("AIEF consume LIDR, nunca lo copia") and would create a second, driftable copy of
+  project-authored content.
+- **Wire the resolver into `recommendSkills()`/`listStandards()` in this same Change.** Rejected —
+  out of scope by explicit instruction; deferred to a future Change once this module's contract is
+  reviewed and accepted on its own.
+- **A YAML/front-matter schema for skill/standard files (id, description, detector, etc.).**
+  Rejected for this Entrega — no real `ai-specs/` project sample exists in this repository to
+  ground such a schema in evidence (ADR-008); filename-as-id, raw content, is the simplest contract
+  that satisfies discovery and precedence without inventing an unverified format.
+
+**Consequences.**
+
+- `detect.js`, `cli.js`'s `recommendSkills()`/`listStandards()`/`createStandards()`, `bootstrap`,
+  `analyze`, `prompt`, and every existing command are untouched by this Entrega — zero diff lines,
+  zero behavioral change, with or without a project's `ai-specs/` directory present.
+- No new command, no new CLI flag, no new persisted state, no file is ever written by this module
+  (`discoverAiSpecs`/`resolveResources` are both read-only/pure).
+- A future Change proposing the real wiring (which command surfaces project `ai-specs/` resources,
+  and how) must cite this ADR's resolver contract rather than inventing a second precedence rule.
+
+---
+
+## ADR-022: ADR-015's freeze is explicitly thawed for AIEF 3.1, by the project owner's direct decision — not by Change 0042's consolidation
+
+**Status: Accepted (2026-07-30), by the project owner.**
+
+**Decision.**
+
+> ADR-015 froze **new commands**, **onboarding**, and **documentation simplification** until Change
+> 0042's usability study ran and its evidence was consolidated. That study was never run —
+> `changes/0042-usability-validation-protocol/consolidation.md` is still the empty template
+> (`## 1. Sessions summary` with no data filled in). ADR-015 itself anticipated exactly this kind
+> of override: *"The thaw is a separate, later, explicit decision — it does not happen
+> automatically when the study ends; it happens when a human reads the consolidation and says
+> so."* This ADR **is** that explicit decision, made directly by the project owner on 2026-07-30,
+> commissioning **AIEF 3.1** — without waiting for Change 0042 to run. The freeze is lifted
+> specifically for the AIEF 3.1 initiative (tracked under `feat/v3.1` and its Changes, starting at
+> Change 0052); it is not a blanket repeal of ADR-015's reasoning for any future initiative.
+
+**Why override rather than run the study first.** The owner weighed the study's evidentiary value
+against the cost of the wait (recruiting ≥5 participants across experience levels, an independent
+moderator, session time) and chose to proceed on the same reframe ADR-013/ADR-015 already
+established as the goal — discoverability and ease of adoption, informed by the real dogfooding
+signal already on record (`docs/history/dogfooding-findings.md`) and by the Core 3.0 build itself
+(Changes 0043–0051) — rather than block AIEF 3.1 on a study that has not started. This is a
+judgment call by the accountable human, exactly the authority ADR-015 §"Consequences" reserved for
+the owner alone.
+
+**What stays true from ADR-015, unweakened.** DELETE/ARCHIVE candidates (R10/R11/R13/R14/R12, the
+Change 0038 map) and Type↔Track ([Change 0039](../changes/0039-type-track-derivation-design/))
+remain frozen — this thaw is scoped to the three items AIEF 3.1 actually needs (new commands,
+onboarding, documentation simplification) and does not touch the rest of ADR-015's list. Change
+0042's protocol is not discarded — running it later, on AIEF 3.1's result, remains available and
+arguably more useful once there is a redesigned onboarding flow to test.
+
+**Relationship to ADR-013.** AIEF 3.1's first Change (0052) must still name what it removes, not
+merely add — the merge of `init`/`adopt` into `aief bootstrap` (see Change 0052) is the concrete
+instance: `bootstrap` replaces both as the public commands (their logic becomes internal, invoked
+only by `bootstrap`), not an additive third command living beside the two it overlaps with. This
+ADR does not itself waive ADR-013 — each Change under AIEF 3.1 must independently satisfy it.
+
+**Consequences.**
+
+- Change 0052 (and subsequent AIEF 3.1 Changes) may introduce new command surface and touch
+  onboarding/documentation, where every prior Core 3.0 Change (0043–0051) was structurally
+  required to avoid both.
+- Each AIEF 3.1 Change must still individually satisfy ADR-013 (name what it removes/merges).
+- The DELETE/ARCHIVE map and Type↔Track design stay frozen — unaffected by this ADR.
+- Change 0042's protocol remains valid and un-superseded; it may still be run later, against
+  AIEF 3.1's result, as a separate, later, explicit decision.
+
+---
+
 ## ADR-021: Verification splits into Structural (existing) and Requirement (new, evidence-based, deterministic) layers; evidence is consumed and normalized, never generated; `close()` and Workflow-gate integration are deferred
 
 **Status: Accepted (2026-07-27)** — status line updated by [Change 0051](../changes/0051-core3-documentation-rebuild/) to reflect [Change 0049](../changes/0049-core3-verification-engine/)'s own closure record (`change.md`: "Status: Closed (2026-07-27)"); the decision text below is unchanged. Proposed alongside the rest of Change 0049's planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation completed and the Change closed the following day, per that Change's own evidence.

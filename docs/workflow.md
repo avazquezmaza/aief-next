@@ -6,30 +6,18 @@ Verification Rule) is defined in [Concepts](concepts.md).
 
 ## The three levels
 
-```mermaid
-flowchart TD
-    subgraph L1["1 . Context (AIEF)"]
-        A1[doctor] --> A2[init / adopt] --> A3[verify] --> A4[analyze / new-change / enrich] --> A5[prompt]
-    end
-    subgraph L2["2 . Feature (assistant, optionally OpenSpec)"]
-        B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]
-    end
-    subgraph L3["3 . Governance (AIEF)"]
-        C1[verify] --> C2[close --yes]
-    end
-    A5 -->|paste prompt into assistant| L2
-    L2 -->|work done, evidence.md written| L3
-    C2 -->|next Change| A4
-```
+![AIEF Change lifecycle: Level 1 Context and Change preparation (doctor, bootstrap, analyze/new-change/enrich, prompt) feeds Level 2 Assistant implementation (any AI assistant, optionally structured by OpenSpec, writes evidence.md), which feeds Level 3 Verification and closing (verify, close --yes, status --graph/--next); a failed verify is fixed and re-prompted manually, and Harness/Hooks/Loop only observe and report, never execute or gate](images/workflow-lifecycle.svg)
 
-- **Level 1 — Context.** AIEF prepares the ground: detects the stack, adopts an existing project
-  without touching application code, creates a Change, and composes a context-complete prompt.
-  This level never implements functional code.
+- **Level 1 — Context.** AIEF prepares the ground: `doctor` checks environment and project
+  readiness (not a Change's own `verify`), `bootstrap` adopts an existing project without touching
+  application code, then a Change is created and a context-complete prompt is composed. This level
+  never implements functional code.
 - **Level 2 — Feature.** The engineering itself, done by your AI assistant, optionally structured
   by OpenSpec (Explore → Propose → Apply → Archive). AIEF does not implement, generate specs, or
   duplicate this level.
-- **Level 3 — Governance.** AIEF checks the result and closes the loop: `verify` reports
-  structure and (optionally) requirement compliance; `close --yes` marks the Change Closed.
+- **Level 3 — Governance.** AIEF checks the result and closes the loop: `verify` reports a
+  specific Change's structure and (optionally) requirement compliance; `close --yes` marks that
+  Change Closed.
 
 A Change that opts into a `track` (see [Tracks](#tracks)) gets additional stage/gate narration
 inside levels 1 and 3, but the three-level shape never changes.
@@ -108,14 +96,164 @@ Every shipped Skill is instructions-only: it hands the assistant guidance to fol
 writes a file, runs a command, or calls the network on its own — following the instructions is not
 by itself evidence the described work happened.
 
-## Hooks Runtime
+## Harness — Hooks Runtime, visibility and configuration
 
-Two lifecycle events exist today: `prompt.prepared` (fires at the end of `aief prompt`, after every
-other context block) and `verify.completed` (fires after `aief verify` has already printed its
-PASS/FAIL and set its exit code). A Hook observing either event can only append an additional,
-clearly labeled section — it cannot influence the exit code, block the command, or write a file. No
-Hook is user-facing to configure yet; the runtime exists so future reactive behavior has one shared
-extension point.
+**AIEF's Harness** is the Hook Runtime plus the opt-in configuration and logging layer over it
+(Change 0056, ADR-026). Two lifecycle events exist today: `prompt.prepared` (fires at the end of
+`aief prompt`, after every other context block) and `verify.completed` (fires after `aief verify`
+has already printed its PASS/FAIL and set its exit code). A Hook observing either event can only
+append an additional, clearly labeled section — it cannot influence the exit code, block the
+command, or write a file itself. Hooks are internally registered, not user-authored — you cannot
+define a new Hook via configuration, only see, disable, and log the existing ones.
+
+`aief doctor --verbose` lists every registered Hook and the event it fires on (`aief doctor`'s
+default output shows nothing about Hooks — this section only exists behind `--verbose`).
+
+A Change's `manifest.json` may opt into Harness configuration:
+
+```json
+{
+  "harness": {
+    "log": true,
+    "hooks": {
+      "prompt.prepared": { "disabled": ["prompt-skill-suggestion"] },
+      "verify.completed": { "disabled": [] }
+    }
+  }
+}
+```
+
+- `harness.log: true` makes `aief prompt`/`aief verify --change <id>` append a visible, append-only
+  `<changeDir>/hooks.md` record of every Hook's result for the fired event (id, event, status, a
+  short summary — never raw command output or a credential, since Hooks structurally cannot
+  produce either).
+- `harness.hooks."<event>".disabled` excludes listed Hook ids from that event's output and log —
+  the Hook is still evaluated (Hooks are pure and side-effect-free either way), only its result is
+  excluded from what you see.
+- `aief status --change <id>` shows a Harness section — only when the Change declares one —
+  reporting configuration (which Hooks are active/disabled per event, any unknown-id warnings),
+  never a fabricated execution count: `status` never fires a Hook, so it never claims one "passed".
+
+No `harness` field (every Change before this one, and any Change that doesn't need it) behaves
+exactly as before — `aief doctor` (default), `aief prompt`, `aief verify` are byte-identical.
+
+## Loop — Verify, Feedback, Retry
+
+**Loop** (Change 0057, ADR-027) is opt-in, per-Change attempt tracking over `aief verify --change
+<id>`: **Verify → Feedback → Retry (if applicable) → Final result.** "Retry" names an outcome —
+nothing in AIEF re-runs `verify`, an assistant, or any command automatically; a retry is always
+the next manual `aief verify --change <id>` you (or an assistant, on your instruction) run.
+
+```json
+{
+  "loop": {
+    "verify": {
+      "maxRetries": 3
+    }
+  }
+}
+```
+
+- The current attempt number is derived from `<changeDir>/loop.md` itself (the count of prior
+  attempts already logged, plus one) — never a hidden counter, never a `manifest.json` write.
+- **Feedback** is exactly `aief verify`'s own Structural Verification error lines — nothing new is
+  computed or fetched.
+- The **outcome** is one of three states: `passed` (Loop complete), `retry_available` (still
+  failing, under the limit — fix the items above and run `aief verify` again), or `exhausted`
+  (failing at or beyond `maxRetries` — manual review required, `loop.md` has the full history).
+  None of these ever changes `aief verify`'s own PASS/FAIL or exit code.
+- `loop.verify` present with no `maxRetries` defaults to `3`.
+- `aief doctor --verbose` lists every open Change with `loop.verify` configured and its current
+  attempt count — read-only, never writes `loop.md` itself.
+
+No `loop` field (every Change before this one) behaves exactly as before — `aief verify`
+(whole-project and `--change`) and `aief doctor` (default and `--verbose`) are byte-identical, and
+`loop.md` is never created. Loop does not gate `aief close` and has no `aief status --change`
+section — `aief verify`'s own output and `loop.md` already answer every question a third surface
+would only duplicate.
+
+## Graph — the Change dependency model
+
+A Change's `manifest.json` may declare `dependsOn`, naming other Changes it depends on (Change
+0058, ADR-028). This is the **foundation** `aief status --next`'s smart selection (Change 0059,
+below) builds on; automatic multi-step planning and Change navigation beyond picking one next
+Change remain unimplemented.
+
+```json
+{
+  "dependsOn": ["0002-user-model", "0003-add-login"]
+}
+```
+
+`dependsOn` entries are Change directory basenames — the same identifier `--change <id>` already
+accepts. Nothing is persisted beyond `manifest.json` itself: the graph is rebuilt, deterministically,
+from `changes/*/manifest.json` on every invocation.
+
+- **`aief status`** (overview) gains a "Dependency Graph:" section — present only when at least
+  one Change declares `dependsOn` — listing each such Change's dependencies and any issues.
+- **`aief status --graph`** renders the *full* graph: every Change as a node (even ones with no
+  dependencies), every edge, the topological order (dependencies first), or an explicit
+  "unavailable — dependency cycle among: ..." statement when a cycle exists.
+- **`aief verify --change <id>`** prints one small, non-blocking note when the targeted Change has
+  a Graph issue — never affects PASS/FAIL or the exit code.
+- **`aief doctor`** is untouched — the Graph is cross-Change project state, which `status` already
+  owns (the same place Workflow/SDD/Harness/Loop's own cross-Change facts live).
+
+Issues detected, always as informational diagnostics, never as blockers:
+
+| Issue | Meaning |
+|---|---|
+| `missing_dependency` | `dependsOn` names a Change that doesn't exist. |
+| `self_dependency` | A Change lists itself in `dependsOn`. |
+| `duplicate_dependency` | The same dependency is listed more than once. |
+| `cycle` | Two or more Changes depend on each other, directly or transitively — no valid order exists among them. |
+
+No `dependsOn` field anywhere (every Change before this one) behaves exactly as before —
+`aief status` (overview), `aief verify` (whole-project and `--change`), and `aief doctor` are
+byte-identical. `aief status --graph` is a brand-new flag.
+
+## Smart next-Change selection — `aief status --next`
+
+`aief status --next` (no `--change`) already had two paths (Change 0046): zero open Changes
+(error), exactly one (shows that Change's compact Normalized Action — unchanged). **With two or
+more open Changes, it now recommends one deterministically** instead of erroring (Change 0059,
+ADR-029) — replacing the prior "select one explicitly" message for that case specifically.
+
+A Change is **eligible** when all of:
+
+1. it is open;
+2. its manifest is valid (having none at all is fine — only an *existing*, invalid one disqualifies it);
+3. every `dependsOn` entry names a Change that exists (no Graph `missing_dependency`/
+   `self_dependency`/`duplicate_dependency` issue names it);
+4. every dependency is **closed**;
+5. it is not a member of a dependency cycle;
+6. it has no unsatisfied Workflow gate blocker (a Change with no `track` trivially passes this).
+
+**Loop and Harness are deliberately never consulted** — both are non-blocking by design
+(ADR-026/027); using either here would silently give them authority those ADRs withheld.
+
+When more than one Change is eligible, **the lowest Change id wins** (string-ascending comparison
+— the same sort `buildGraph()`'s `nodes` and `status`'s own listings already use). This tie-break
+never decides *eligibility* — only which already-equally-eligible Change to recommend.
+
+```text
+Next Change: 0002-add-login
+
+Ready because:
+- status: open
+- dependencies: all closed (0001-user-model)
+- graph: valid
+- workflow: no blocking gates
+
+Tie-break: lowest Change id, sorted ascending (...)
+Other eligible Change(s): 0004-add-payments
+```
+
+When nothing is eligible, every open Change is listed with its own specific blocking reason —
+never a bare "nothing found" — and the exit code is still `0` (an honest report, not an error).
+
+No `dependsOn`/no relevant Graph or Workflow blockers, with exactly one or zero open Changes:
+`aief status --next` is byte-identical to before Change 0059.
 
 ## Verification
 

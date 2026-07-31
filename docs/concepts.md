@@ -22,6 +22,22 @@ A Change is **open** until its `change.md` carries a `## Status / Closed` sectio
 `closed`. Either way, **the files are the only source of truth**: there is no database, no session
 state, no hidden flag. Selection is always derived by reading `changes/` fresh.
 
+There is no separate Change type field distinguishing these in code — `analyze` sets `## Type` to
+`Analysis` in `change.md`, every other Change (including the one `bootstrap` creates) is `General`
+— but the three shapes below carry distinct purposes and are worth naming:
+
+- **Adoption Change** — created once by `aief bootstrap` (`changes/<id>-adopt-aief/`). Registers
+  that AIEF was added to the project: its `evidence.md` is generated automatically from what
+  `bootstrap` detected and created. It does not represent a product feature — there is nothing to
+  implement beyond editing the starter standards to match the project and running `aief verify`.
+- **Analysis Change** — created by `aief analyze` (`changes/<id>-analyze-current-architecture/` by
+  default). Captures the existing repository's architecture, stack, standards gaps, and risks,
+  seeded with the same signals `doctor` detects. It produces a roadmap, not code — it's the input
+  for planning the first real Changes.
+- **Delivery Change** — every Change created by `aief new-change` or `aief enrich`: a feature, fix,
+  refactor, or other real unit of work, with its own `spec.md`, `tasks.md`, and implementation
+  evidence. This is what `aief prompt` composes a context-complete prompt for.
+
 ## Change Manifest
 
 An optional `manifest.json` next to `change.md`. A Change with no manifest behaves exactly as it
@@ -92,17 +108,52 @@ reports one of seven honest statuses (`ready`, `completed`, `not_applicable`, `b
 release is **instructions-only**: it hands the assistant guidance to follow, it does not write
 files, execute commands, or reach the network on its own.
 
-This is distinct from the **Skill Catalog** (`aief doctor`/`aief adopt`'s recommended Skills,
+This is distinct from the **Skill Catalog** (`aief doctor`/`aief bootstrap`'s recommended Skills,
 written to `knowledge/skills.md`) — that is passive, static, contextual knowledge; the Skills
 Runtime above is a registered, invocable contract. See [CLI Reference](cli.md#prompt) for both.
 
-## Hook
+## Hook / Harness
 
-A versioned observer that reacts to one of a small, closed set of lifecycle events
+A **Hook** is a versioned observer that reacts to one of a small, closed set of lifecycle events
 (`prompt.prepared`, `verify.completed`). A Hook can only add an observation to the output — it
-never blocks a command, never changes an exit code, and never mutates a file. Hooks are internally
-registered (not user-authored) and exist so future contextual behavior has one shared extension
-point instead of another bespoke `if` inside `cli.js`.
+never blocks a command, never changes an exit code, and never mutates a file itself. Hooks are
+internally registered (not user-authored) — a Change's `manifest.json` cannot define a new one.
+
+The **Harness** (Change 0056) is what a Change *can* configure over the existing Hooks: disable
+specific ones per event (`manifest.harness.hooks.<event>.disabled`) and opt into a visible,
+append-only execution log (`manifest.harness.log`, written to `<changeDir>/hooks.md`). `aief doctor
+--verbose` shows every registered Hook; `aief status --change <id>` shows a Change's effective
+Harness configuration, only when declared. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
+
+## Loop
+
+Opt-in, per-Change attempt tracking over `aief verify --change <id>` (Change 0057):
+**Verify → Feedback → Retry (if applicable) → Final result.** Feedback reuses Structural
+Verification's own error lines; the outcome (`passed`/`retry_available`/`exhausted`) is a pure
+decision over the attempt number (derived from `<changeDir>/loop.md` itself) and
+`manifest.loop.verify.maxRetries`. "Retry" is always a manual re-invocation — Loop never re-runs
+`verify`, a Hook, or anything else automatically, and never changes `verify`'s own PASS/FAIL or
+exit code. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
+
+## Graph
+
+The official Change dependency model (Change 0058): a Change's `manifest.json` may declare
+`dependsOn`, naming other Changes it depends on. `change-graph.js`'s `buildGraph()` derives, on
+every invocation, a deterministic node/edge structure, a topological order (dependencies first),
+and any issues (`missing_dependency`, `self_dependency`, `duplicate_dependency`, `cycle`) — never
+persisted, never cached. `aief status`/`aief status --graph` read it; `aief verify --change <id>`
+prints a non-blocking note when the targeted Change has an issue. This is the foundation `aief
+status --next`'s smart selection (Change 0059, below) builds on.
+See [Workflow — Graph](workflow.md#graph--the-change-dependency-model).
+
+## Smart next-Change selection
+
+`aief status --next`, when 2+ Changes are open (Change 0059), deterministically recommends one:
+open, valid manifest, every dependency exists and is closed, not a Graph cycle member, no
+unsatisfied Workflow gate blocker. Ties break on the lowest Change id. Loop and Harness are never
+consulted — both are non-blocking by design (ADR-026/027). With 0 or 1 open Changes, behavior is
+unchanged from before this Change. See
+[Workflow — Smart next-Change selection](workflow.md#smart-next-change-selection--aief-status---next).
 
 ## Verification Rule / Requirement Verification
 

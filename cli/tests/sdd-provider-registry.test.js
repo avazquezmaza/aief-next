@@ -79,6 +79,49 @@ test("resolveSddProvider: a declared-but-unavailable provider does not fall back
   });
 });
 
+test("resolveSddProvider: knowledge/sdd-provider.json (project-config) wins over OpenSpec detection", () => {
+  withRestrictedPath(() => {
+    const cwd = tempCwd();
+    fs.mkdirSync(path.join(cwd, "openspec"));
+    fs.mkdirSync(path.join(cwd, "knowledge"));
+    fs.writeFileSync(path.join(cwd, "knowledge", "sdd-provider.json"), JSON.stringify({ provider: "local" }), "utf8");
+    const result = resolveSddProvider({ manifest: null }, cwd);
+    assert.equal(result.provider.PROVIDER_ID, "local");
+    assert.equal(result.source, "project-config");
+  });
+});
+
+test("resolveSddProvider: an explicit manifest.sdd.provider still wins over knowledge/sdd-provider.json", () => {
+  withRestrictedPath(() => {
+    const cwd = tempCwd();
+    fs.mkdirSync(path.join(cwd, "knowledge"));
+    fs.writeFileSync(path.join(cwd, "knowledge", "sdd-provider.json"), JSON.stringify({ provider: "openspec" }), "utf8");
+    const change = { manifest: { sdd: { provider: "local" } } };
+    const result = resolveSddProvider(change, cwd);
+    assert.equal(result.provider.PROVIDER_ID, "local");
+    assert.equal(result.source, "manifest");
+  });
+});
+
+test("resolveSddProvider: an unknown provider in knowledge/sdd-provider.json is an explicit error, never a silent fallback", () => {
+  const cwd = tempCwd();
+  fs.mkdirSync(path.join(cwd, "knowledge"));
+  fs.writeFileSync(path.join(cwd, "knowledge", "sdd-provider.json"), JSON.stringify({ provider: "bogus" }), "utf8");
+  const result = resolveSddProvider({ manifest: null }, cwd);
+  assert.ok(result.error);
+  assert.match(result.error, /unknown SDD provider/);
+  assert.equal(result.provider, undefined);
+});
+
+test("resolveSddProvider: malformed knowledge/sdd-provider.json is reported, never thrown", () => {
+  const cwd = tempCwd();
+  fs.mkdirSync(path.join(cwd, "knowledge"));
+  fs.writeFileSync(path.join(cwd, "knowledge", "sdd-provider.json"), "{not json", "utf8");
+  const result = resolveSddProvider({ manifest: null }, cwd);
+  assert.ok(result.error);
+  assert.match(result.error, /not valid JSON/);
+});
+
 test("resolveSddProvider: is deterministic — same change/cwd, same result, every call", () => {
   withRestrictedPath(() => {
     const cwd = tempCwd();

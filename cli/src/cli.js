@@ -11,12 +11,18 @@ import { loadWorkflowDefinition, KNOWN_TRACKS } from "./core/domain/workflow-def
 import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
 import { evaluateGates } from "./core/services/gate-evaluator.js";
 import { resolveState } from "./core/services/transition-engine.js";
-import { resolveSddProvider } from "./core/domain/sdd-provider-resolver.js";
+import { resolveSddProvider, sddProviderConfigPath } from "./core/domain/sdd-provider-resolver.js";
+import { getProvider } from "./sdd-providers/index.js";
+import { resolveSkillRecommendations, resolveStandardRecommendations, deriveResourceDescription } from "./core/domain/ai-specs.js";
 import { inspect as inspectWorkflow, nextAction, explain as explainWorkflow } from "./core/services/workflow-service.js";
 import { buildSkillContext } from "./core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "./core/services/skill-service.js";
 import { buildEvent, buildHookContext } from "./core/services/hook-context.js";
 import { evaluateEvent } from "./core/services/hook-service.js";
+import { resolveHarnessConfig, partitionOutcome, describeHarnessRegistry, hookTitle, formatHookLogSection, formatHookResultsBlock, describeFailingHooks } from "./core/services/harness-service.js";
+import { resolveLoopConfig, countPreviousAttempts, decideLoopOutcome, formatLoopSummary, formatLoopLogEntry } from "./core/services/loop-service.js";
+import { buildGraph } from "./core/domain/change-graph.js";
+import { selectNextChange } from "./core/services/next-change-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
@@ -143,6 +149,19 @@ function sddChanges() {
     .filter(({ change }) => !change.manifestError && change.manifest?.sdd)
     .map(({ dir, change }) => ({ dir, change, resolution: resolveSddProvider(change, cwd()) }));
 }
+// buildProjectGraph() (Change 0058/ADR-028) — the only place that gathers
+// real Changes for the dependency Graph. An invalid manifest's dependsOn
+// (if any) is never trusted, same guard sddChanges()/workflowChanges()
+// already use — mirrors their exact pattern. Read-only: never writes a
+// file, never caches, rebuilds on every call (ADR-009).
+function buildProjectGraph() {
+  const nodes = getChangeDirs().map((dir) => {
+    const change = loadChangeUnified(dir);
+    const dependsOn = !change.manifestError && Array.isArray(change.manifest?.dependsOn) ? change.manifest.dependsOn : [];
+    return { id: path.basename(dir), dependsOn };
+  });
+  return buildGraph(nodes);
+}
 // Change selection (Flux Portal dogfooding, ROADMAP-TO-1.0 workstream 1):
 // one shared implementation for every command that operates on a Change.
 // Explicit `--change` resolves through matchChanges() and fails loudly on
@@ -192,11 +211,99 @@ function parseArgs(args) {
   return parsed;
 }
 function section(title) { console.log("\n" + title); console.log("─".repeat(60)); }
-function printSkills(project) {
+// The sole caller is doctor() (AIEF 3.1, Change 0054/ADR-024) — bootstrap/
+// analyze/prompt all call recommendSkills() directly and are unaffected by
+// options.verbose or by a project's ai-specs/skills/*.md.
+function printSkills(project, options = {}) {
+  const { verbose = false } = options;
+  const { items, warnings, invalidCount } = resolveSkillRecommendations(recommendSkills(project), process.cwd());
   console.log("Recommended Skills:");
-  for (const skill of recommendSkills(project)) {
-    console.log(`- ${skill.id}: ${skill.description}`);
+  for (const skill of items) {
+    const tag = skill.source === "project" ? (skill.overridesBuiltin ? " [project override]" : " [project]") : "";
+    console.log(`- ${skill.id}${tag}: ${skill.description}`);
     for (const reason of skill.because) console.log(`    because: ${reason}`);
+    if (verbose) {
+      console.log(`    source: ${skill.source}`);
+      if (skill.path) console.log(`    path: ${path.relative(process.cwd(), skill.path)}`);
+      if (skill.overridesBuiltin) console.log(`    overrides: built-in skill "${skill.id}"`);
+    }
+  }
+  if (verbose) {
+    if (warnings.length) {
+      console.log("\nai-specs warnings:");
+      for (const warning of warnings) console.log(`- ${warning}`);
+    }
+  } else if (invalidCount) {
+    console.log(`\n⚠ ${invalidCount} ai-specs resource(s) ignored — see aief doctor --verbose`);
+  }
+}
+// Called from doctor() (Change 0055/ADR-025) — fully conditional on
+// aiSpecsStandardsPresent, unlike printSkills(): unlike Skills (Change
+// 0054), `aief doctor` never showed anything about standards before this
+// Change, so a project with no ai-specs/standards/ must see no new section
+// at all, not merely an empty one, to stay byte-identical.
+function printStandardsReport(options = {}) {
+  const { verbose = false } = options;
+  const { items, warnings, invalidCount, aiSpecsStandardsPresent } = resolveStandardRecommendations(builtinStandardsList(), process.cwd());
+  if (!aiSpecsStandardsPresent) return;
+  console.log("\nStandards:");
+  for (const standard of items) {
+    const tag = standard.source === "project" ? (standard.overridesBuiltin ? " [project override]" : " [project]") : "";
+    console.log(`- ${standard.id}${tag}: ${standard.description}`);
+    for (const reason of standard.because) console.log(`    because: ${reason}`);
+    if (verbose) {
+      console.log(`    source: ${standard.source}`);
+      if (standard.path) console.log(`    path: ${path.relative(process.cwd(), standard.path)}`);
+      if (standard.overridesBuiltin) console.log(`    overrides: built-in standard "${standard.id}"`);
+    }
+  }
+  if (verbose) {
+    if (warnings.length) {
+      console.log("\nai-specs warnings (standards):");
+      for (const warning of warnings) console.log(`- ${warning}`);
+    }
+  } else if (invalidCount) {
+    console.log(`\n⚠ ${invalidCount} ai-specs standard resource(s) ignored — see aief doctor --verbose`);
+  }
+}
+// Called from doctor() only under --verbose (Change 0056/ADR-026) — the
+// static, project-wide Hook Registry (hook.js/hooks/index.js, unmodified).
+// Unlike printSkills()/printStandardsReport(), there is no non-verbose
+// content at all here: `aief doctor`'s default output has never shown
+// anything about Hooks, so adding an unconditional section would change
+// every project's default output (the same compatibility bar Change 0055
+// applied to Standards) — gating the whole section behind --verbose (which
+// has no backward-compatibility promise, Change 0054/0055 precedent) keeps
+// the default byte-identical while still making the registry discoverable.
+function printHarnessRegistry() {
+  const descriptors = describeHarnessRegistry();
+  console.log("\nHarness:");
+  console.log(`${descriptors.length} Hook(s) registered (built-in, not user-authored — see docs/workflow.md#hooks-runtime):`);
+  for (const d of descriptors) {
+    console.log(`- ${d.id}: fires on ${d.events.join(", ")} — ${d.description}`);
+  }
+}
+// Called from doctor() only under --verbose (Change 0057/ADR-027) —
+// read-only scan of open Changes for `loop.verify` configuration. Never
+// writes loop.md (only `aief verify --change <id>` does). Absent entirely
+// when no open Change configures Loop, so `doctor --verbose` for a project
+// that doesn't use Loop is unaffected by this Change (same conditional
+// discipline as Change 0056's Harness-in-doctor and Change 0055's
+// Standards-in-doctor).
+function printLoopRegistry() {
+  const entries = [];
+  for (const dir of openChangeDirs()) {
+    const change = loadChangeUnified(dir);
+    const config = resolveLoopConfig(change.manifest);
+    if (!config.configured) continue;
+    const logPath = path.join(dir, "loop.md");
+    const attempt = countPreviousAttempts(fs.existsSync(logPath) ? read(logPath) : "");
+    entries.push({ id: change.basename, attempt, maxRetries: config.maxRetries });
+  }
+  if (!entries.length) return;
+  console.log("\nLoop:");
+  for (const e of entries) {
+    console.log(`- ${e.id}: ${e.attempt} attempt(s) so far, limit ${e.maxRetries} — see aief verify --change ${e.id}`);
   }
 }
 function standardsForProject(project) {
@@ -232,6 +339,18 @@ function listStandards() {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
 }
+// Maps listStandards()'s bare filenames into the { id, description, path }
+// shape resolveResources() (and resolveStandardRecommendations()) can
+// consume as `builtins` (Change 0055/ADR-025) — id is the filename without
+// `.md` (so it can collide, by id, with an ai-specs/standards/<id>.md);
+// description is derived from the file's own first heading, read from disk
+// exactly once here, never cached, never written back.
+function builtinStandardsList() {
+  return listStandards().map((file) => {
+    const filePath = cwd("knowledge", "standards", file);
+    return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
+  });
+}
 function printSignals(project) {
   console.log("\nDetected project signals:");
   if (!project.signals.length) { console.log("(none)"); return; }
@@ -241,28 +360,28 @@ function printSignals(project) {
 }
 const COMMAND_HELP = {
   doctor: {
-    purpose: "Inspect your local environment (required, recommended and optional tools) and current project readiness for AIEF.",
+    purpose: "Inspect your local environment (required, recommended and optional tools) and current project readiness for AIEF. Recommended Skills include a project's own ai-specs/skills/*.md alongside AIEF's built-ins (project wins on id collision) — --verbose shows source, file path and overrides.",
     when: "Before adoption or when the project feels misconfigured.",
-    reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/.",
+    reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/, ai-specs/skills/.",
     writes: "Nothing.",
-    example: "aief doctor",
-    next: "aief adopt (existing project) or aief init <name> (new project)."
+    example: "aief doctor   (or: aief doctor --verbose)",
+    next: "aief bootstrap (current directory) or aief bootstrap <name> (new project)."
   },
   status: {
-    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action.",
+    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action. Without --change, --next deterministically recommends the next eligible open Change when more than one is open (or explains why none is eligible). --graph shows the full Change dependency graph (nodes, edges, topological order, issues).",
     when: "When you want to know where the project stands, which Change to select with --change, or what a specific Change's next action is.",
-    reads: "Project structure, package.json and changes/.",
+    reads: "Project structure, package.json, changes/ and every Change's manifest.dependsOn.",
     writes: "Nothing.",
-    example: "aief status --change <id> --next",
+    example: "aief status --change <id> --next   (or: aief status --next / aief status --graph)",
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
-  adopt: {
-    purpose: "Prepare an existing project to use AIEF without changing application code.",
-    when: "Inside an existing project, before analysis or implementation Changes.",
-    reads: "README.md, CLAUDE.md, AGENTS.md, package.json and common project files.",
-    writes: "AGENTS.md if missing, changes/, knowledge/, profiles/README.md, and changes/<next-id>-adopt-aief/ if missing. Never modifies application code.",
-    example: "aief adopt",
-    next: "aief verify, then aief analyze."
+  bootstrap: {
+    purpose: "Bootstrap a project to use AIEF: detects what it can, asks only what it must (the SDD Provider, only when genuinely ambiguous), and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
+    when: "Right after cloning, or the first time an existing project starts using AIEF.",
+    reads: "AGENTS.md, changes/, openspec/, specboot markers, PATH (OpenSpec/SpecBoot CLIs, TTY), package.json, README.md and common project files.",
+    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, the CI gate, changes/<next-id>-adopt-aief/, and knowledge/sdd-provider.json only when the SDD Provider choice is ambiguous and you are prompted. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
+    example: "aief bootstrap   (or: aief bootstrap my-project)",
+    next: "aief verify, then aief analyze or aief new-change <name>."
   },
   analyze: {
     purpose: "Create an Analysis Change for an existing project.",
@@ -297,7 +416,7 @@ const COMMAND_HELP = {
     next: "Review the proposal, then aief prompt."
   },
   prompt: {
-    purpose: "Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or ChatGPT.",
+    purpose: "Generate a ready-to-paste, assistant-agnostic prompt (native file for Claude, Gemini, Codex or Cursor; a generic AGENTS.md-only prompt for any other assistant, e.g. OpenCode).",
     when: "After creating a Change. With several open Changes, name the target with --change <id>.",
     reads: "AGENTS.md, assistant files, profiles and the selected Change (implicit only when exactly one Change is open).",
     writes: "Nothing.",
@@ -327,14 +446,6 @@ const COMMAND_HELP = {
     writes: "releases/v<version>.md if it does not exist (never overwrites).",
     example: "aief release 0.2.0",
     next: "Fill in the release notes, then tag the release."
-  },
-  init: {
-    purpose: "Initialize the current directory for AIEF (no argument), or create a new project skeleton (with a name).",
-    when: "Right after cloning or when starting to use AIEF in a project.",
-    reads: "AGENTS.md, changes/, openspec/, specboot markers and PATH (OpenSpec/SpecBoot CLIs).",
-    writes: "Without argument: visible AIEF structure only (AGENTS.md if missing, changes/, knowledge/, profiles/) via the adopt logic — never application code, never a hidden .aief/ directory. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/.",
-    example: "aief init",
-    next: "aief doctor, then aief new-change <name>."
   },
   "use-profile": {
     purpose: "Print a minimal prompt header for a role profile.",
@@ -369,8 +480,8 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status [--change change-id] [--next]\n\nAdoption:\n  aief init                 (initialize the current directory)\n  aief adopt [--assistant claude|gemini|codex|cursor]\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
-              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief init <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+              (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {
   return `# Evidence\n\n## Summary\n\nPending.\n\n## Activities Performed\n\nPending.\n\n## Verification\n\nPending.\n\n## Findings\n\nPending.\n\n## Risks\n\nPending.\n\n## Recommendations\n\nPending.\n\n## Artifacts Produced\n\nPending.\n\n## Lessons Learned\n\nPending.\n\n## Next Change\n\nPending.\n`;
@@ -395,7 +506,7 @@ function analysisContextSection(context) {
     "",
     "### Available Standards",
     "",
-    standards.length ? standards.map((f) => `- knowledge/standards/${f}`).join("\n") : "- None yet — run `aief adopt` to create starter standards.",
+    standards.length ? standards.map((f) => `- knowledge/standards/${f}`).join("\n") : "- None yet — run `aief bootstrap` to create starter standards.",
     "",
     "### Initial Risks (inferred from detected technologies — confirm or discard)",
     "",
@@ -593,14 +704,18 @@ ${artifactLines}
 Run \`aief analyze\` to create the analysis Change.
 `;
 }
-function adopt(args) {
-  section("AIEF Adopt"); console.log("Purpose: prepare an existing project to use AIEF without changing application code.");
-  runAdoption();
-  printNext("aief verify", "aief analyze");
+// `init`/`adopt` were replaced by `aief bootstrap` in Change 0052 (ADR-013:
+// bootstrap merges them rather than sitting beside them). Their
+// implementations are kept as internal functions, called only from
+// bootstrap()'s dispatch — never exposed as public commands again.
+function commandRemoved(oldName) {
+  console.error(`aief ${oldName} has been replaced by aief bootstrap. Run: aief bootstrap`);
+  process.exitCode = 1;
 }
-// Shared by adopt and init (no argument): creates only visible AIEF structure
-// (AGENTS.md, changes/, knowledge/, profiles/) — never a hidden .aief/
-// directory (ADR-009: no hidden state) and never application code.
+// Shared by bootstrap: creates only visible AIEF structure (AGENTS.md,
+// changes/, knowledge/, profiles/) — never a hidden .aief/ directory
+// (ADR-009: no hidden state) and never application code. Returns the list of
+// newly created artifacts (empty when everything already existed).
 function runAdoption() {
   const project = detectProject();
   const skills = recommendSkills(project);
@@ -633,6 +748,7 @@ function runAdoption() {
     writeFile(path.join(dir, "evidence.md"), adoptionEvidence(project, skills, artifacts));
     console.log(`✓ Created changes/${id}-adopt-aief (evidence generated automatically)`);
   } else console.log("✓ Adoption Change already exists");
+  return artifacts;
 }
 function analyze(args) {
   const parsed = parseArgs(args);
@@ -713,7 +829,7 @@ function prompt(args) {
   const type = changeType(changeDir);
   const isAnalysis = type === "analysis";
   const isEnrichment = type === "enrichment";
-  const standards = listStandards();
+  const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
   const project = detectProject();
   const skills = recommendSkills(project);
   // Re-run guardrail: derived from files, no hidden state. Empty or template
@@ -722,7 +838,15 @@ function prompt(args) {
   const hasRealEvidence = evidenceContent.trim().length > 0 && !evidenceIsPlaceholder(changeDir);
   const evidenceGuard = hasRealEvidence ? `\nevidence.md already exists and has real content:\n\n- Do not overwrite it blindly.\n- Review and amend only if needed; preserve existing validated evidence.\n- If no changes are needed, report that the evidence was re-verified.\n` : "";
   const feedbackNote = `\nWhere results belong:\n\n- Project evidence belongs in ${changeName}/evidence.md.\n- Feedback about AIEF or the tooling goes in your response to the user, not in the project evidence, unless the Change explicitly asks for a separate feedback file.\n`;
-  const standardsBlock = standards.length ? `\nProject standards to follow:\n\n${standards.map((f) => `- knowledge/standards/${f}`).join("\n")}\n` : "";
+  // Change 0055/ADR-025: a builtin renders as `- knowledge/standards/<id>.md`
+  // — reconstructing today's exact `- knowledge/standards/${file}` string
+  // id-for-id, so a project with no ai-specs/standards/ gets byte-identical
+  // output. A resolving project standard renders with its own real path
+  // (never the built-in's), tagged so the assistant knows which file
+  // actually governs.
+  const standardsBlock = standardItems.length ? `\nProject standards to follow:\n\n${standardItems.map((s) => s.source === "builtin"
+    ? `- knowledge/standards/${s.id}.md`
+    : `- ai-specs/standards/${s.id}.md${s.overridesBuiltin ? " [project override]" : " [project]"}`).join("\n")}\n` : "";
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
     ? `- ${s.name || s.id}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
     : `- ${s.name || s.id}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
@@ -750,7 +874,14 @@ function prompt(args) {
     project, change: promptChange, workflow: promptWorkflow, sdd: promptSdd,
     operation: { input: { profile, assistant, changeName }, result: null }
   }));
-  const hookBlock = renderHookResults(hookOutcome);
+  // Change 0056/ADR-026: a Change's manifest.harness (absent for every
+  // Change that predates this) decides which Hook results are excluded
+  // (disabled) and whether this invocation is logged to hooks.md — never
+  // which Hooks were evaluated (hook-service.js/hooks/index.js untouched).
+  const harnessConfig = resolveHarnessConfig(promptChange.manifest);
+  const { active: activeHookResults } = partitionOutcome(hookOutcome, harnessConfig);
+  const hookBlock = formatHookResultsBlock(activeHookResults);
+  if (harnessConfig.log) appendHookLog(changeDir, { operation: "prompt", event: hookOutcome.event, entries: activeHookResults });
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
   console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
@@ -769,22 +900,26 @@ function renderSkillSection(result) {
   }
   return `${header}${result.summary}\n`;
 }
-// Renders every `matched` Hook result with real content as one additional,
-// clearly-labeled section (Entrega 6, design.md §7/§8) — the ONLY place this
-// framing text is written, so no Hook's own text can phrase itself as
-// something that "ran"/"executed" (a Hook observes; HK-R25-equivalent
-// discipline). Silent for a Hook with nothing to show (`not_applicable`,
-// `unsupported`, `invalid`, `failed`, or `matched` with empty instructions/
-// warnings) — never an empty or noisy block.
-function renderHookResults(outcome) {
-  return outcome.results
-    .filter((r) => r.status === "matched" && (r.instructions.length || r.warnings.length))
-    .map((r) => {
-      const header = `\n─── Hook: ${r.hook} ───\n`;
-      const lines = [...r.warnings.map((w) => `Warning: ${w}`), ...r.instructions];
-      return `${header}${r.summary}\n\n${lines.map((l) => `- ${l}`).join("\n")}\n`;
-    })
-    .join("");
+// Appends one dated section to <changeDir>/hooks.md (Change 0056/ADR-026,
+// spec.md R8) — only ever called when the targeted Change's own
+// manifest.harness.log is true. Creates the file with a header on first
+// use; every subsequent call appends, never truncates or rewrites a prior
+// section (same append discipline as evidence.md's own history). `entries`
+// is `active` results only (already excludes disabled Hooks); every status
+// is logged, not just `matched` — the whole point of an audit log.
+function appendHookLog(changeDir, { operation, event, entries, passed }) {
+  const file = path.join(changeDir, "hooks.md");
+  const already = fs.existsSync(file);
+  const header = "# Harness Log\n\nVisible, append-only record of Hook executions for this Change (Change 0056/ADR-026). Only each Hook's own short summary is recorded — never raw command output, full context, or credentials (Hooks structurally cannot produce either).\n";
+  const section = formatHookLogSection({
+    timestamp: new Date().toISOString(),
+    operation,
+    changeId: path.basename(changeDir),
+    event,
+    passed,
+    entries: entries.map((r) => ({ hook: r.hook, event: r.event, status: r.status, summary: r.summary }))
+  });
+  writeFile(file, `${already ? read(file) : header}\n${section}`, true);
 }
 function markClosed(changeDir) {
   const file = path.join(changeDir, "change.md");
@@ -857,11 +992,58 @@ function runVerifyCompletedHooks(changeDir, report, inspection) {
     operation: { input: { changeId: changeDir ? path.basename(changeDir) : null }, result: report }
   });
   const outcome = evaluateEvent(event, context);
-  const lines = outcome.results.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
+  // Change 0056/ADR-026: same disabled-filtering/logging treatment prompt()
+  // gives prompt.prepared — a whole-project verify (changeDir null) has no
+  // Change to read manifest.harness from, so this resolves to configured:
+  // false and behaves exactly as before (no filtering, no log).
+  const harnessConfig = resolveHarnessConfig(change?.manifest);
+  const { active } = partitionOutcome(outcome, harnessConfig);
+  const lines = active.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
   if (lines.length) {
     console.log("\nHook recommendation:");
     for (const l of lines) console.log(`- ${l}`);
   }
+  // Previously silently dropped (spec.md R7) — a failed/invalid Hook is now
+  // visible here too, same framing renderHookResults() uses for prompt.
+  const failing = describeFailingHooks(active);
+  if (failing.length) {
+    console.log("\nHook issues (non-blocking — verify's own PASS/FAIL is unaffected):");
+    for (const line of failing) console.log(`- ${line}`);
+  }
+  if (harnessConfig.log && changeDir) appendHookLog(changeDir, { operation: "verify", event: outcome.event, entries: active, passed: report.passed });
+}
+// Loop (Change 0057/ADR-027) — Verify -> Feedback -> Retry (if applicable)
+// -> Final result. Only ever called for a single targeted Change
+// (`aief verify --change <id>`); whole-project verify has no manifest to
+// read Loop config from, so it is never touched. `report.errors` (already
+// computed, already printed by renderReport()) is reused as Feedback —
+// nothing new is derived. Never re-invokes verify, a Hook, or anything else
+// — "retry" is reported as available, never performed.
+function runLoop(changeDir, change, report) {
+  const loopConfig = resolveLoopConfig(change?.manifest);
+  if (!loopConfig.configured) return;
+  const logPath = path.join(changeDir, "loop.md");
+  const already = fs.existsSync(logPath);
+  const attempt = countPreviousAttempts(already ? read(logPath) : "") + 1;
+  const outcome = decideLoopOutcome({ attempt, maxRetries: loopConfig.maxRetries, passed: report.passed });
+  const changeId = path.basename(changeDir);
+  console.log(formatLoopSummary(outcome, changeId));
+  const header = "# Loop Log\n\nVisible, append-only record of `aief verify` attempts for this Change (Change 0057, ADR-027). Feedback lines are Structural Verification's own error messages, reused as-is — nothing else is recorded, and nothing here ever re-runs verify automatically.\n";
+  const entry = formatLoopLogEntry({ timestamp: new Date().toISOString(), outcome, feedback: report.errors });
+  writeFile(logPath, `${already ? read(logPath) : header}\n${entry}`, true);
+}
+// Change 0058/ADR-028 — a small, non-blocking dependency-issue note for the
+// Change `aief verify --change <id>` targeted: printed only when the Graph
+// has an issue naming this Change (as source, or as a cycle member) — never
+// touches report.passed or the exit code (both already decided before this
+// runs). Silent for every Change today (none declares dependsOn).
+function runGraphCheck(changeDir) {
+  const changeId = path.basename(changeDir);
+  const graph = buildProjectGraph();
+  const relevant = graph.issues.filter((issue) => issue.changeId === changeId || (issue.members && issue.members.includes(changeId)));
+  if (!relevant.length) return;
+  console.log("\nDependency Graph issues for this Change (non-blocking):");
+  for (const issue of relevant) console.log(`- ${issue.type}: ${issue.detail}`);
 }
 // Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
 // opt-in flag: Structural Verification (renderReport, above) always runs
@@ -909,6 +1091,8 @@ function verify(args = []) {
     const inspection = explainWorkflow(changeDir, cwd());
     runVerifyCompletedHooks(changeDir, report, inspection);
     if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
+    runLoop(changeDir, inspection.change, report);
+    runGraphCheck(changeDir);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -1021,9 +1205,28 @@ function statusOverview(project = detectProject(), showNext = true) {
       }
     }
   }
+  // Additive only (Change 0058/ADR-028): absent whenever no Change declares
+  // manifest.dependsOn, which is every Change in this repository today —
+  // same conditional discipline sddChanges()/workflowChanges() above use.
+  // Only Changes that actually declare a dependency are listed here; the
+  // full graph (every Change, with or without dependencies) is
+  // `aief status --graph`.
+  const graph = buildProjectGraph();
+  const declaring = graph.edges.length ? [...new Set(graph.edges.map((e) => e.from))].sort() : [];
+  if (declaring.length || graph.issues.length) {
+    console.log(`\nDependency Graph: ${declaring.length} Change(s) declare dependencies`);
+    for (const id of declaring) {
+      const deps = graph.edges.filter((e) => e.from === id).map((e) => e.to);
+      console.log(`- ${id} depends on: ${deps.join(", ")}`);
+    }
+    if (graph.issues.length) {
+      console.log("  Issues:");
+      for (const issue of graph.issues) console.log(`    - ${issue.type}: ${issue.detail}`);
+    }
+  }
   console.log(`\nDetected project type: ${project.signals.length ? project.signals.map((s) => s.id).join(", ") : "No strong signals detected."}`);
   if (!showNext) return;
-  if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief adopt"); return; }
+  if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief bootstrap"); return; }
   if (!changes.length) { printNext("aief analyze"); return; }
   if (open.length > 1) { printNext("aief prompt --change <id>", "aief close --yes --change <id>"); return; }
   // ADR-018 §1 (Change 0046): for the one case where this suggestion and the
@@ -1049,9 +1252,53 @@ function statusOverview(project = detectProject(), showNext = true) {
 function printGateLine(label, g) {
   console.log(`  ${label} ${g.id}: ${g.status} — ${g.reason}`);
 }
+// gatherOpenChangeFacts() (Change 0059/ADR-029) — the one place real
+// Changes' {id, closed, manifestError, workflowBlockers} facts are computed
+// for next-change-service.js. Reuses loadChangeUnified()/resolveWorkflowFor()
+// exactly as workflowChanges() already does — no second Workflow resolution.
+function gatherOpenChangeFacts() {
+  return getChangeDirs().map((dir) => {
+    const change = loadChangeUnified(dir);
+    const id = path.basename(dir);
+    let workflowBlockers = [];
+    if (!change.manifestError && change.manifest && change.track) {
+      const workflow = resolveWorkflowFor(change);
+      workflowBlockers = workflow.kind === "resolved"
+        ? workflow.state.blockers.map((g) => `${g.id}: ${g.status} — ${g.reason}`)
+        : [workflow.error];
+    }
+    return { id, closed: change.closed, manifestError: Boolean(change.manifestError), workflowBlockers };
+  });
+}
+// aief status --next (no --change), only when 2+ Changes are open (Change
+// 0059/ADR-029) — deliberately replaces the prior "select one explicitly"
+// error for this one case; see change.md "Deliberate, documented behavior
+// change". Read-only: never writes a file, never calls verify/close/prompt.
+function statusNextSmart() {
+  section("AIEF Status"); console.log("Purpose: recommend the next eligible Change. Writes nothing.\n");
+  const graph = buildProjectGraph();
+  const result = selectNextChange(gatherOpenChangeFacts(), graph);
+  if (result.recommended) {
+    const winner = result.evaluations.find((e) => e.id === result.recommended);
+    console.log(`Next Change: ${result.recommended}\n`);
+    console.log("Ready because:");
+    for (const reason of winner.reasons) console.log(`- ${reason}`);
+    const otherEligible = result.evaluations.filter((e) => e.eligible && e.id !== result.recommended).map((e) => e.id);
+    if (otherEligible.length) {
+      console.log(`\nTie-break: ${result.tieBreakRule}`);
+      console.log(`Other eligible Change(s): ${otherEligible.join(", ")}`);
+    }
+    printNext(`aief prompt --change ${result.recommended}`);
+    return;
+  }
+  console.log("No eligible Change found among the open Changes:\n");
+  for (const e of result.evaluations) console.log(`- ${e.id}: ${e.reasons.join("; ")}`);
+  printNext("aief status (list open Changes)", "aief status --graph");
+}
 // aief status --change <id>   (deep, read-only inspection of one Change)
 // aief status --change <id> --next   (compact Normalized Action view)
-// aief status --next   (same compact view, implicit single-open-Change selection)
+// aief status --next   (same compact view, implicit single-open-Change selection;
+//   2+ open Changes goes to statusNextSmart() instead — Change 0059/ADR-029)
 //
 // Entrega 4 (Change 0046, ADR-018 §4, Path B): no new command — this is the
 // entire CLI-facing surface Path B introduces, as flags on the existing
@@ -1060,6 +1307,10 @@ function printGateLine(label, g) {
 // for workflow/SDD facts (UX-R21/R23) — no gate/track conditional lives in
 // this function itself, only rendering of what workflowService already decided.
 function statusSingleChange(parsed) {
+  if (parsed.next === true && typeof parsed.change !== "string" && openChangeDirs().length > 1) {
+    statusNextSmart();
+    return;
+  }
   section("AIEF Status"); console.log("Purpose: inspect one Change. Writes nothing.\n");
   const changeDir = typeof parsed.change === "string"
     ? resolveExplicitChange(parsed.change)
@@ -1124,12 +1375,61 @@ function statusSingleChange(parsed) {
   } else if (sdd?.error) {
     console.log(`\nSDD provider: ${sdd.error}`);
   }
+  printHarnessStatus(changeDir, change);
   console.log(`\nNext:`);
   console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
   if (action.status === "invalid") process.exitCode = 1;
 }
+// Called from statusSingleChange() (Change 0056/ADR-026) — present only when
+// this Change's own manifest declares `harness` (R6): every existing Change
+// (none of which does) sees no diff at all here, unlike the Skill/Standard
+// sections in doctor which always show something. Reports configuration —
+// which Hooks would run, which are disabled, any unknown ids — never a
+// fabricated execution-count summary (status never fires a Hook; see
+// spec.md "Non-goals" for why that line from the commissioning brief's own
+// illustrative example is deliberately not implemented here).
+function printHarnessStatus(changeDir, change) {
+  if (!change.manifest || typeof change.manifest !== "object" || !change.manifest.harness) return;
+  const config = resolveHarnessConfig(change.manifest);
+  console.log(`\nHarness: configured (log ${config.log ? "on" : "off"})`);
+  for (const eventId of Object.keys(config.disabledByEvent)) {
+    const registeredForEvent = describeHarnessRegistry().filter((d) => d.events.includes(eventId)).map((d) => d.id);
+    const disabled = new Set(config.disabledByEvent[eventId] || []);
+    const activeIds = registeredForEvent.filter((id) => !disabled.has(id));
+    console.log(`  ${eventId}: ${activeIds.length} active${disabled.size ? `, ${disabled.size} disabled (${[...disabled].join(", ")})` : ""}`);
+  }
+  if (config.unknownHookIds.length) {
+    console.log("  Unknown Hook id(s) in manifest.harness (never disabled anything real):");
+    for (const u of config.unknownHookIds) console.log(`    - "${u.id}" (${u.event})`);
+  }
+  if (config.log && fs.existsSync(path.join(changeDir, "hooks.md"))) console.log(`  Execution log: ${path.relative(process.cwd(), path.join(changeDir, "hooks.md"))}`);
+}
+// aief status --graph (Change 0058/ADR-028) — the full dependency graph:
+// every Change is a node, whether or not it declares dependencies (the
+// overview's own "Dependency Graph:" section only lists Changes that do).
+// Read-only, additive, new flag — no existing status output changes.
+function statusGraph() {
+  section("AIEF Status"); console.log("Purpose: show the full Change dependency graph. Writes nothing.\n");
+  const graph = buildProjectGraph();
+  console.log(`Nodes: ${graph.nodes.length}`);
+  console.log(`Edges: ${graph.edges.length}`);
+  for (const e of graph.edges) console.log(`- ${e.from} -> ${e.to}`);
+  console.log("");
+  if (graph.order) {
+    console.log("Topological order (dependencies first):");
+    console.log(`  ${graph.order.join(", ") || "(none)"}`);
+  } else {
+    console.log(`Topological order: unavailable — dependency cycle among: ${graph.cycles.join(", ")}`);
+  }
+  console.log(graph.issues.length ? "\nIssues:" : "\nIssues: none");
+  for (const issue of graph.issues) console.log(`- ${issue.type}: ${issue.detail}`);
+}
 function status(args = []) {
   const parsed = parseArgs(args);
+  if (parsed.graph === true) {
+    statusGraph();
+    return;
+  }
   if (typeof parsed.change === "string" || parsed.next === true) {
     statusSingleChange(parsed);
     return;
@@ -1193,14 +1493,51 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief adopt" : "aief analyze"); }
-function initProject(name) { if (!name) return initHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
-// `aief init` without arguments prepares the current directory. It creates
-// only visible structure via runAdoption() and reports how AIEF fits with
-// OpenSpec and SpecBoot — it informs, it does not install them.
-function initHere() {
-  section("AIEF Init");
-  console.log("Purpose: initialize the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
+function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
+// Blocking, dependency-free stdin read — only ever called after an isTTY
+// check (bootstrap's ambiguous-provider case), so it never hangs a
+// non-interactive shell (CI, piped input, the test suite).
+function promptSync(question) {
+  process.stdout.write(question);
+  const buffer = Buffer.alloc(2048);
+  let bytesRead = 0;
+  try { bytesRead = fs.readSync(0, buffer, 0, buffer.length, null); } catch { bytesRead = 0; }
+  return buffer.toString("utf8", 0, bytesRead).trim();
+}
+// Implements sdd-provider-resolver.js's step 2 (project-level configuration)
+// from the bootstrap side (spec.md R4). Only ever prompts when the choice is
+// genuinely ambiguous (OpenSpec available AND a specboot/LIDR marker
+// present) and stdin is a TTY; every other case is silent and deterministic.
+// knowledge/sdd-provider.json, once written, is never overwritten (R7).
+function configureSddProvider(specbootMarker) {
+  const projectCwd = process.cwd();
+  const configPath = sddProviderConfigPath(projectCwd);
+  if (fs.existsSync(configPath)) {
+    const resolved = resolveSddProvider({ manifest: null }, projectCwd);
+    return resolved.error
+      ? `knowledge/sdd-provider.json is invalid (${resolved.error}) — falling back, see aief doctor.`
+      : `${resolved.provider.PROVIDER_ID} (from knowledge/sdd-provider.json, already configured — never overwritten)`;
+  }
+  const openspecAvailable = getProvider("openspec").detect(projectCwd).available;
+  const ambiguous = openspecAvailable && specbootMarker;
+  if (ambiguous && process.stdin.isTTY) {
+    const answer = promptSync('Both OpenSpec and SpecBoot were detected. Which SDD Provider should AIEF use for this project — "openspec" or "local"? [openspec]: ').toLowerCase();
+    const choice = answer === "local" ? "local" : "openspec";
+    writeFile(configPath, `${JSON.stringify({ provider: choice, setBy: "bootstrap", date: new Date().toISOString().slice(0, 10) }, null, 2)}\n`);
+    return `${choice} (your choice — saved to knowledge/sdd-provider.json)`;
+  }
+  const resolved = resolveSddProvider({ manifest: null }, projectCwd);
+  const reason = ambiguous ? "non-interactive shell, using the deterministic default" : resolved.source === "detected" ? "OpenSpec detected" : "default";
+  return `${resolved.provider.PROVIDER_ID} (${reason})`;
+}
+// `aief bootstrap` (current directory) replaces `init`/`adopt` (Change
+// 0052). It creates only visible structure via runAdoption(), reports how
+// AIEF fits with OpenSpec and SpecBoot, resolves the SDD Provider (R4), and
+// ends with one recommended next command.
+function bootstrapHere() {
+  section("AIEF Bootstrap");
+  console.log("Purpose: bootstrap the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
   const openspecCli = commandExists("openspec") || commandExists("opsx");
   const openspecProject = exists("openspec") || exists(".openspec");
   const specboot = commandExists("specboot") || exists("specboot") || exists(".specboot");
@@ -1210,13 +1547,24 @@ function initHere() {
   console.log(openspecCli ? "✓ OpenSpec CLI" : "○ OpenSpec CLI: not detected");
   console.log(openspecProject ? "✓ OpenSpec project structure (openspec/)" : "○ OpenSpec project structure: not detected");
   console.log(specboot ? "✓ SpecBoot" : "○ SpecBoot: not detected");
-  runAdoption();
+  const artifacts = runAdoption();
+  const sddMessage = configureSddProvider(specboot);
+  console.log("\nSDD Provider:");
+  console.log(`  ${sddMessage}`);
+  console.log(`\n${"─".repeat(60)}`);
+  console.log(artifacts.length
+    ? `Bootstrap complete — created ${artifacts.length} new artifact(s) (see above).`
+    : "Bootstrap complete — this directory was already bootstrapped, nothing new to create.");
   console.log("\nNext steps:");
   console.log("  1. Run: aief doctor");
   console.log("  2. Install OpenSpec if missing: npm install -g @fission-ai/openspec@latest");
   console.log("  3. Initialize OpenSpec if needed: openspec init");
-  console.log("  4. Apply SpecBoot if needed: see adapters/specboot/README.md in the AIEF repo");
-  console.log("  5. Create your first AIEF change: aief new-change <name>");
+  if (specboot) console.log("  4. SpecBoot detected — see adapters/specboot/README.md (deeper LIDR integration is a following AIEF 3.1 Change).");
+  console.log(`  ${specboot ? "5" : "4"}. Create your first AIEF change: aief new-change <name>`);
+}
+function bootstrap(args) {
+  const parsed = parseArgs(args);
+  initProject(parsed._[0]);
 }
 // Validate the OpenSpec CLI contract before delegating. Never assume
 // "openspec propose <idea>" exists: check installation, version and
@@ -1278,4 +1626,4 @@ function printVersion() {
   const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"));
   console.log(`aief ${pkg.version}`);
 }
-export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "adopt": adopt(rest); break; case "analyze": analyze(rest); break; case "init": initProject(rest[0]); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}
+export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "bootstrap": bootstrap(rest); break; case "adopt": commandRemoved("adopt"); break; case "analyze": analyze(rest); break; case "init": commandRemoved("init"); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

@@ -60,13 +60,102 @@ entries for the expected shape (Decision, Why this needs its own ADR, Alternativ
 - Historical, superseded, or study material goes under `docs/history/` — never in the main set,
   never mixed into a current document "just for context."
 
+## Regenerating the diagrams
+
+Every diagram in this repository (README, `docs/architecture.md`, `docs/workflow.md`) is a
+generated SVG under `docs/images/`, produced by a Python script under `scripts/diagrams/`. There
+is no Mermaid anywhere in the docs set — Mermaid required a JS renderer neither GitHub-independent
+contexts nor this repository's "no network, no hidden tooling" rule could rely on; a plain,
+versioned SVG generator has neither problem. **Never hand-edit an SVG or PNG under
+`docs/images/`** — edit the generator script and regenerate, so every asset stays reproducible and
+diffable at the source level.
+
+### Generate everything
+
+```bash
+python3 scripts/diagrams/generate_all.py
+```
+
+This is the one canonical command: it runs every `scripts/diagrams/generate_*.py` module, verifies
+each SVG it promised was written, renders every PNG from its SVG, verifies each PNG was written,
+and refuses to leave anything outside `docs/images/`. It uses no network. Sample output:
+
+```
+Using renderer: imagemagick
+
+Generated files:
+  docs/images/product-workflow.svg
+  docs/images/product-workflow.png
+  ...
+```
+
+### Generate one diagram
+
+Each diagram has its own generator, runnable independently for a faster edit-preview loop:
+
+```bash
+python3 scripts/diagrams/generate_product_workflow.py    # README — how AIEF works
+python3 scripts/diagrams/generate_system_context.py      # architecture.md — system context
+python3 scripts/diagrams/generate_core_runtime.py         # architecture.md — core runtime
+python3 scripts/diagrams/generate_prompt_composition.py   # architecture.md — prompt composition
+python3 scripts/diagrams/generate_graph_engineering.py    # architecture.md — Graph Engineering
+python3 scripts/diagrams/generate_workflow_lifecycle.py   # workflow.md — Change lifecycle
+```
+
+Each writes only its own SVG (`mod.SVG_PATH`) — running one never touches another diagram's
+output. `scripts/diagrams/common.py` centralizes only what every diagram actually shares (palette,
+fonts, arrow markers, the card/group-box/badge helpers, XML escaping, and the deterministic file
+writer) — it is not a general diagramming framework, and a new diagram is free to lay out its own
+cards directly.
+
+### The `workflow.svg` compatibility wrapper
+
+`scripts/generate_workflow_diagram.py` still exists and still writes `docs/images/workflow.svg`/
+`.png` under its original, documented command — but it now imports and calls
+`scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()` function instead of building a
+second, independently-drifting diagram. `docs/images/workflow.svg` is therefore always identical
+to `docs/images/workflow-lifecycle.svg`, kept under its original path as a standalone illustrated
+export (decks, blog posts, non-GitHub contexts) per `knowledge/decisions.md` ADR-030.
+
+### Rendering PNGs
+
+`generate_all.py` renders PNGs itself, trying local SVG renderers in this order and never mixing
+tools within one run: [`rsvg-convert`](https://gitlab.gnome.org/GNOME/librsvg), ImageMagick
+(`magick`/`convert`, using its bundled librsvg SVG delegate — verify with `identify -list format |
+grep -i svg`; a bare `MSVG` result without an `RSVG`/`SVG` (Librsvg) line means ImageMagick will
+render incorrectly and another tool should be installed instead), Inkscape's CLI, or the
+`cairosvg` Python package. It fails loudly, with an actionable error, if none is available — it
+never silently skips a PNG.
+
+### The no-manual-edit rule
+
+`docs/images/*.svg` and `docs/images/*.png` are generated artifacts, full stop. If a diagram's
+content needs to change (a new command, a renamed capability), edit the Python generator and
+re-run `generate_all.py` — never touch the SVG/PNG bytes directly. This is what keeps every asset
+diffable at the level that actually matters (the Python source) instead of as opaque binary or
+XML noise.
+
 ## Testing
 
 ```bash
 npm test                          # from the repo root — full CLI suite, node --test, no dependencies
 node cli/bin/aief.js verify       # validate this repository's own AIEF structure
+git diff --check                  # no whitespace errors, run before every commit
 cd examples/todo-app && npm test  # the executable example stays runnable
+python3 scripts/diagrams/generate_all.py  # confirms every diagram generator still runs cleanly
 ```
+
+## Git discipline
+
+Every contribution, human or assistant, follows the same rules:
+
+- Never `git push`, force-push, `reset --hard`, delete a branch, or run another destructive/
+  irreversible Git operation without the person driving the work explicitly confirming that
+  specific action first.
+- Never delete files or directories outside what a Change's own scope calls for without the same
+  confirmation.
+- Run the full suite, `aief verify`, and `git diff --check` — all three — before every commit;
+  fix failures rather than skipping hooks or gates.
 
 ## Releasing
 

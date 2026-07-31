@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 730" width="1300" height="730" role="img" aria-labelledby="cr-title cr-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="cr-title">AIEF core runtime architecture</title>
+  <desc id="cr-desc">Five layers, top to bottom: CLI Commands (doctor, bootstrap, prompt, verify, status, close) call Application Services (discovery, Change lifecycle, prompt composition, verification, workflow, graph and next), which use Domain Models (Change, Manifest, Requirement, Skill, Hook, Graph) and Registries and Providers (workflow tracks, skills, standards, hooks, verification rules, requirement providers, SDD providers), all of which ultimately read and write Repository Files (AGENTS.md, changes/, knowledge/, ai-specs/, evidence).</desc>
+  <defs>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1300" height="730" fill="#ffffff"/>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Core Runtime Architecture</text>
+  <text x="40" y="58" font-size="12" fill="#64748b">Every subsystem follows the same four-layer split, top to bottom</text>
+  <g transform="translate(40,76)">
+    <rect width="1220" height="90" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <rect width="230" height="90" rx="12" fill="#64748b"/>
+    <rect x="210" width="20" height="90" fill="#64748b"/>
+    <text x="20" y="50.0" font-size="15" font-weight="800" fill="#ffffff">CLI Commands</text>
+    <g transform="translate(254,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">doctor</text>
+    </g>
+    <g transform="translate(328.2,30.0)">
+      <rect width="84.30000000000001" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="42.150000000000006" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">bootstrap</text>
+    </g>
+    <g transform="translate(422.5,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">prompt</text>
+    </g>
+    <g transform="translate(496.7,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">verify</text>
+    </g>
+    <g transform="translate(570.9,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">status</text>
+    </g>
+    <g transform="translate(645.1,30.0)">
+      <rect width="57.5" height="30" rx="15" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="28.75" y="19" font-size="11.5" font-weight="600" fill="#334155" text-anchor="middle">close</text>
+    </g>
+  </g>
+  <g transform="translate(40,200)">
+    <rect width="1220" height="90" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <rect width="230" height="90" rx="12" fill="#2563eb"/>
+    <rect x="210" width="20" height="90" fill="#2563eb"/>
+    <text x="20" y="50.0" font-size="15" font-weight="800" fill="#ffffff">Application Services</text>
+    <g transform="translate(254,30.0)">
+      <rect width="84.30000000000001" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="42.150000000000006" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">discovery</text>
+    </g>
+    <g transform="translate(348.3,30.0)">
+      <rect width="131.2" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="65.6" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">Change lifecycle</text>
+    </g>
+    <g transform="translate(489.5,30.0)">
+      <rect width="144.60000000000002" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="72.30000000000001" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">prompt composition</text>
+    </g>
+    <g transform="translate(644.1,30.0)">
+      <rect width="104.4" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="52.2" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">verification</text>
+    </g>
+    <g transform="translate(758.5,30.0)">
+      <rect width="77.6" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="38.8" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">workflow</text>
+    </g>
+    <g transform="translate(846.1,30.0)">
+      <rect width="117.8" height="30" rx="15" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="58.9" y="19" font-size="11.5" font-weight="600" fill="#1e40af" text-anchor="middle">graph and next</text>
+    </g>
+  </g>
+  <g transform="translate(40,324)">
+    <rect width="1220" height="90" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <rect width="230" height="90" rx="12" fill="#7c3aed"/>
+    <rect x="210" width="20" height="90" fill="#7c3aed"/>
+    <text x="20" y="50.0" font-size="15" font-weight="800" fill="#ffffff">Domain Models</text>
+    <g transform="translate(254,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Change</text>
+    </g>
+    <g transform="translate(328.2,30.0)">
+      <rect width="77.6" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="38.8" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Manifest</text>
+    </g>
+    <g transform="translate(415.79999999999995,30.0)">
+      <rect width="97.7" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="48.85" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Requirement</text>
+    </g>
+    <g transform="translate(523.5,30.0)">
+      <rect width="57.5" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="28.75" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Skill</text>
+    </g>
+    <g transform="translate(591.0,30.0)">
+      <rect width="50.8" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="25.4" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Hook</text>
+    </g>
+    <g transform="translate(651.8,30.0)">
+      <rect width="57.5" height="30" rx="15" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+      <text x="28.75" y="19" font-size="11.5" font-weight="600" fill="#6b21a8" text-anchor="middle">Graph</text>
+    </g>
+  </g>
+  <g transform="translate(40,448)">
+    <rect width="1220" height="90" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <rect width="230" height="90" rx="12" fill="#d97706"/>
+    <rect x="210" width="20" height="90" fill="#d97706"/>
+    <text x="20" y="50.0" font-size="15" font-weight="800" fill="#ffffff">Registries and Providers</text>
+    <g transform="translate(254,30.0)">
+      <rect width="124.5" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="62.25" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">workflow tracks</text>
+    </g>
+    <g transform="translate(388.5,30.0)">
+      <rect width="64.2" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="32.1" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">skills</text>
+    </g>
+    <g transform="translate(462.7,30.0)">
+      <rect width="84.30000000000001" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="42.150000000000006" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">standards</text>
+    </g>
+    <g transform="translate(557.0,30.0)">
+      <rect width="57.5" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="28.75" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">hooks</text>
+    </g>
+    <g transform="translate(624.5,30.0)">
+      <rect width="144.60000000000002" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="72.30000000000001" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">verification rules</text>
+    </g>
+    <g transform="translate(779.1,30.0)">
+      <rect width="164.70000000000002" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="82.35000000000001" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">requirement providers</text>
+    </g>
+    <g transform="translate(953.8000000000001,30.0)">
+      <rect width="111.10000000000001" height="30" rx="15" fill="#ffffff" stroke="#fde68a" stroke-width="1"/>
+      <text x="55.550000000000004" y="19" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="middle">SDD providers</text>
+    </g>
+  </g>
+  <g transform="translate(40,572)">
+    <rect width="1220" height="90" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <rect width="230" height="90" rx="12" fill="#16a34a"/>
+    <rect x="210" width="20" height="90" fill="#16a34a"/>
+    <text x="20" y="50.0" font-size="15" font-weight="800" fill="#ffffff">Repository Files</text>
+    <g transform="translate(254,30.0)">
+      <rect width="84.30000000000001" height="30" rx="15" fill="#ffffff" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="42.150000000000006" y="19" font-size="11.5" font-weight="600" fill="#166534" text-anchor="middle">AGENTS.md</text>
+    </g>
+    <g transform="translate(348.3,30.0)">
+      <rect width="77.6" height="30" rx="15" fill="#ffffff" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="38.8" y="19" font-size="11.5" font-weight="600" fill="#166534" text-anchor="middle">changes/</text>
+    </g>
+    <g transform="translate(435.9,30.0)">
+      <rect width="91.0" height="30" rx="15" fill="#ffffff" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="45.5" y="19" font-size="11.5" font-weight="600" fill="#166534" text-anchor="middle">knowledge/</text>
+    </g>
+    <g transform="translate(536.9,30.0)">
+      <rect width="84.30000000000001" height="30" rx="15" fill="#ffffff" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="42.150000000000006" y="19" font-size="11.5" font-weight="600" fill="#166534" text-anchor="middle">ai-specs/</text>
+    </g>
+    <g transform="translate(631.2,30.0)">
+      <rect width="77.6" height="30" rx="15" fill="#ffffff" stroke="#bbf7d0" stroke-width="1"/>
+      <text x="38.8" y="19" font-size="11.5" font-weight="600" fill="#166534" text-anchor="middle">evidence</text>
+    </g>
+  </g>
+  <path d="M 260 166 L 260 200" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-slate)"/>
+  <path d="M 260 290 L 260 324" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-slate)"/>
+  <path d="M 260 414 L 260 448" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-slate)"/>
+  <path d="M 260 538 L 260 572" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow-slate)"/>
+  <text x="40" y="696" font-size="12" fill="#64748b">Each layer owns one responsibility — CLI parses and renders, Services orchestrate, Domain Models hold shape and validation.</text>
+  <text x="40" y="714" font-size="12" fill="#64748b">Registries map an id to an implementation, and every read/write ends at the Repository. See the Implementation Map table for exact file paths.</text>
+</svg>

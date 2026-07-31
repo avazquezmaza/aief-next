@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 560" width="1300" height="560" role="img" aria-labelledby="pw-title pw-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="pw-title">AIEF Core 3.1 product workflow</title>
+  <desc id="pw-desc">A requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it. Opt-in capabilities such as LIDR, Skills, Standards, Workflow tracks, Harness/Hooks, Loop, and the Change Graph attach without changing this shape.</desc>
+  <defs>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1300" height="560" fill="#ffffff"/>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Product Workflow</text>
+  <text x="40" y="58" font-size="12" fill="#64748b">How a requirement becomes a closed, verified Change</text>
+  <g transform="translate(40,76)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Requirement or idea</text>
+    <text x="14" y="54" font-size="12" fill="#64748b">A ticket, a conversation,</text>
+    <text x="14" y="73" font-size="12" fill="#64748b">or a plain idea.</text>
+  </g>
+  <g transform="translate(344,76)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">AIEF Change</text>
+    <text x="14" y="54" font-size="12" fill="#1d4ed8">change.md + spec.md +</text>
+    <text x="14" y="73" font-size="12" fill="#1d4ed8">tasks.md under changes/.</text>
+  </g>
+  <g transform="translate(648,76)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Context-complete prompt</text>
+    <text x="14" y="54" font-size="12" fill="#1d4ed8">aief prompt composes it —</text>
+    <text x="14" y="73" font-size="12" fill="#1d4ed8">AIEF does not call the assistant.</text>
+  </g>
+  <g transform="translate(952,76)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#e9d5ff" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">AI assistant implementation</text>
+    <text x="14" y="54" font-size="12" fill="#7c3aed">Any assistant modifies the</text>
+    <text x="14" y="73" font-size="12" fill="#7c3aed">project from the pasted prompt.</text>
+  </g>
+  <path d="M 312 130.0 L 344 130.0" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 616 130.0 L 648 130.0" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 920 130.0 L 952 130.0" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <g transform="translate(952,240)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Evidence &amp; verification</text>
+    <text x="14" y="54" font-size="12" fill="#15803d">evidence.md written; aief</text>
+    <text x="14" y="73" font-size="12" fill="#15803d">verify checks structure.</text>
+  </g>
+  <g transform="translate(648,240)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Close</text>
+    <text x="14" y="54" font-size="12" fill="#15803d">aief close --yes —</text>
+    <text x="14" y="73" font-size="12" fill="#15803d">humans control merge/release.</text>
+  </g>
+  <g transform="translate(344,240)">
+    <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#fde68a" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <path d="M 0 10 A 10 10 0 0 1 10 0 L 262 0 A 10 10 0 0 1 272 10 L 272 32 L 0 32 Z" fill="#0f172a"/>
+    <text x="14" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Graph / next recommendation</text>
+    <text x="14" y="54" font-size="12" fill="#b45309">status --graph / --next</text>
+    <text x="14" y="73" font-size="12" fill="#b45309">recommends only, never runs.</text>
+  </g>
+  <path d="M 952 294.0 L 920 294.0" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <path d="M 648 294.0 L 616 294.0" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <path d="M 1088.0 184 L 1088.0 240" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-violet)"/>
+  <path d="M 480.0 240 L 480.0 184" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(365.0,214)">
+    <rect width="230" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="115.0" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">recommends next (not automatic)</text>
+  </g>
+  <g transform="translate(40,400)">
+    <rect width="1220" height="96" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#0f172a" letter-spacing="0.3px">Opt-in capabilities — attach to any Change, never block verify/close</text>
+  </g>
+  <g transform="translate(60,448)">
+    <rect width="56" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="28.0" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">LIDR</text>
+  </g>
+  <g transform="translate(130,448)">
+    <rect width="70" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="35.0" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Skills</text>
+  </g>
+  <g transform="translate(214,448)">
+    <rect width="91" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="45.5" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Standards</text>
+  </g>
+  <g transform="translate(319,448)">
+    <rect width="133" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="66.5" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Workflow tracks</text>
+  </g>
+  <g transform="translate(466,448)">
+    <rect width="133" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="66.5" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Harness / Hooks</text>
+  </g>
+  <g transform="translate(613,448)">
+    <rect width="56" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="28.0" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Loop</text>
+  </g>
+  <g transform="translate(683,448)">
+    <rect width="112" height="20" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="56.0" y="14" font-size="10.5" font-weight="700" fill="#92400e" text-anchor="middle">Change Graph</text>
+  </g>
+  <text x="40" y="530" font-size="12" fill="#64748b">AIEF composes the prompt and checks evidence — it never calls an assistant, runs tests, or commits. Humans decide scope, merge, and release throughout.</text>
+</svg>
