@@ -495,3 +495,76 @@ own second close (commit `8fc9fc7`). It re-derives the traceability matrix the c
 instruction requires, using the two prior passes' evidence where a live re-check would be
 redundant (explicitly marked above) and fresh live command output everywhere else. It finds no
 disagreement with the two passes above.
+
+## Third pass — public documentation clarity and diagram quality (F7/F8/F9)
+
+Commissioned as a Technical Documentation Architect / Product Editor pass over the already-approved
+v3.1 implementation: no behavior change, README and `docs/architecture.md` rewritten for a public
+release audience, `docs/workflow.md` checked for contradictions only.
+
+```
+$ grep -rl "dependsOn" changes/*/manifest.json 2>/dev/null | wc -l
+0
+$ find changes -name manifest.json | wc -l
+0
+```
+
+Confirms F7's architecture.md claim: zero manifest.json files exist anywhere in `changes/` at the
+time of this pass, therefore zero Graph edges — no Change to date has used `dependsOn`. The rewrite
+states this explicitly instead of implying historical dependency usage.
+
+```
+$ python3 - <<'PY'
+import re
+files = ["README.md", "docs/architecture.md", "docs/workflow.md"]
+for f in files:
+    text = open(f).read()
+    blocks = re.findall(r"```mermaid\n(.*?)```", text, re.S)
+    print(f, "->", len(blocks), "mermaid block(s)")
+PY
+README.md -> 1 mermaid block(s)
+docs/architecture.md -> 4 mermaid block(s)
+docs/workflow.md -> 1 mermaid block(s)
+
+$ for f in <extracted blocks>; do npx -y @mermaid-js/mermaid-cli -i "$f" -o "$f.svg"; done
+Generating single mermaid chart   # x6, no errors
+```
+
+All 6 diagrams parse and render. README's diagram viewBox was checked after rendering
+(`grep -o 'viewBox="[^"]*"'`); the initial `flowchart LR` version rendered at `1627×283` — too wide
+relative to height for a normal GitHub content column — so it was switched to `flowchart TD`,
+re-rendered at `474×852`, and kept.
+
+```
+$ npm test
+# tests 728
+# pass 728
+# fail 0
+
+$ node cli/bin/aief.js verify
+Result: PASS
+
+$ git diff --check
+(no output — clean)
+```
+
+```
+$ grep -rn "aief init\|aief adopt\b\|Core 3\.0 subsystems plus\|CORE 3\.0" README.md docs/*.md
+docs/cli.md:28:`aief bootstrap` (AIEF 3.1, Change 0052) replaces the former `aief init`/`aief adopt` commands —
+```
+
+The single hit is a legitimate historical mention (explaining what `bootstrap` replaced), left
+unchanged — not drift.
+
+**Files touched this pass:** `README.md`, `docs/architecture.md`, `docs/workflow.md` (Level-1
+diagram fix only, F8), `docs/cli.md` (Assistants table detail restored, cross-reference fixed),
+`docs/maintainer.md` ("Regenerating the workflow diagram" updated for F9), `knowledge/decisions.md`
+(ADR-030 §3 amended in place, F9), this Change's `spec.md`/`tasks.md`/`evidence.md`. No `cli/src/`
+file was touched; no test needed updating; test count unchanged at 728.
+
+**Note on this addendum.** Added by a Technical Documentation Architect / Product Editor pass,
+after the Change's second close (commit `9410e1c`). Scope was explicitly editorial per the
+commissioning instruction: no CLI behavior, no new subsystem, no push. One accepted-ADR conflict
+was found (ADR-030 §3's README/SVG parity requirement vs. the commissioned simplified README
+diagram) and resolved by amending the ADR in place rather than silently deviating — see spec.md
+F9.

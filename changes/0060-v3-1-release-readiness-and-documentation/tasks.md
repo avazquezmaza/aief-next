@@ -77,3 +77,47 @@
 - [x] Re-run full validation suite (tests, `aief verify`, `git diff --check`, `doctor`,
       `doctor --verbose`, `status`, `status --graph`, `status --next`, NUL-byte scan, secret scan,
       temp-file scan, full staged diff review) before the final commit.
+
+## Third pass — public documentation clarity and diagram quality (F7/F8/F9)
+
+- [x] Editorially rewrite `README.md`: title/value proposition, why AIEF exists, core-workflow
+      section with one simplified Mermaid diagram (linear flow + opt-in-capabilities band), quick
+      start, what AIEF adds, "How AIEF fits into your engineering workflow" (renamed from "How
+      AIEF relates to OpenSpec, SpecBoot, and assistants"), a 3-column assistant compatibility
+      table, documentation index, contributing, and a Status section describing 3.1 as one
+      coherent release (no "Core 3.0 subsystems plus 3.1 additions" framing).
+- [x] Restructure `docs/architecture.md` into 10 sections (principles, system context, core
+      runtime, Change lifecycle, prompt composition, verification & evidence, Graph Engineering &
+      Smart Workflow, extension model, deliberate boundaries, implementation map); move filenames
+      out of the first diagram into "Implementation map."
+- [x] Add/redesign 4 diagrams: System Context (4 zones), Core Runtime (5 responsibility layers +
+      mapping table), Prompt Composition (3 input groups → composer → output), Graph Engineering
+      (`dependsOn` → builder → eligibility → Smart Workflow), each within the 8–12 visible node
+      guideline, each followed by explanatory text.
+- [x] Verify no historical-usage claim is made for the Graph beyond what the repository's own
+      `changes/*/manifest.json` actually show: confirmed **zero** manifest.json files (and
+      therefore zero `dependsOn` edges) exist anywhere in `changes/` — architecture.md states this
+      explicitly rather than implying 0052–0060 used dependencies.
+- [x] Fix `docs/workflow.md`'s Level-1 diagram: removed the unlabeled `verify` node between
+      `bootstrap` and Change creation; labeled Level 3's `verify` node
+      `"verify (Change verification)"`; clarified `doctor` vs. Change-scoped `verify` in prose.
+      Confirmed Level 2 already read "assistant, optionally OpenSpec" (no change needed there),
+      `status --next` already described as a recommendation, Harness/Loop already described as
+      non-blocking.
+- [x] Amend ADR-030 §3 in `knowledge/decisions.md` in place (dated 2026-07-30 addendum, prior text
+      struck through and kept for history) to decouple README's diagram shape from the generated
+      SVG's; update `docs/maintainer.md`'s "Regenerating the workflow diagram" to reflect the SVG/
+      PNG are no longer embedded in any Markdown doc.
+- [x] Update `docs/cli.md`'s "Assistants" table to carry the Mechanism/Limitations columns moved
+      out of the simplified README table; fix the now-inaccurate cross-reference sentence.
+- [x] Render all 6 Mermaid blocks (README ×1, `docs/architecture.md` ×4, `docs/workflow.md` ×1)
+      through `@mermaid-js/mermaid-cli` to confirm valid syntax; checked each SVG's `viewBox` for
+      excessive width — README's diagram was switched from `flowchart LR` to `flowchart TD`
+      specifically to fit within a normal GitHub page width.
+- [x] Grepped for stale `aief init`/`aief adopt` references outside legitimate historical mentions,
+      stale "Core 3.0" product-description language, and false Graph historical-usage claims — none
+      found beyond the one already-legitimate `docs/cli.md` sentence explaining what `bootstrap`
+      replaced.
+- [x] Re-run full validation suite (`npm test` 728/728, `node cli/bin/aief.js verify`,
+      `git diff --check`) after all documentation edits.
+- [x] Extend this Change's `spec.md` (F7/F8/F9) and `evidence.md`; keep the Change Closed.

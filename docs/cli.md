@@ -86,19 +86,20 @@ an example: each says "follow `AGENTS.md`," "do not duplicate it," and adds only
 guidance, never a contradictory engineering rule).
 
 Compatibility levels, verified live against a from-scratch scratch project (evidence:
-`changes/0060-*/evidence.md`):
+`changes/0060-*/evidence.md`) — never by invoking any assistant's own API or network service:
 
-| Assistant | Level | Instruction file |
-|---|---|---|
-| Claude Code | Native target — recognized positional/`--assistant` value | `CLAUDE.md` |
-| Gemini CLI | Native target | `GEMINI.md` |
-| Codex CLI | Native target | `CODEX.md` |
-| Cursor | Native target | `CURSOR.md` |
-| OpenCode | Generic prompt compatible — not a recognized positional value; use `aief prompt` (no assistant name) | `AGENTS.md` only |
-| Any other prompt-driven assistant (Continue, Copilot Chat, ...) | Generic prompt compatible, not validated natively in this repository | `AGENTS.md` only |
+| Assistant | Level | Mechanism | Instruction file | Limitations |
+|---|---|---|---|---|
+| Claude Code | Native target | `aief prompt claude` includes the assistant file when present | `CLAUDE.md` | Falls back to AGENTS.md-only if `CLAUDE.md` is absent |
+| Gemini CLI | Native target | `aief prompt gemini` includes the assistant file when present | `GEMINI.md` | Same fallback |
+| Codex CLI | Native target | `aief prompt codex` includes the assistant file when present | `CODEX.md` | Same fallback |
+| Cursor | Native target | `aief prompt cursor` includes the assistant file when present | `CURSOR.md` | Same fallback |
+| OpenCode | Generic prompt compatible | `opencode` is not a recognized positional value; use `aief prompt` (no assistant name) | `AGENTS.md` only | No dedicated `OPENCODE.md` adapter yet |
+| Continue, GitHub Copilot Chat, other prompt-driven assistants | Generic prompt compatible, not validated natively | Same generic `aief prompt` output, pasted manually | `AGENTS.md` only | Not exercised against these tools in this repository's evidence |
 
-Full compatibility matrix with mechanism/command/limitations per row: [README.md — Assistant
-compatibility](../README.md#assistant-compatibility).
+Naming an assistant `aief` doesn't recognize (`aief prompt <unknown>`) is a hard, loud error listing
+the known names — never a silent fallback to the generic form. Simplified summary (Assistant / Mode
+/ Command only): [README.md — Assistant compatibility](../README.md#assistant-compatibility).
 
 ## Guarantees
 

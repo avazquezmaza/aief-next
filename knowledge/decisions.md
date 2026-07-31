@@ -43,11 +43,21 @@ audit needed to make durable.
 > 3. **Canonical diagram source.** `scripts/generate_workflow_diagram.py` is the only file ever
 >    hand-edited to change `docs/images/workflow.svg`; the SVG itself is a generated artifact
 >    (regenerate with `python3 scripts/generate_workflow_diagram.py`), and `docs/images/workflow.png`
->    is, in turn, rendered from that SVG, never edited or produced independently of it. The README's
->    Mermaid block is a second, independently-maintained representation of the same architecture —
->    it does not have to be visually identical to the SVG, but it must stay semantically equivalent
->    (same commands, same three levels, same opt-in/non-blocking capabilities) — see
->    `docs/maintainer.md` "Regenerating the workflow diagram."
+>    is, in turn, rendered from that SVG, never edited or produced independently of it.
+>    ~~The README's Mermaid block is a second, independently-maintained representation of the same
+>    architecture — it does not have to be visually identical to the SVG, but it must stay
+>    semantically equivalent (same commands, same three levels, same opt-in/non-blocking
+>    capabilities) — see `docs/maintainer.md` "Regenerating the workflow diagram."~~
+>    **Amended (2026-07-30, same Change, third pass).** Each doc's diagram now answers a different
+>    question and is explicitly not required to be visually or structurally identical to any other:
+>    README carries a single, simplified product-workflow Mermaid diagram (linear flow + one
+>    opt-in-capabilities band, no three-level structure) aimed at a first-time reader;
+>    `docs/workflow.md` keeps the three-level Mermaid as the detailed-lifecycle diagram;
+>    `docs/architecture.md` carries the system-structure diagrams. `docs/images/workflow.svg`/`.png`
+>    remain buildable from the script and are kept as a standalone illustrated export (decks, blog
+>    posts, non-GitHub contexts) — no longer embedded in any Markdown doc, so no doc's prose is
+>    coupled to its exact shape. The script and its outputs are unchanged by this amendment; only
+>    the requirement that README's Mermaid mirror them was dropped.
 
 **Why this needs its own ADR.** Three durable, easily-second-guessed claims are being formalized at
 once: an official compatibility taxonomy (previously undocumented — the pre-3.1 diagram and docs

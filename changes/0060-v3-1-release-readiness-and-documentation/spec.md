@@ -179,6 +179,55 @@ A script depending on the old exit-`1`/error-text contract should switch to read
 `Next Change: <id>` line, or continue passing `--change <id>` explicitly, which was always the
 byte-identical path.
 
+### F7 — README and `docs/architecture.md` were technically accurate but did not communicate AIEF 3.1 clearly for a public release (fixed, third audit pass)
+
+`README.md` opened by enumerating OpenSpec/SpecBoot/assistants rather than presenting AIEF as one
+integrated system, mixed product pitch with reference-level detail (a five-column assistant
+compatibility table, full subsystem inventory in "Status"), and used the narrative formula "Core
+3.0 subsystems plus 3.1 additions" that reads as two products rather than one coherent 3.1 release.
+`docs/architecture.md` led with a file-and-module diagram before any architectural narrative, so a
+new reader met filenames before concepts.
+
+**Fix:** rewrote `README.md` to the structure: value proposition, why AIEF exists, one core-workflow
+diagram (with opt-in capabilities as a secondary band, not enumerated in the main flow), quick
+start, what AIEF adds, how it fits the surrounding toolchain (one small responsibility table), a
+three-column assistant table (detail moved to `docs/cli.md`), documentation index, and a Status
+section describing 3.1 as one coherent release. Rewrote `docs/architecture.md` around ten sections
+(principles → system context → runtime layers → Change lifecycle → prompt composition →
+verification → Graph Engineering → extension model → deliberate boundaries → implementation map),
+moving every filename into the final "Implementation map" table instead of the first diagram. Four
+diagrams were added or redesigned (System Context, Core Runtime layers, Prompt Composition groups,
+Graph Engineering); all six Mermaid blocks across README/architecture/workflow were rendered with
+`@mermaid-js/mermaid-cli` to confirm valid syntax (see `evidence.md`).
+
+### F8 — `docs/workflow.md`'s Level-1 diagram placed `verify` before Change creation, unlabeled (fixed, third audit pass)
+
+The "Level 1: Context" subgraph read `doctor → bootstrap → verify → analyze/new-change/enrich →
+prompt` — an unlabeled `verify` node sitting between project bootstrap and the first Change even
+existing. A reader could not tell this was environment/project readiness (there is no such
+standalone step; `doctor` already covers it) rather than a forward reference to `aief verify`,
+which only ever targets an existing Change and belongs in Level 3.
+
+**Fix:** removed the stray `verify` node from Level 1 (redundant with `doctor`) and labeled Level
+3's `verify` node explicitly `"verify (Change verification)"`, with prose clarifying `doctor`
+checks environment/project readiness while `verify` in Level 3 checks a specific Change.
+
+### F9 — ADR-030 clause 3 required README's Mermaid to mirror the generated SVG's three-level shape; this pass's simplified README diagram conflicts with that (amended, third audit pass)
+
+The commissioning instruction for this pass required README's diagram to be a single, simple linear
+flow with an opt-in-capabilities band — structurally different from the three-level shape ADR-030
+(§3, accepted as part of this same Change's second pass) mandated for semantic parity with
+`docs/images/workflow.svg`. Silently shipping the new diagram would have contradicted an accepted
+ADR without record.
+
+**Fix:** amended ADR-030 §3 in place (`knowledge/decisions.md`, struck the superseded sentence,
+added a dated 2026-07-30 amendment) rather than rewriting history: each of README/`workflow.md`/
+`architecture.md` now explicitly answers a different question and is not required to match another
+document's diagram shape. `docs/images/workflow.svg`/`.png` remain buildable from
+`scripts/generate_workflow_diagram.py`, unchanged in content, and are documented in
+`docs/maintainer.md` as a standalone illustrated export no longer embedded in any Markdown doc —
+so no doc's prose stays coupled to that asset's exact shape.
+
 ## Post-v3.1 candidates (out of scope here — documented, not implemented)
 
 Nothing found during this audit required a new subsystem or a substantial redesign. For the

@@ -9,27 +9,29 @@ Verification Rule) is defined in [Concepts](concepts.md).
 ```mermaid
 flowchart TD
     subgraph L1["1 . Context (AIEF)"]
-        A1[doctor] --> A2[bootstrap] --> A3[verify] --> A4[analyze / new-change / enrich] --> A5[prompt]
+        A1[doctor] --> A2[bootstrap] --> A4[analyze / new-change / enrich] --> A5[prompt]
     end
     subgraph L2["2 . Feature (assistant, optionally OpenSpec)"]
         B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]
     end
     subgraph L3["3 . Governance (AIEF)"]
-        C1[verify] --> C2[close --yes]
+        C1["verify<br/>(Change verification)"] --> C2[close --yes]
     end
     A5 -->|paste prompt into assistant| L2
     L2 -->|work done, evidence.md written| L3
     C2 -->|next Change| A4
 ```
 
-- **Level 1 — Context.** AIEF prepares the ground: detects the stack, adopts an existing project
-  without touching application code, creates a Change, and composes a context-complete prompt.
-  This level never implements functional code.
+- **Level 1 — Context.** AIEF prepares the ground: `doctor` checks environment and project
+  readiness (not a Change's own `verify`), `bootstrap` adopts an existing project without touching
+  application code, then a Change is created and a context-complete prompt is composed. This level
+  never implements functional code.
 - **Level 2 — Feature.** The engineering itself, done by your AI assistant, optionally structured
   by OpenSpec (Explore → Propose → Apply → Archive). AIEF does not implement, generate specs, or
   duplicate this level.
-- **Level 3 — Governance.** AIEF checks the result and closes the loop: `verify` reports
-  structure and (optionally) requirement compliance; `close --yes` marks the Change Closed.
+- **Level 3 — Governance.** AIEF checks the result and closes the loop: `verify` reports a
+  specific Change's structure and (optionally) requirement compliance; `close --yes` marks that
+  Change Closed.
 
 A Change that opts into a `track` (see [Tracks](#tracks)) gets additional stage/gate narration
 inside levels 1 and 3, but the three-level shape never changes.

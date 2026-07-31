@@ -145,6 +145,17 @@ verified. A second, final audit pass found:
 `package.json`'s version bump remains deferred to the human-triggered `aief release` step (see
 `evidence.md` "Recommendations").
 
+## Reopened — third pass, public documentation clarity (2026-07-30)
+
+Implementation and tests for v3.1 were already approved; this pass is purely editorial. A
+Technical Documentation Architect / Product Editor review found the README and
+`docs/architecture.md` technically accurate but not presenting AIEF Core 3.1 clearly enough for a
+public release — see `spec.md` F7 (README/architecture restructure and diagram redesign), F8
+(`docs/workflow.md`'s Level-1 diagram placed an unlabeled `verify` before Change creation), and F9
+(the commissioned simplified README diagram conflicted with ADR-030 §3's SVG-parity requirement;
+resolved by amending that clause in place rather than silently deviating). No CLI behavior, command,
+flag, or manifest field changed; no new Change was created; no push performed.
+
 ## Status
 
 Closed (2026-07-30)

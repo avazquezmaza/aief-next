@@ -70,8 +70,10 @@ diffable:
 python3 scripts/generate_workflow_diagram.py   # writes docs/images/workflow.svg
 ```
 
-`docs/images/workflow.png` (the image README.md actually embeds) is then rendered from that SVG —
-it must never be edited or regenerated independently of it. Any SVG renderer works; this repository
+`docs/images/workflow.png` is then rendered from that SVG — it must never be edited or regenerated
+independently of it. Neither file is embedded in a Markdown doc today — they are a standalone
+illustrated export (decks, blog posts, non-GitHub contexts) kept reproducible via the script; see
+`knowledge/decisions.md` ADR-030's 2026-07-30 amendment. Any SVG renderer works; this repository
 verified it with PyGObject's Rsvg binding plus Cairo (both ship with common Linux desktop stacks;
 no network access, no Node dependency):
 
@@ -97,10 +99,10 @@ EOF
 
 If `PyGObject`/`Rsvg` isn't available, any equivalent SVG→PNG renderer (e.g. `rsvg-convert
 docs/images/workflow.svg -o docs/images/workflow.png`, or a browser's "export as PNG") is fine —
-the SVG is the source of truth, the PNG is a derived, regenerable artifact. After regenerating
-either file, review the README's embedded Mermaid block (`README.md` "How does it work?") for
-semantic drift: it does not need to be visually identical to the SVG, but it must describe the same
-commands, the same three levels, and the same opt-in/non-blocking capabilities.
+the SVG is the source of truth, the PNG is a derived, regenerable artifact. README's own Mermaid
+diagram and `docs/workflow.md`'s detailed-lifecycle Mermaid are independently maintained and are
+not required to match this asset's shape (ADR-030 amendment) — regenerating this asset needs no
+follow-up edit to either doc unless its own content (commands, capabilities) goes stale.
 
 ## Testing
 

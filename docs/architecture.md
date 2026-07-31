@@ -4,211 +4,279 @@ The implemented architecture, as it exists today. There is no daemon, no databas
 state — the repository *is* the runtime state, and the CLI is a stateless function of the files on
 disk each time it runs.
 
-## Layers
+## Architectural principles
+
+- **The repository is the source of truth.** No `.aief/` directory, no session state, no cache. A
+  command re-derives everything it needs from files on disk every time it runs.
+- **AIEF composes and verifies; it never implements.** No engine code writes application code,
+  runs a test, or calls the network on your behalf.
+- **Every capability beyond the classic path is opt-in**, declared per Change in `manifest.json`,
+  and additive — a Change or project that doesn't opt in behaves exactly as if the capability
+  didn't exist.
+- **Recommendation, never execution.** Anything that looks like automation (`status --next`,
+  Loop's "retry", a Hook's observation) prints a suggestion or a fact; nothing in the engine
+  re-invokes a command, an assistant, or itself.
+- **One implementation per concept.** A domain model owns a shape, a service owns the one
+  orchestration of it, a registry maps an id to an implementation — never duplicated per caller.
+
+## System context
+
+Four zones, and one rule connecting them: AIEF reads and writes only the *visible* repository
+state in the fourth zone — it never reaches into the execution environment directly.
 
 ```mermaid
 flowchart TD
-    CLI["cli.js — command dispatcher\n(parses args, resolves the target Change, renders output)"]
-    subgraph Domain["Domain models — pure, no I/O beyond parsing"]
-        CH[change.js / change-loader.js / change-manifest.js]
-        WD[workflow-definition.js]
-        SD[sdd-model.js]
-        SK[skill.js]
-        HK[hook.js]
-        VR[verification-rule.js]
+    subgraph EXT["External inputs"]
+        H["Humans"]
+        RS["Requirement sources"]
+        SDD["Optional SDD providers"]
     end
-    subgraph Services["Services — orchestration, one rule implemented once"]
-        WS[workflow-service.js\ngate-evaluator.js / transition-engine.js]
-        SDR[sdd-provider-resolver.js]
-        SKS[skill-service.js / skill-context.js]
-        HKS[hook-service.js / hook-context.js]
-        VS[verification-service.js\nverification-context.js / verification-evidence.js]
-        CVS[change-verifier.js]
+
+    subgraph CORE["AIEF Core"]
+        BS["Bootstrap & discovery"]
+        CM["Change management"]
+        PC["Prompt composition"]
+        VF["Verification"]
+        GR["Graph & next recommendation"]
     end
-    subgraph Registries["Registries — static, statically imported, no plugin loader"]
-        WF[workflows/*.json\nlite, standard, governed]
-        SDP[sdd-providers/\nlocal, openspec]
-        SKR[skills/]
-        HKR[hooks/]
-        VRR[verification-rules/]
-        RP[requirement-providers/\nmanual, jira]
+
+    subgraph EXEC["Execution environment"]
+        AI["AI assistants"]
+        TOOLS["Project tools / tests / CI"]
     end
-    CLI --> Domain
-    CLI --> Services
-    Services --> Domain
-    Services --> Registries
+
+    subgraph REPO["Visible repository state"]
+        AG["AGENTS.md"]
+        CH["changes/"]
+        KN["knowledge/"]
+        MF["manifests"]
+        EV["evidence"]
+    end
+
+    EXT --> CORE
+    CORE <--> REPO
+    CORE -->|generates prompt for| AI
+    AI -->|implements, writes evidence into| REPO
+    TOOLS -->|produces evidence into| REPO
+    H -->|scope, merge, release| EXEC
 ```
 
-Every subsystem follows the same three-layer split: a **domain model** owns the shape and pure
-validation of a concept (never touches the filesystem beyond parsing a string it's handed); a
-**service** orchestrates domain models against real Change directories; a **registry** is a plain,
-statically-imported object mapping an id to an implementation — adding a new Skill, Hook,
-Verification Rule, SDD provider, or Requirement provider means adding one file and one registry
-entry, never touching a caller.
+AIEF reads and writes the files in **Visible repository state** — it never executes an assistant,
+a test runner, or CI itself. `aief prompt` produces text a human pastes into an assistant; the
+assistant, running independently in the **Execution environment**, modifies the project and writes
+`evidence.md`. Test runners and CI produce evidence the same way, outside AIEF's control. Humans
+retain scope, merge, and release authority throughout — AIEF never commits, opens a PR, or
+approves anything.
 
-## The Change model
+## Core runtime architecture
 
-A Change is a directory (`changes/<id>-<slug>/`) of plain files. `change.js` derives everything
-about it from those files — closed/open, type (general/analysis/enrichment), evidence
-placeholder-or-not, open task count — by reading `change.md`/`evidence.md`/`tasks.md` directly,
-never from a separate index. `change-loader.js` adds the optional `manifest.json` on top: when
+Every subsystem follows the same four-layer split, top to bottom:
+
+```mermaid
+flowchart TD
+    CLI["CLI Commands"]
+    APP["Application Services"]
+    DOM["Domain Models"]
+    REG["Registries & Providers"]
+    FS["Repository Files"]
+
+    CLI --> APP --> DOM
+    APP --> REG
+    DOM --> FS
+    REG --> FS
+```
+
+- **CLI Commands** — `doctor`, `bootstrap`, `prompt`, `verify`, `status`, `close`, and a handful of
+  others. Each parses arguments, resolves the target Change, and renders output; none contains
+  business logic of its own.
+- **Application Services** — Workflow, Prompt, Verification, Harness/Loop, Graph/Next. Each is the
+  single place a cross-cutting concern is orchestrated; a command never re-implements what a
+  service already does.
+- **Domain Models** — Change, Manifest, Requirement, Skill, Hook, Graph. Pure shape and validation,
+  no I/O beyond parsing a string it's handed.
+- **Registries / Providers** — Workflows, Skills, Hooks, Verification rules, SDD providers,
+  Requirement providers. Static, statically-imported maps from id to implementation — adding one
+  means adding a file and a registry entry, never touching a caller.
+- **Repository** — Change files, knowledge, config, evidence. The actual state; every layer above
+  is a stateless function over it.
+
+| Layer | Responsibility | Where |
+|---|---|---|
+| CLI Commands | Argument parsing, Change resolution, output rendering | `cli/bin/aief.js`, `cli/src/cli.js` |
+| Application Services | Workflow, Prompt, Verification, Harness/Loop, Graph/Next orchestration | `cli/src/*-service.js` |
+| Domain Models | Change, Manifest, Requirement, Skill, Hook, Graph shapes | `cli/src/change.js`, `change-manifest.js`, `sdd-model.js`, `skill.js`, `hook.js`, `change-graph.js` |
+| Registries / Providers | Static id-to-implementation maps | `cli/src/workflows/`, `sdd-providers/`, `skills/`, `hooks/`, `verification-rules/`, `requirement-providers/` |
+| Repository | The actual state read/written every run | `changes/`, `knowledge/`, `manifest.json`, `evidence.md` |
+
+## Change lifecycle data model
+
+A Change is a directory (`changes/<id>-<slug>/`) of plain files: `change.md`, `spec.md`,
+`tasks.md`, `evidence.md`, and an optional `manifest.json`. `change.js` derives everything about a
+Change — open/closed, type, evidence placeholder-or-not, open task count — by reading those files
+directly, never from a separate index. `change-loader.js` layers the optional manifest on top: when
 present and valid, it is authoritative for the fields it declares (never merged with `change.md`'s
 own prose); when absent, invalid, or silent on a field, nothing changes from the classic behavior.
 An invalid manifest is a distinct, visible state (`aief status` reports it explicitly) — never
 silently treated as "no manifest."
 
-## Workflow Engine
-
-`workflow-definition.js` loads one of three static JSON files (`cli/src/workflows/{lite,standard,
-governed}.json`) — each a `{ stages, transitions }` graph with optional `gateIds` per stage.
-`gate-evaluator.js` evaluates each declared gate against the Change's own facts (never against
-network or command output); `transition-engine.js` resolves the current stage and the legal next
-transition from those results. `workflow-service.js` is the single place that composes
-load → evaluate → resolve into the `nextAction()`/`explain()` calls every CLI command
-(`status`, `prompt`, `verify`) shares — there is exactly one implementation of "what stage is this
-Change in," not one per command.
-
-## SDD Provider
-
-`sdd-model.js` defines the provider-neutral `Requirement`/`Task`/`Readiness` shapes. Two providers
-implement them (`sdd-providers/local.js`, `sdd-providers/openspec.js`); `sdd-provider-resolver.js`
-picks one from `manifest.json`'s `sdd.provider` field and hands back a resolved provider bound to
-the Change. No command reads an OpenSpec or local artifact file directly — every read goes through
-the provider's own `resolveChange()`/`validate()` methods, so the file layout a provider reads is
-that provider's private concern.
-
-## Skills Runtime
-
-`skill.js` defines the descriptor shape (id, version, `capabilities`, `appliesTo()`, optional
-`buildInstructions()`), a closed capability vocabulary, and the seven-status result vocabulary.
-`skills/index.js` is the static registry; `skill-service.js` resolves an id, builds a
-`skill-context.js` (the Change + project facts a Skill is allowed to see), and calls the Skill,
-translating any thrown error into a reportable `failed` status rather than crashing the CLI.
-Three capabilities (`writeFiles`, `executeCommands`, `network`) cannot be declared `true` by any
-Skill this release — a Skill attempting to register with one of them fails registration outright,
-so the restriction cannot be bypassed by an unreviewed edit.
-
-## Hooks Runtime and Harness
-
-`hook.js` defines a closed, two-event catalog (`prompt.prepared`, `verify.completed`) and the same
-descriptor/capability discipline as Skills. `hooks/index.js` is the static registry;
-`hook-service.js` evaluates every registered Hook against a built `hook-context.js` for the fired
-event, unconditionally, exactly as before Change 0056. A Hook's declared capabilities can never
-include `writeFiles`/`executeCommands`/`network` either, and — unlike a Skill — a Hook has no path
-back into the exit code or file state at all: it is purely observational by construction, not
-merely by convention. None of `hook.js`/`hooks/index.js`/`hook-service.js`/`hook-context.js` was
-modified by Change 0056/ADR-026.
-
-**Harness** (Change 0056, ADR-026) is the layer above that: `harness-service.js` reads a Change's
-optional `manifest.json` `harness` field (structurally validated in `change-manifest.js`, mirroring
-the `sdd` field's own precedent) and resolves it against the real Hook Registry —
-`resolveHarnessConfig()` for configuration, `partitionOutcome()` to split an already-computed
-`evaluateEvent()` result into active vs. Change-disabled Hooks (a post-evaluation filter — nothing
-about which Hooks get evaluated changes), and `formatHookResultsBlock()`/`formatHookLogSection()`
-for presentation (`aief prompt`'s Hook section, and `<changeDir>/hooks.md` when a Change opts into
-`harness.log`). `aief doctor --verbose` and `aief status --change <id>` are the two read surfaces;
-neither can enable a Hook capability the registry itself doesn't already declare.
-
-## Loop
-
-`loop-service.js` (Change 0057, ADR-027) is a small, pure module — no filesystem access, no
-command execution — providing `resolveLoopConfig()` (reads a Change's optional `manifest.json`
-`loop.verify` field, same structural-validation-in-`change-manifest.js` precedent as `harness`/
-`sdd`), `countPreviousAttempts()` (parses `## Attempt` headers out of already-read `loop.md`
-content), `decideLoopOutcome()` (a pure function of `{attempt, maxRetries, passed}` into
-`passed`/`retry_available`/`exhausted`), and `formatLoopSummary()`/`formatLoopLogEntry()`
-(presentation only). `cli.js`'s `verify()` (the `--change` branch only) is the sole writer of
-`<changeDir>/loop.md`, reusing `VerificationReport.errors` — already computed by
-`change-verifier.js` — as Feedback; nothing about Structural Verification's own computation
-changes. `aief doctor --verbose` reads (never writes) every open Change's Loop state for a
-project-wide registry view. No Hook, no new lifecycle event, no automatic re-invocation of
-anything — "retry" is a reported outcome, never an action Loop performs.
-
-## Graph
-
-`change-graph.js` (Change 0058, ADR-028) exports one pure function, `buildGraph(nodes)` —
-`nodes: [{id, dependsOn}]` in, `{nodes, edges, order, cycles, issues}` out. No filesystem access,
-no CLI dependency, fully unit-testable with synthetic input. Construction and validation are one
-pass: an edge is only created once checked against `self_dependency`/`duplicate_dependency`/
-`missing_dependency`; cycle detection is Kahn's algorithm, with any leftover node after
-topological removal reported as one `cycle` issue and `order` becoming `null` (never a fabricated
-partial order). `cli.js`'s `buildProjectGraph()` is the sole place that gathers real Changes for
-this feature (`getChangeDirs().map(loadChangeUnified)`, guarded by `!manifestError`, mirroring
-`sddChanges()`/`workflowChanges()`'s own pattern) — read-only, rebuilt on every call, nothing
-persisted beyond `manifest.json` itself (ADR-009). Three read surfaces:
-`statusOverview()`'s conditional "Dependency Graph:" section, the new `aief status --graph` full
-view, and `aief verify --change <id>`'s non-blocking per-Change issue note. `aief doctor` is
-untouched — the Graph is cross-Change project state, which `status` already owns.
-
-`next-change-service.js` (Change 0059, ADR-029) is a second pure function built directly on top:
-`selectNextChange(changes, graph)` — `changes: [{id, closed, manifestError, workflowBlockers}]`
-(already-computed facts) plus a `buildGraph()` result in, `{recommended, evaluations,
-tieBreakRule}` out. Eligibility reuses `buildGraph()`'s `edges`/`issues` and the existing Workflow
-Engine's `resolveWorkflowFor()`/`state.blockers` (ADR-018) unmodified — no second dependency or
-gate evaluator. `cli.js`'s `gatherOpenChangeFacts()` is the sole place real Changes' facts are
-computed for this feature; `statusNextSmart()` renders the result. Wired into `aief status --next`
-only when 2+ Changes are open — the prior "select one explicitly" error for that case is
-deliberately replaced (see ADR-029); the 0/1-open-Change paths, `resolveImplicitChange()`, and
-`nextAction()`/`deriveNextAction()` are all untouched.
-
-## Verification Engine
-
-`verification-rule.js` defines the Verification Rule contract (scope, capabilities, `appliesTo()`,
-`evaluate()`) and a six-type Evidence vocabulary, of which only `artifact_state` (an SDD provider's
-own normalized state) and `file_assertion` (a path-contained filesystem check) are supported this
-release. `verification-rules/index.js` is the static registry (`requirement-has-traceability`,
-`evidence-reference-integrity` today); `verification-service.js` resolves applicable rules per
-requirement and aggregates per-rule verdicts into one five-state result
-(`ERROR > INVALID > FAIL > INCOMPLETE > PASS`, fixed precedence — never a boolean reduction).
-`change-verifier.js` (Structural Verification) is untouched by any of this: the two layers compose
-in `cli.js`, they do not call into each other.
+A Change that declares a `track` in its manifest gets a small Workflow Engine state machine layered
+on top, read-only from the outside: `workflow-definition.js` loads one of three static JSON stage
+graphs (`lite`/`standard`/`governed`), `gate-evaluator.js` evaluates each stage's declared gates
+against the Change's own facts, and `transition-engine.js` resolves the current stage and legal
+next transition. `workflow-service.js` is the single place `status`/`prompt`/`verify` all call for
+"what stage is this Change in" — there is exactly one implementation, not one per command.
 
 ## Prompt composition
 
-`aief prompt` is the only place the knowledge dimensions are composed into one prompt — no source
-file references another:
+`aief prompt` is the only place context is composed into one prompt — no source file references
+another. Three groups feed the composer; a group that doesn't apply stays silent rather than
+producing an empty section.
 
 ```mermaid
 flowchart LR
-    AG[AGENTS.md] --> P
-    AF["Assistant file\nCLAUDE.md / GEMINI.md / CODEX.md / CURSOR.md"] --> P
-    PRO["Profile\n--profile"] --> P
-    STD["Standards\nknowledge/standards/*.md"] --> P
-    SKL["Recommended Skills\n(Skill Catalog)"] --> P
-    WFB["Workflow / SDD context\n(if the Change opted in)"] --> P
-    SKR["Skill Runtime output\n(--skill id, if requested)"] --> P
-    HKB["Hook output\n(prompt.prepared)"] --> P
-    CHG["Active Change\nchange.md / spec.md / tasks.md"] --> P
-    P((Prompt composition)) --> OUT[One ready-to-paste prompt]
+    subgraph U["Universal instructions"]
+        AG["AGENTS.md"]
+        AF["Assistant adapter (optional)"]
+        PRO["Profile"]
+    end
+    subgraph PI["Project intelligence"]
+        LIDR["LIDR"]
+        STD["Standards"]
+        SKL["Recommended Skills"]
+    end
+    subgraph CE["Change execution context"]
+        CHG["Change spec / tasks"]
+        WF["Workflow & SDD"]
+        RSK["Requested Skill"]
+        HK["Hook observations"]
+    end
+
+    U --> P((Prompt<br/>Composer))
+    PI --> P
+    CE --> P
+    P --> OUT["Portable ready-to-paste prompt"]
 ```
 
-Each block is additive and independently silent when it doesn't apply — a Change with no `track`
-produces byte-identical output to before any Core 3.0 subsystem existed. Assistant selection is
-explicit and fails loudly on an unknown name; there is no per-assistant branch anywhere else in the
-engine.
+`AGENTS.md` is always the base contract — every generated prompt opens with "Use AGENTS.md." first,
+regardless of assistant. An assistant adapter (`CLAUDE.md`, `GEMINI.md`, ...) only ever adapts
+tone and phrasing, never contradicts it, and is entirely optional: a project with none still gets a
+complete prompt. Every other block is additive; a Change with no `track`, no Skill request, and no
+Harness configuration produces output identical to a project that never adopted those features.
+AIEF generates this prompt as text — it never calls an assistant's API or invokes it directly.
 
-## Detection
+## Verification and evidence
 
-`detect.js` plus `skills-catalog.json` drive `doctor`/`bootstrap`/`analyze`'s project detection: strong
-signals (dependencies, files) and weak signals (documented keywords, word-boundary matched) map to
-recommended Skills, always with a stated reason. This is the **Skill Catalog** — static,
-unexecuted, contextual recommendation data — distinct from the Skills Runtime above, which is a
-registered, invocable contract. No engine code branches on a specific technology; adding one means
-editing the catalog.
+`aief verify` always runs **Structural Verification** first, unconditionally: are the Change's
+required files present, is the manifest (if any) consistent, is evidence more than a placeholder,
+how many tasks remain open.
 
-## Bootstrap and distribution
+`aief verify --change <id> --requirements` additionally runs **Requirement Verification**:
+`verification-rule.js` defines the rule contract and a six-type evidence vocabulary, of which only
+`artifact_state` (an SDD provider's own normalized state) and `file_assertion` (a path-contained
+filesystem check) are supported today. `verification-service.js` resolves applicable rules per
+requirement and aggregates verdicts into one five-state result
+(`ERROR > INVALID > FAIL > INCOMPLETE > PASS`, fixed precedence — never a boolean reduction).
+Results are deterministic and evidence-grounded — never AI-judged, never a live test execution.
 
-AIEF ships as a root npm package exposing the `aief` binary from `cli/bin/aief.js`. No runtime
-dependencies. `aief doctor` checks the environment in three levels (required / recommended /
-optional); `aief bootstrap` creates only visible structure, never application code, and is
-idempotent. See [Getting Started](getting-started.md).
+Both layers are informational inputs to a human decision; neither ever changes `aief close`'s own
+readiness check.
 
-## What is deliberately absent
+## Graph Engineering and Smart Workflow
 
-- No hidden `.aief/` directory, state files, or database.
+A Change's `manifest.json` may declare `dependsOn`, naming other Changes it depends on. The Graph
+is derived fresh from disk on every command — nothing is persisted beyond `manifest.json` itself.
+
+```mermaid
+flowchart TD
+    MF["manifest.json<br/>dependsOn"] --> GB["Graph builder"]
+    GB --> V1["validates missing /<br/>duplicate / self dependencies"]
+    GB --> V2["detects cycles"]
+    GB --> V3["deterministic<br/>topological order"]
+    V1 --> ELIG["Change eligibility"]
+    V2 --> ELIG
+    V3 --> ELIG
+    WB["Workflow blockers +<br/>open/closed state"] --> ELIG
+    ELIG --> SW["Smart Workflow"]
+    SW --> CMD1["aief status --graph"]
+    SW --> CMD2["aief status --next"]
+```
+
+The Graph is **read-only**: `change-graph.js` exports one pure function, `buildGraph(nodes)`, with
+no filesystem access of its own — `cli.js` gathers real Changes and hands them in. It never writes
+a Change, never mutates `manifest.json`, and is rebuilt from scratch every invocation, so it can
+never drift from what's actually on disk.
+
+`status --next` **recommends only** — it never executes, re-prompts, or advances anything. A
+Change is eligible when it is open, has a valid manifest, every dependency exists and is closed,
+it isn't part of a cycle, and it has no unsatisfied Workflow gate blocker; the lowest Change id
+wins ties. With zero declared `dependsOn` edges anywhere in a project, every open Change is
+independent and immediately eligible — **only an explicit `dependsOn` entry creates an edge; the
+Graph never infers one.**
+
+Example:
+
+```json
+{ "id": "0002-add-payments", "dependsOn": ["0001-user-model"] }
+```
+
+Change `0002` is not eligible until Change `0001` is closed — `aief status --graph` shows the edge
+and the topological order; `aief status --next` explains the block by name.
+
+This project's own `changes/` directory currently has **zero** `dependsOn` edges — every Change to
+date has been independent. The Graph and Smart Workflow are new, general-purpose capabilities
+available to any project; they were not exercised as dependency-linked work by this repository's
+own historical Changes.
+
+## Extension model
+
+Every registry is a plain, statically-imported object — there is no plugin loader. Adding a Skill,
+Hook, Verification Rule, SDD provider, or Requirement provider means adding one file and one
+registry entry, never touching a caller.
+
+- **Skills** (`skill.js`, `skills/index.js`, `skill-service.js`) — a closed capability vocabulary
+  and a seven-status result contract; `writeFiles`, `executeCommands`, and `network` cannot be
+  declared `true` by any Skill this release, so a Skill attempting to register with one fails
+  registration outright.
+- **Hooks** (`hook.js`, `hooks/index.js`, `hook-service.js`) — the same descriptor discipline, fired
+  on a closed two-event catalog (`prompt.prepared`, `verify.completed`); a Hook has no path back
+  into the exit code or file state at all — purely observational by construction.
+- **Harness** (`harness-service.js`) is the opt-in configuration/logging layer over Hooks: it
+  reads a Change's `manifest.json` `harness` field, resolves it against the real Hook Registry, and
+  filters/formats results after evaluation — it never changes which Hooks are evaluated.
+- **Loop** (`loop-service.js`) is a small pure module over `aief verify --change`'s own already-
+  computed errors: it tracks attempt count and reports `passed`/`retry_available`/`exhausted`.
+  "Retry" is a reported outcome, never an action Loop performs.
+- **SDD Provider** (`sdd-model.js`, `sdd-providers/`, `sdd-provider-resolver.js`) — a
+  provider-neutral `Requirement`/`Task`/`Readiness` shape; no command reads an OpenSpec or local
+  artifact file directly, every read goes through the resolved provider.
+
+## Deliberate boundaries
+
+- No hidden `.aief/` directory, state file, or database.
 - No spec generation inside AIEF's own core — OpenSpec or a human owns that.
-- No vendored SpecBoot files.
-- No assistant-specific logic — differences end at the instruction-file name.
-- No technology-specific knowledge in engine code — it lives in the Skill Catalog.
-- No plugin loader for Skills/Hooks/Verification Rules/SDD providers — every registry is a static,
-  reviewed, statically-imported object.
+- No vendored SpecBoot files — inspiration only, never copied.
+- No assistant-specific logic in the engine — differences end at the instruction-file name.
+- No technology-specific knowledge in engine code — it lives in the Skill Catalog (`detect.js`,
+  `skills-catalog.json`).
+- No plugin loader — every registry is static, reviewed, and statically imported.
+- No blocking authority for Harness, Hooks, Loop, or Graph — all four are non-blocking by
+  construction, not merely by convention.
+- No automatic execution anywhere — `status --next` recommends, Loop reports "retry available,"
+  a Hook observes; nothing in the engine re-invokes a command, an assistant, or itself.
+
+## Implementation map
+
+| Concept | Files |
+|---|---|
+| CLI dispatch | `cli/bin/aief.js`, `cli/src/cli.js` |
+| Change model | `change.js`, `change-loader.js`, `change-manifest.js` |
+| Workflow Engine | `workflow-definition.js`, `workflow-service.js`, `gate-evaluator.js`, `transition-engine.js`, `cli/src/workflows/*.json` |
+| SDD Provider | `sdd-model.js`, `sdd-provider-resolver.js`, `sdd-providers/local.js`, `sdd-providers/openspec.js` |
+| Skills Runtime | `skill.js`, `skills/index.js`, `skill-service.js`, `skill-context.js` |
+| Hooks Runtime & Harness | `hook.js`, `hooks/index.js`, `hook-service.js`, `hook-context.js`, `harness-service.js` |
+| Loop | `loop-service.js` |
+| Graph & Smart Workflow | `change-graph.js`, `next-change-service.js` |
+| Verification Engine | `verification-rule.js`, `verification-rules/index.js`, `verification-service.js`, `verification-context.js`, `verification-evidence.js`, `change-verifier.js` |
+| Prompt composition | `aief prompt` in `cli.js` |
+| Detection / Skill Catalog | `detect.js`, `skills-catalog.json` |
+| Bootstrap & distribution | `cli/bin/aief.js`, `cli/templates/` |
