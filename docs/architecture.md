@@ -24,42 +24,7 @@ disk each time it runs.
 Four zones, and one rule connecting them: AIEF reads and writes only the *visible* repository
 state in the fourth zone — it never reaches into the execution environment directly.
 
-```mermaid
-flowchart TD
-    subgraph EXT["External inputs"]
-        H["Humans"]
-        RS["Requirement sources"]
-        SDD["Optional SDD providers"]
-    end
-
-    subgraph CORE["AIEF Core"]
-        BS["Bootstrap & discovery"]
-        CM["Change management"]
-        PC["Prompt composition"]
-        VF["Verification"]
-        GR["Graph & next recommendation"]
-    end
-
-    subgraph EXEC["Execution environment"]
-        AI["AI assistants"]
-        TOOLS["Project tools / tests / CI"]
-    end
-
-    subgraph REPO["Visible repository state"]
-        AG["AGENTS.md"]
-        CH["changes/"]
-        KN["knowledge/"]
-        MF["manifests"]
-        EV["evidence"]
-    end
-
-    EXT --> CORE
-    CORE <--> REPO
-    CORE -->|generates prompt for| AI
-    AI -->|implements, writes evidence into| REPO
-    TOOLS -->|produces evidence into| REPO
-    H -->|scope, merge, release| EXEC
-```
+![AIEF system context: external inputs (humans, requirement sources, optional specification providers) feed AIEF Core, which reads and writes only the visible repository state and generates a prompt for the execution environment without ever executing it; assistants and project tools write evidence back into the repository, and humans retain scope, merge, release, and publication authority throughout](images/system-context.svg)
 
 AIEF reads and writes the files in **Visible repository state** — it never executes an assistant,
 a test runner, or CI itself. `aief prompt` produces text a human pastes into an assistant; the
@@ -72,19 +37,7 @@ approves anything.
 
 Every subsystem follows the same four-layer split, top to bottom:
 
-```mermaid
-flowchart TD
-    CLI["CLI Commands"]
-    APP["Application Services"]
-    DOM["Domain Models"]
-    REG["Registries & Providers"]
-    FS["Repository Files"]
-
-    CLI --> APP --> DOM
-    APP --> REG
-    DOM --> FS
-    REG --> FS
-```
+![AIEF core runtime architecture: five layers top to bottom — CLI Commands call Application Services, which use Domain Models and Registries and Providers, all of which read and write Repository Files](images/core-runtime.svg)
 
 - **CLI Commands** — `doctor`, `bootstrap`, `prompt`, `verify`, `status`, `close`, and a handful of
   others. Each parses arguments, resolves the target Change, and renders output; none contains
@@ -132,30 +85,7 @@ next transition. `workflow-service.js` is the single place `status`/`prompt`/`ve
 another. Three groups feed the composer; a group that doesn't apply stays silent rather than
 producing an empty section.
 
-```mermaid
-flowchart LR
-    subgraph U["Universal instructions"]
-        AG["AGENTS.md"]
-        AF["Assistant adapter (optional)"]
-        PRO["Profile"]
-    end
-    subgraph PI["Project intelligence"]
-        LIDR["LIDR"]
-        STD["Standards"]
-        SKL["Recommended Skills"]
-    end
-    subgraph CE["Change execution context"]
-        CHG["Change spec / tasks"]
-        WF["Workflow & SDD"]
-        RSK["Requested Skill"]
-        HK["Hook observations"]
-    end
-
-    U --> P((Prompt<br/>Composer))
-    PI --> P
-    CE --> P
-    P --> OUT["Portable ready-to-paste prompt"]
-```
+![AIEF prompt composition: Universal instructions, Project intelligence, and Change execution context feed the Prompt Composer, which produces one portable ready-to-paste prompt](images/prompt-composition.svg)
 
 `AGENTS.md` is always the base contract — every generated prompt opens with "Use AGENTS.md." first,
 regardless of assistant. An assistant adapter (`CLAUDE.md`, `GEMINI.md`, ...) only ever adapts
@@ -186,20 +116,7 @@ readiness check.
 A Change's `manifest.json` may declare `dependsOn`, naming other Changes it depends on. The Graph
 is derived fresh from disk on every command — nothing is persisted beyond `manifest.json` itself.
 
-```mermaid
-flowchart TD
-    MF["manifest.json<br/>dependsOn"] --> GB["Graph builder"]
-    GB --> V1["validates missing /<br/>duplicate / self dependencies"]
-    GB --> V2["detects cycles"]
-    GB --> V3["deterministic<br/>topological order"]
-    V1 --> ELIG["Change eligibility"]
-    V2 --> ELIG
-    V3 --> ELIG
-    WB["Workflow blockers +<br/>open/closed state"] --> ELIG
-    ELIG --> SW["Smart Workflow"]
-    SW --> CMD1["aief status --graph"]
-    SW --> CMD2["aief status --next"]
-```
+![AIEF Graph Engineering: Change manifests declaring dependsOn feed a Graph builder that validates and computes a deterministic topological order, feeding eligibility evaluation and Smart Workflow, surfaced by status --graph and status --next](images/graph-engineering.svg)
 
 The Graph is **read-only**: `change-graph.js` exports one pure function, `buildGraph(nodes)`, with
 no filesystem access of its own — `cli.js` gathers real Changes and hands them in. It never writes

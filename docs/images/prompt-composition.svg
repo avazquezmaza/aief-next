@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 640" width="1300" height="640" role="img" aria-labelledby="pc-title pc-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="pc-title">AIEF prompt composition</title>
+  <desc id="pc-desc">Three groups feed the Prompt Composer: Universal instructions (AGENTS.md as the always-present base contract, an optional assistant adapter, and a profile), Project intelligence (LIDR, Standards, recommended Skills), and Change execution context (Change spec/tasks, Workflow and SDD, a requested Skill, Hook observations). The composer produces one portable, ready-to-paste prompt; AIEF generates this text but never invokes an assistant itself, and a group with nothing to contribute stays silent rather than rendering an empty section.</desc>
+  <defs>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1300" height="640" fill="#ffffff"/>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Prompt Composition</text>
+  <text x="40" y="58" font-size="12" fill="#64748b">What goes into an AIEF prompt — three groups feed one composer</text>
+  <g transform="translate(40,76)">
+    <rect width="540" height="162" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#0f172a" letter-spacing="0.3px">Universal instructions</text>
+  </g>
+  <g transform="translate(56,120)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#0f172a">AGENTS.md — always the base contract</text>
+  </g>
+  <g transform="translate(56,156)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#0f172a">Assistant adapter (optional)</text>
+  </g>
+  <g transform="translate(56,192)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#0f172a">Profile</text>
+  </g>
+  <g transform="translate(40,260)">
+    <rect width="540" height="162" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#1e40af" letter-spacing="0.3px">Project intelligence</text>
+  </g>
+  <g transform="translate(56,304)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#1e40af">LIDR</text>
+  </g>
+  <g transform="translate(56,340)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#1e40af">Standards</text>
+  </g>
+  <g transform="translate(56,376)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#1e40af">Recommended Skills</text>
+  </g>
+  <g transform="translate(40,444)">
+    <rect width="540" height="198" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#6b21a8" letter-spacing="0.3px">Change execution context</text>
+  </g>
+  <g transform="translate(56,488)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#6b21a8">Change spec / tasks</text>
+  </g>
+  <g transform="translate(56,524)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#6b21a8">Workflow &amp; SDD</text>
+  </g>
+  <g transform="translate(56,560)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#6b21a8">Requested Skill</text>
+  </g>
+  <g transform="translate(56,596)">
+    <rect width="508" height="30" rx="8" fill="#ffffff" stroke="#e9d5ff" stroke-width="1"/>
+    <text x="12" y="19" font-size="11.5" font-weight="600" fill="#6b21a8">Hook observations</text>
+  </g>
+  <g transform="translate(660,289.0)">
+    <rect width="230" height="140" rx="16" fill="#0f172a" filter="url(#card-shadow)"/>
+    <text x="115.0" y="58" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle">Prompt</text>
+    <text x="115.0" y="80" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle">Composer</text>
+    <text x="115.0" y="106" font-size="10.5" fill="#94a3b8" text-anchor="middle">aief prompt</text>
+  </g>
+  <path d="M 580 157.0 C 620.0 157.0, 620.0 335.0, 660 335.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 580 341.0 C 620.0 341.0, 620.0 359.0, 660 359.0" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 580 543.0 C 620.0 543.0, 620.0 383.0, 660 383.0" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-violet)"/>
+  <g transform="translate(990,279.0)">
+    <rect width="270" height="160" rx="14" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" filter="url(#card-shadow)"/>
+    <text x="20" y="34" font-size="13.5" font-weight="800" fill="#166534">Portable ready-to-paste</text>
+    <text x="20" y="54" font-size="13.5" font-weight="800" fill="#166534">prompt</text>
+    <text x="20" y="82" font-size="11" fill="#166534">Opens with "Use AGENTS.md." for</text>
+    <text x="20" y="99" font-size="11" fill="#166534">every assistant, or for none.</text>
+    <text x="20" y="124" font-size="11" fill="#166534">AIEF generates this text — it</text>
+    <text x="20" y="141" font-size="11" fill="#166534" font-weight="700">never invokes an assistant.</text>
+  </g>
+  <path d="M 890 359.0 L 990 359.0" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+  <text x="40" y="666" font-size="12" fill="#64748b">A group with nothing to contribute (no adapter, no track, no requested Skill) stays silent — it never renders an empty section.</text>
+</svg>

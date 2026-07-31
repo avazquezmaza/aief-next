@@ -23,24 +23,7 @@ daemon, no database, no hidden state.
 Every meaningful unit of work is a **Change**: a plain directory of Markdown files with a
 specification, a task checklist, and evidence of what actually happened.
 
-```mermaid
-flowchart TD
-    A["Requirement<br/>or idea"] --> B["AIEF Change"]
-    B --> C["Context-complete<br/>prompt"]
-    C --> D["AI assistant<br/>implementation"]
-    D --> E["Evidence &<br/>verification"]
-    E --> F["Close & next<br/>recommendation"]
-    F -.->|recommends| B
-
-    subgraph OPT["Opt-in capabilities — attach to any Change"]
-        OPTN["LIDR · Skills · Standards · Workflow tracks<br/>Harness/Hooks · Loop · Change Graph"]
-    end
-    OPT -.-> C
-    OPT -.-> E
-
-    classDef opt fill:#eef,stroke:#88a,color:#333;
-    class OPT,OPTN opt;
-```
+![AIEF Core 3.1 product workflow: a requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it](docs/images/product-workflow.svg)
 
 AIEF composes the prompt, your assistant implements, and humans decide what's next. The opt-in band
 above — LIDR project intelligence, Skills, Standards, staged Workflow tracks, Harness/Hooks

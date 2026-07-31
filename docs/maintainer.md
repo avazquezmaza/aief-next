@@ -60,49 +60,80 @@ entries for the expected shape (Decision, Why this needs its own ADR, Alternativ
 - Historical, superseded, or study material goes under `docs/history/` — never in the main set,
   never mixed into a current document "just for context."
 
-## Regenerating the workflow diagram
+## Regenerating the diagrams
 
-`scripts/generate_workflow_diagram.py` is the **canonical source** of `docs/images/workflow.svg`.
-Never hand-edit the SVG — edit the script and regenerate, so the file stays reproducible and
-diffable:
+Every diagram in this repository (README, `docs/architecture.md`, `docs/workflow.md`) is a
+generated SVG under `docs/images/`, produced by a Python script under `scripts/diagrams/`. There
+is no Mermaid anywhere in the docs set — Mermaid required a JS renderer neither GitHub-independent
+contexts nor this repository's "no network, no hidden tooling" rule could rely on; a plain,
+versioned SVG generator has neither problem. **Never hand-edit an SVG or PNG under
+`docs/images/`** — edit the generator script and regenerate, so every asset stays reproducible and
+diffable at the source level.
 
-```bash
-python3 scripts/generate_workflow_diagram.py   # writes docs/images/workflow.svg
-```
-
-`docs/images/workflow.png` is then rendered from that SVG — it must never be edited or regenerated
-independently of it. Neither file is embedded in a Markdown doc today — they are a standalone
-illustrated export (decks, blog posts, non-GitHub contexts) kept reproducible via the script; see
-`knowledge/decisions.md` ADR-030's 2026-07-30 amendment. Any SVG renderer works; this repository
-verified it with PyGObject's Rsvg binding plus Cairo (both ship with common Linux desktop stacks;
-no network access, no Node dependency):
+### Generate everything
 
 ```bash
-python3 - <<'EOF'
-import gi
-gi.require_version('Rsvg', '2.0')
-from gi.repository import Rsvg
-import cairo
-
-handle = Rsvg.Handle.new_from_file("docs/images/workflow.svg")
-dim = handle.get_dimensions()
-scale = 2  # 2x for a crisp README embed
-surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, dim.width * scale, dim.height * scale)
-ctx = cairo.Context(surface)
-ctx.scale(scale, scale)
-ctx.set_source_rgb(1, 1, 1)
-ctx.paint()
-handle.render_cairo(ctx)
-surface.write_to_png("docs/images/workflow.png")
-EOF
+python3 scripts/diagrams/generate_all.py
 ```
 
-If `PyGObject`/`Rsvg` isn't available, any equivalent SVG→PNG renderer (e.g. `rsvg-convert
-docs/images/workflow.svg -o docs/images/workflow.png`, or a browser's "export as PNG") is fine —
-the SVG is the source of truth, the PNG is a derived, regenerable artifact. README's own Mermaid
-diagram and `docs/workflow.md`'s detailed-lifecycle Mermaid are independently maintained and are
-not required to match this asset's shape (ADR-030 amendment) — regenerating this asset needs no
-follow-up edit to either doc unless its own content (commands, capabilities) goes stale.
+This is the one canonical command: it runs every `scripts/diagrams/generate_*.py` module, verifies
+each SVG it promised was written, renders every PNG from its SVG, verifies each PNG was written,
+and refuses to leave anything outside `docs/images/`. It uses no network. Sample output:
+
+```
+Using renderer: imagemagick
+
+Generated files:
+  docs/images/product-workflow.svg
+  docs/images/product-workflow.png
+  ...
+```
+
+### Generate one diagram
+
+Each diagram has its own generator, runnable independently for a faster edit-preview loop:
+
+```bash
+python3 scripts/diagrams/generate_product_workflow.py    # README — how AIEF works
+python3 scripts/diagrams/generate_system_context.py      # architecture.md — system context
+python3 scripts/diagrams/generate_core_runtime.py         # architecture.md — core runtime
+python3 scripts/diagrams/generate_prompt_composition.py   # architecture.md — prompt composition
+python3 scripts/diagrams/generate_graph_engineering.py    # architecture.md — Graph Engineering
+python3 scripts/diagrams/generate_workflow_lifecycle.py   # workflow.md — Change lifecycle
+```
+
+Each writes only its own SVG (`mod.SVG_PATH`) — running one never touches another diagram's
+output. `scripts/diagrams/common.py` centralizes only what every diagram actually shares (palette,
+fonts, arrow markers, the card/group-box/badge helpers, XML escaping, and the deterministic file
+writer) — it is not a general diagramming framework, and a new diagram is free to lay out its own
+cards directly.
+
+### The `workflow.svg` compatibility wrapper
+
+`scripts/generate_workflow_diagram.py` still exists and still writes `docs/images/workflow.svg`/
+`.png` under its original, documented command — but it now imports and calls
+`scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()` function instead of building a
+second, independently-drifting diagram. `docs/images/workflow.svg` is therefore always identical
+to `docs/images/workflow-lifecycle.svg`, kept under its original path as a standalone illustrated
+export (decks, blog posts, non-GitHub contexts) per `knowledge/decisions.md` ADR-030.
+
+### Rendering PNGs
+
+`generate_all.py` renders PNGs itself, trying local SVG renderers in this order and never mixing
+tools within one run: [`rsvg-convert`](https://gitlab.gnome.org/GNOME/librsvg), ImageMagick
+(`magick`/`convert`, using its bundled librsvg SVG delegate — verify with `identify -list format |
+grep -i svg`; a bare `MSVG` result without an `RSVG`/`SVG` (Librsvg) line means ImageMagick will
+render incorrectly and another tool should be installed instead), Inkscape's CLI, or the
+`cairosvg` Python package. It fails loudly, with an actionable error, if none is available — it
+never silently skips a PNG.
+
+### The no-manual-edit rule
+
+`docs/images/*.svg` and `docs/images/*.png` are generated artifacts, full stop. If a diagram's
+content needs to change (a new command, a renamed capability), edit the Python generator and
+re-run `generate_all.py` — never touch the SVG/PNG bytes directly. This is what keeps every asset
+diffable at the level that actually matters (the Python source) instead of as opaque binary or
+XML noise.
 
 ## Testing
 
@@ -111,7 +142,7 @@ npm test                          # from the repo root — full CLI suite, node 
 node cli/bin/aief.js verify       # validate this repository's own AIEF structure
 git diff --check                  # no whitespace errors, run before every commit
 cd examples/todo-app && npm test  # the executable example stays runnable
-python3 scripts/generate_workflow_diagram.py  # confirms the diagram script still runs cleanly
+python3 scripts/diagrams/generate_all.py  # confirms every diagram generator still runs cleanly
 ```
 
 ## Git discipline

@@ -156,6 +156,30 @@ public release — see `spec.md` F7 (README/architecture restructure and diagram
 resolved by amending that clause in place rather than silently deviating). No CLI behavior, command,
 flag, or manifest field changed; no new Change was created; no push performed.
 
+## Reopened — fourth pass, Mermaid to generated SVG (2026-07-30)
+
+Purely a diagram-format migration. All six Mermaid blocks across the docs set (README's
+product-workflow diagram, `docs/workflow.md`'s three-level lifecycle diagram, and
+`docs/architecture.md`'s four structural diagrams — System Context, Core Runtime, Prompt
+Composition, Graph Engineering) are replaced by professionally styled, accessible SVGs (with a
+matching PNG each) generated from versioned Python scripts under the new `scripts/diagrams/`
+package, following the visual language already established by
+`scripts/generate_workflow_diagram.py`/`docs/images/workflow.svg`. The approved content and
+semantics from the third pass are unchanged — same commands, same three levels, same non-blocking
+opt-in capabilities, same factual claims (AIEF never executes an assistant/CI, Harness/Hooks never
+gate, Loop retry is always manual, the Graph is read-only and has no hidden state, `status --next`
+only recommends). `docs/images/workflow.svg`/`.png` remain the standalone illustrated export at
+their original path; `scripts/generate_workflow_diagram.py` is now a thin wrapper around
+`scripts/diagrams/generate_workflow_lifecycle.py`'s generator so the export and
+`docs/workflow.md`'s embedded diagram share one source. `docs/maintainer.md` documents the new
+`generate_all.py` canonical command; `knowledge/decisions.md` ADR-030 §3 carries a fourth amendment
+recording the format change. `cli/tests/diagrams.test.js` guards against regressions (every
+expected SVG/PNG exists and is well-formed, accessibility markup present, zero Mermaid fences
+anywhere in the docs set, every image reference resolves, output stays confined to
+`docs/images/`, and regeneration is a byte-for-byte no-op). No CLI behavior, command, flag, or
+manifest field changed; no new Change was created; no push, tag, or release performed. Full detail
+in `evidence.md` "Fourth pass — Mermaid to SVG migration."
+
 ## Status
 
 Closed (2026-07-30)

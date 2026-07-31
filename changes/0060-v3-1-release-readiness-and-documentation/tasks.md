@@ -121,3 +121,43 @@
 - [x] Re-run full validation suite (`npm test` 728/728, `node cli/bin/aief.js verify`,
       `git diff --check`) after all documentation edits.
 - [x] Extend this Change's `spec.md` (F7/F8/F9) and `evidence.md`; keep the Change Closed.
+
+## Fourth pass — Mermaid to generated SVG (2026-07-30)
+
+- [x] Confirmed branch `feat/v3.1`, HEAD `f2844c1`, clean working tree before starting.
+- [x] `rg -n '```mermaid'` inventory: 6 live blocks (README ×1, `docs/architecture.md` ×4,
+      `docs/workflow.md` ×1) plus one historical, unmoved-by-design occurrence in
+      `changes/0050-core3-documentation-architecture/design.md` (kept — Change 0050's own design
+      states its tree section is "unmoved, unedited") and one non-block string match inside this
+      Change's own `evidence.md` (a `re.findall` regex literal from the third pass's Mermaid
+      syntax check, not a Mermaid fence itself).
+- [x] Built `scripts/diagrams/common.py`, then one `generate_<diagram>.py` per diagram:
+      `generate_product_workflow.py`, `generate_system_context.py`, `generate_core_runtime.py`,
+      `generate_prompt_composition.py`, `generate_graph_engineering.py`,
+      `generate_workflow_lifecycle.py`.
+- [x] Rewrote `scripts/generate_workflow_diagram.py` as a compatibility wrapper around
+      `generate_workflow_lifecycle.generate()`; confirmed `docs/images/workflow.svg` is
+      byte-identical to `docs/images/workflow-lifecycle.svg`.
+- [x] Built `scripts/diagrams/generate_all.py`: runs every generator, verifies each SVG/PNG exists,
+      renders PNGs via the first available local renderer (ImageMagick with its librsvg delegate,
+      in this environment — verified with `identify -list format | grep -i svg`), refuses to leave
+      files outside `docs/images/`, uses no network.
+- [x] Ran `generate_all.py` twice and diffed the SVG outputs — byte-identical (deterministic; no
+      embedded timestamps).
+- [x] Visually inspected every SVG's rendered PNG at GitHub-comparable width: no clipped text, no
+      card overflow, arrows connected with no unnecessary crossings, consistent palette/typography
+      across all 6 diagrams, footnote text within the viewBox.
+- [x] Replaced all 6 Mermaid fences with `![specific alt text](path.svg)` references plus the
+      existing explanatory prose (kept, not rewritten) directly below each image.
+- [x] Verified every factual claim rendered in the new SVGs against the current codebase/ADRs
+      (AIEF never executes an assistant/test/CI; Harness/Hooks never block; Loop retry is always
+      manual; the Graph never persists or mutates a Change; `status --next` only recommends; zero
+      historical `dependsOn` edges in this repository's `changes/`) — no new or contradicted claim.
+- [x] Updated `docs/maintainer.md` "Regenerating the diagrams" and ADR-030 §3 (fourth amendment).
+- [x] Added `cli/tests/diagrams.test.js` (9 cases) to `cli/package.json`'s test script; all pass.
+- [x] Re-ran full validation: `npm test` (737/737), `node cli/bin/aief.js verify` (PASS),
+      `node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation` (PASS),
+      `git diff --check` (clean), `rg -n '```mermaid'` (only the documented exceptions above),
+      scratch/temp file scan (`git status --porcelain` clean of anything unexpected).
+- [x] Extended this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`; kept the Change Closed.
+- [x] No push, tag, release, or version bump; no new Change created.

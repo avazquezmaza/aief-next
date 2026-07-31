@@ -58,6 +58,22 @@ audit needed to make durable.
 >    posts, non-GitHub contexts) — no longer embedded in any Markdown doc, so no doc's prose is
 >    coupled to its exact shape. The script and its outputs are unchanged by this amendment; only
 >    the requirement that README's Mermaid mirror them was dropped.
+>    **Amended (2026-07-30, same Change, fourth pass).** Every Mermaid block in the docs set —
+>    README's product-workflow diagram, `docs/workflow.md`'s three-level lifecycle diagram, and
+>    `docs/architecture.md`'s four structural diagrams — is replaced by a generated SVG (with a
+>    matching PNG) under `docs/images/`, produced by one generator script per diagram under the new
+>    `scripts/diagrams/` package (`scripts/diagrams/common.py` holds only the shared palette,
+>    fonts, arrow markers, and card/badge helpers; `scripts/diagrams/generate_all.py` is the single
+>    canonical command that regenerates and validates every asset). `docs/images/workflow.svg`/
+>    `.png` remain the standalone illustrated export at their original path and command
+>    (`python3 scripts/generate_workflow_diagram.py`); that script is now a thin wrapper calling
+>    `scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()`, so the export and
+>    `docs/workflow.md`'s embedded diagram share one source instead of drifting independently. The
+>    six-diagram semantic map from the prior amendment (README = product question, `workflow.md` =
+>    lifecycle question, `architecture.md` = structural questions, no requirement that any two be
+>    visually identical) is unchanged; only the rendering technology, and the fact that
+>    `docs/workflow.md` and README now embed their diagram (a Markdown image reference, not inline
+>    Mermaid source), changed. See `docs/maintainer.md` "Regenerating the diagrams."
 
 **Why this needs its own ADR.** Three durable, easily-second-guessed claims are being formalized at
 once: an official compatibility taxonomy (previously undocumented — the pre-3.1 diagram and docs

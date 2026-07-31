@@ -568,3 +568,139 @@ commissioning instruction: no CLI behavior, no new subsystem, no push. One accep
 was found (ADR-030 §3's README/SVG parity requirement vs. the commissioned simplified README
 diagram) and resolved by amending the ADR in place rather than silently deviating — see spec.md
 F9.
+
+## Fourth pass — Mermaid to SVG migration (2026-07-30)
+
+**Commissioned as:** Documentation Visualization Engineer, after the Change's third close (commit
+`f2844c1`). Scope: replace every Mermaid diagram with a professionally styled, generated,
+reproducible SVG — content and semantics from the third pass unchanged.
+
+**Pre-flight audit.**
+
+```
+$ git branch --show-current
+feat/v3.1
+$ git log -1 --oneline
+f2844c1 docs(v3.1): improve README and architecture diagrams
+$ git status --porcelain
+(no output — clean)
+$ rg -n '```mermaid' -g '*' .
+README.md:26:```mermaid
+docs/workflow.md:9:```mermaid
+docs/architecture.md:27:```mermaid
+docs/architecture.md:75:```mermaid
+docs/architecture.md:135:```mermaid
+docs/architecture.md:189:```mermaid
+changes/0050-core3-documentation-architecture/design.md:330:```mermaid
+```
+
+**Mermaid inventory (6 live blocks, 1 documented exception).**
+
+| # | File | Section | Purpose | Replacement |
+|---|---|---|---|---|
+| 1 | README.md:26 | The core workflow | Product workflow — how AIEF works | `docs/images/product-workflow.svg` |
+| 2 | docs/architecture.md:27 | System context | Where AIEF sits in the engineering system | `docs/images/system-context.svg` |
+| 3 | docs/architecture.md:75 | Core runtime architecture | How AIEF is implemented internally | `docs/images/core-runtime.svg` |
+| 4 | docs/architecture.md:135 | Prompt composition | What goes into an AIEF prompt | `docs/images/prompt-composition.svg` |
+| 5 | docs/architecture.md:189 | Graph Engineering | How dependsOn shapes eligibility | `docs/images/graph-engineering.svg` |
+| 6 | docs/workflow.md:9 | The three levels | Detailed Change lifecycle | `docs/images/workflow-lifecycle.svg` |
+
+**Exception (kept, documented, not replaced).** `changes/0050-core3-documentation-architecture/
+design.md:330` — Change 0050's own design doc states its own file tree section (which the Mermaid
+block sits directly beneath) is "unmoved, unedited" as an explicit rule for how that historical
+Change's archive is treated; every `changes/*` directory before this Change is historical record,
+not live documentation, and Change 0050 specifically calls out its own immutability. Left as-is.
+No other exception was needed or found — the two other `mermaid` string matches
+(`.claude/settings.json`'s permission allowlist entry, and a `re.findall(r"```mermaid...")` regex
+literal inside this Change's own third-pass evidence log) are not Mermaid fences.
+
+**Diagram inventory.**
+
+| Diagram | Question answered | Canonical source | SVG | PNG | Consumer |
+|---|---|---|---|---|---|
+| Product Workflow | How does AIEF work? | `scripts/diagrams/generate_product_workflow.py` | `docs/images/product-workflow.svg` | `.png` | README.md |
+| System Context | Where does AIEF sit in the engineering system? | `scripts/diagrams/generate_system_context.py` | `docs/images/system-context.svg` | `.png` | docs/architecture.md |
+| Core Runtime | How is AIEF implemented internally? | `scripts/diagrams/generate_core_runtime.py` | `docs/images/core-runtime.svg` | `.png` | docs/architecture.md |
+| Prompt Composition | What goes into an AIEF prompt? | `scripts/diagrams/generate_prompt_composition.py` | `docs/images/prompt-composition.svg` | `.png` | docs/architecture.md |
+| Graph Engineering | How does Graph Engineering affect work selection? | `scripts/diagrams/generate_graph_engineering.py` | `docs/images/graph-engineering.svg` | `.png` | docs/architecture.md |
+| Workflow Lifecycle | What is the detailed lifecycle of a Change? | `scripts/diagrams/generate_workflow_lifecycle.py` | `docs/images/workflow-lifecycle.svg` | `.png` | docs/workflow.md |
+
+**Visual system.** Palette: slate (structure/text), blue (AIEF Core), violet (AI assistants), green
+(repository/evidence/success), amber (opt-in/advisory/waiting), red (errors/cycles/blocked), gray
+(external tools) — defined once in `scripts/diagrams/common.py`'s `PALETTE`. Typography: system
+sans-serif stack, 19px diagram titles, 12–13.5px card content, 10.5–11.5px labels/badges (nothing
+below 11px). Shared components: rounded card with a dark header strip, group box, badge, arrow with
+color-matched marker, drop-shadow filter. Accessibility: every SVG has `role="img"`,
+`<title id>`/`<desc id>` pair, `aria-labelledby` referencing both, a `viewBox`, and text-only
+information (color is never the sole signal — every state also has a text label).
+
+**Existing workflow asset.** Decision: **B** (adapted) — `docs/images/workflow.svg`/`.png` are now
+generated from the same source as `docs/images/workflow-lifecycle.svg`
+(`scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()` function), reached through
+`scripts/generate_workflow_diagram.py`, rewritten as a thin wrapper. This keeps the documented
+command (`python3 scripts/generate_workflow_diagram.py`) and path (`docs/images/workflow.svg`)
+working unchanged while eliminating a second, independently-drifting "what is the Change lifecycle"
+diagram. Verified: `diff docs/images/workflow.svg docs/images/workflow-lifecycle.svg` — no
+difference.
+
+**Graph Engineering representation.** Pipeline: Change manifests (dependsOn) → Graph builder →
+Validation (missing/duplicate/self dependency, cycle detection) → deterministic topological order →
+eligibility evaluation (open, dependencies completed, no workflow blocker, deterministic order) →
+Smart Workflow → `status --graph`/`status --next`. Example box: Change B declares `dependsOn:
+["Change A"]` — State 1 (A open): A eligible, B waiting; State 2 (A closed): B eligible. Confirmed
+again this pass (`rg -n '"dependsOn"' changes/*/manifest.json` — no manifests exist at all in this
+repository's `changes/`) that zero historical `dependsOn` edges exist; the diagram's example is
+generic, not drawn from this repository's own Change history, matching the third pass's finding.
+
+**Factual validation.** Re-checked every claim rendered into SVG text against the codebase/ADRs
+before writing it: AIEF never executes an assistant, test, or CI job (System Context, Product
+Workflow); Harness/Hooks only append visible, non-blocking notes (Workflow Lifecycle); Loop retry
+is always a manual re-run (Workflow Lifecycle); the Graph is rebuilt from disk every command with
+no separate persisted state and never mutates a Change (Graph Engineering); `status --graph` is
+read-only and `status --next` only recommends, never executes (Graph Engineering, Product
+Workflow); `AGENTS.md` opens every generated prompt (Prompt Composition). No claim contradicts the
+third pass's corrections; no new claim was introduced beyond what the approved Mermaid content
+already said.
+
+**Validation.**
+
+```
+$ python3 scripts/diagrams/generate_all.py
+Using renderer: imagemagick
+Generated files:
+  docs/images/product-workflow.svg / .png
+  docs/images/system-context.svg / .png
+  docs/images/core-runtime.svg / .png
+  docs/images/prompt-composition.svg / .png
+  docs/images/graph-engineering.svg / .png
+  docs/images/workflow-lifecycle.svg / .png
+  docs/images/workflow.svg / .png
+```
+
+Determinism: ran `generate_all.py` twice into separate copies, `diff -rq` on the SVGs — identical.
+Each SVG parses as well-formed XML (`xml.dom.minidom.parseString`, called by `common.write_svg`
+before every write, plus re-verified by `cli/tests/diagrams.test.js`'s tag-balance check).
+Accessibility: every SVG has `role="img"`, `<title id>`, `<desc id>`, `aria-labelledby`, `viewBox`
+(automated test + manual read of each SVG's `<defs>`/header). PNG: all 7 render at 2031px width
+(150dpi from a ~1300px viewBox), verified with `identify` and by reading each PNG directly — no
+clipped text, no card overflow, consistent palette across all 6 diagram families. Links: every
+Markdown `![...](....svg)` reference resolves (automated test); alt text is specific per image, not
+"diagram". Mermaid remaining: `rg -n '```mermaid'` — zero hits in README.md, docs/architecture.md,
+docs/workflow.md; the one documented exception in `changes/0050-.../design.md` untouched. Tests:
+`npm test` — 737/737 passed (728 baseline + 9 new in `cli/tests/diagrams.test.js`). Verify:
+`node cli/bin/aief.js verify` — PASS (whole project); `node cli/bin/aief.js verify --change
+0060-v3-1-release-readiness-and-documentation` — PASS. `git diff --check` — clean.
+
+**Files touched this pass:** `README.md`, `docs/architecture.md`, `docs/workflow.md` (image
+references replacing Mermaid fences), `docs/maintainer.md` ("Regenerating the diagrams" section
+rewritten), `knowledge/decisions.md` (ADR-030 §3 fourth amendment), `scripts/generate_workflow_diagram.py`
+(rewritten as a compatibility wrapper), `scripts/diagrams/` (new: `__init__.py`, `common.py`,
+`generate_all.py`, `generate_product_workflow.py`, `generate_system_context.py`,
+`generate_core_runtime.py`, `generate_prompt_composition.py`, `generate_graph_engineering.py`,
+`generate_workflow_lifecycle.py`), `docs/images/*.svg`/`*.png` (7 pairs, 6 new + `workflow`
+regenerated from the new shared source), `cli/tests/diagrams.test.js` (new), `cli/package.json`
+(test script extended), this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`. No `cli/src/`
+file was touched; no CLI command, flag, or manifest field changed.
+
+**Confirmation.** No push. No tag. No release. No version bump. No new Change created — Change 0060
+reused and kept Closed.

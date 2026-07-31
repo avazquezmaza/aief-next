@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 698" width="1300" height="698" role="img" aria-labelledby="ge-title ge-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="ge-title">AIEF Graph Engineering</title>
+  <desc id="ge-desc">Change manifests declaring dependsOn feed a Graph builder, which validates (missing, duplicate, or self dependencies, and cycles) and computes a deterministic topological order; eligibility evaluation combines that with open/closed state and Workflow blockers to feed Smart Workflow, surfaced by status --graph and status --next. Example: Change B depends on Change A — while A is open, A is eligible and B waits; once A is closed, B becomes eligible. Only explicit dependsOn entries create edges, the Graph is rebuilt from disk on every command with no separate persisted state, it never modifies a Change, status --graph is read-only, and status --next only recommends — it never executes a Change.</desc>
+  <defs>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1300" height="698" fill="#ffffff"/>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Graph Engineering</text>
+  <text x="40" y="58" font-size="12" fill="#64748b">How declared dependsOn edges shape eligibility and the next-Change recommendation</text>
+  <g transform="translate(42.0,80)">
+    <rect width="160" height="74" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">Change manifests</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">(dependsOn)</text>
+  </g>
+  <g transform="translate(218.0,80)">
+    <rect width="160" height="74" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="41.0" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">Graph builder</text>
+  </g>
+  <g transform="translate(394.0,80)">
+    <rect width="160" height="74" rx="10" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="41.0" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">Validation</text>
+  </g>
+  <g transform="translate(570.0,80)">
+    <rect width="160" height="74" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">Deterministic</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">topological order</text>
+  </g>
+  <g transform="translate(746.0,80)">
+    <rect width="160" height="74" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">Eligibility</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">evaluation</text>
+  </g>
+  <g transform="translate(922.0,80)">
+    <rect width="160" height="74" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="41.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">Smart Workflow</text>
+  </g>
+  <g transform="translate(1098.0,80)">
+    <rect width="160" height="74" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">status --graph</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">status --next</text>
+  </g>
+  <path d="M 202.0 117.0 L 218.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 378.0 117.0 L 394.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 554.0 117.0 L 570.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 730.0 117.0 L 746.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 906.0 117.0 L 922.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 1082.0 117.0 L 1098.0 117.0" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 474.0 154 L 474.0 204" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <g transform="translate(354.0,204)">
+    <rect width="240" height="130" rx="12" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#991b1b" letter-spacing="0.3px">Validation catches</text>
+  </g>
+  <text x="370.0" y="248" font-size="11" fill="#991b1b">- missing dependency</text>
+  <text x="370.0" y="268" font-size="11" fill="#991b1b">- duplicate dependency</text>
+  <text x="370.0" y="288" font-size="11" fill="#991b1b">- self dependency</text>
+  <text x="370.0" y="308" font-size="11" fill="#991b1b">- cycle detection</text>
+  <path d="M 826.0 154 L 826.0 204" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(701.0,204)">
+    <rect width="250" height="130" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#92400e" letter-spacing="0.3px">Eligibility needs</text>
+  </g>
+  <text x="717.0" y="248" font-size="11" fill="#92400e">- open (not closed)</text>
+  <text x="717.0" y="268" font-size="11" fill="#92400e">- dependencies completed</text>
+  <text x="717.0" y="288" font-size="11" fill="#92400e">- no workflow blocker</text>
+  <text x="717.0" y="308" font-size="11" fill="#92400e">- deterministic order</text>
+  <g transform="translate(40,384)">
+    <rect width="1220" height="150" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="0"/>
+    <text x="16" y="24" font-size="12.5" font-weight="800" fill="#0f172a" letter-spacing="0.3px">Example — Change B declares &quot;dependsOn&quot;: [&quot;Change A&quot;]</text>
+  </g>
+  <g transform="translate(60,428)">
+    <rect width="564.0" height="88" rx="10" fill="#ffffff" stroke="#fde68a" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="800" fill="#92400e">State 1 — A open</text>
+    <text x="14" y="42" font-size="11" fill="#92400e">A: open -&gt; eligible</text>
+    <text x="14" y="60" font-size="11" fill="#92400e">B: waiting on A</text>
+  </g>
+  <path d="M 634.0 472 L 674.0 472" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <g transform="translate(684.0,428)">
+    <rect width="564.0" height="88" rx="10" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="800" fill="#166534">State 2 — A closed</text>
+    <text x="14" y="42" font-size="11" fill="#166534">A: closed</text>
+    <text x="14" y="60" font-size="11" fill="#166534">B: dependency satisfied -&gt; eligible</text>
+  </g>
+  <text x="40" y="568" font-size="12" fill="#64748b">- Only an explicit dependsOn entry creates an edge — the Graph never infers one.</text>
+  <text x="40" y="588" font-size="12" fill="#64748b">- Zero declared edges means every open Change is independent and immediately eligible.</text>
+  <text x="40" y="608" font-size="12" fill="#64748b">- The Graph is rebuilt from changes/*/manifest.json on every command — nothing is persisted separately.</text>
+  <text x="40" y="628" font-size="12" fill="#64748b">- The Graph never writes a Change or a manifest — building it has no side effects.</text>
+  <text x="40" y="648" font-size="12" fill="#64748b">- status --graph is read-only; status --next recommends one Change by id and never executes it.</text>
+</svg>

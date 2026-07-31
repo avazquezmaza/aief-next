@@ -6,21 +6,7 @@ Verification Rule) is defined in [Concepts](concepts.md).
 
 ## The three levels
 
-```mermaid
-flowchart TD
-    subgraph L1["1 . Context (AIEF)"]
-        A1[doctor] --> A2[bootstrap] --> A4[analyze / new-change / enrich] --> A5[prompt]
-    end
-    subgraph L2["2 . Feature (assistant, optionally OpenSpec)"]
-        B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]
-    end
-    subgraph L3["3 . Governance (AIEF)"]
-        C1["verify<br/>(Change verification)"] --> C2[close --yes]
-    end
-    A5 -->|paste prompt into assistant| L2
-    L2 -->|work done, evidence.md written| L3
-    C2 -->|next Change| A4
-```
+![AIEF Change lifecycle: Level 1 Context and Change preparation (doctor, bootstrap, analyze/new-change/enrich, prompt) feeds Level 2 Assistant implementation (any AI assistant, optionally structured by OpenSpec, writes evidence.md), which feeds Level 3 Verification and closing (verify, close --yes, status --graph/--next); a failed verify is fixed and re-prompted manually, and Harness/Hooks/Loop only observe and report, never execute or gate](images/workflow-lifecycle.svg)
 
 - **Level 1 — Context.** AIEF prepares the ground: `doctor` checks environment and project
   readiness (not a Change's own `verify`), `bootstrap` adopts an existing project without touching

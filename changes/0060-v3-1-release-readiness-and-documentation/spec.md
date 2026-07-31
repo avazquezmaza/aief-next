@@ -286,3 +286,40 @@ to and unaffected by this Change.
 - [x] `docs/maintainer.md` documents how to regenerate the diagram and which artifact is canonical.
 - [x] ADR-030 records the three compatibility categories, reconfirms `AGENTS.md`'s role for 3.1,
       and names the diagram script canonical.
+
+## Fourth pass — Mermaid to generated SVG (2026-07-30)
+
+**F10.** All 6 Mermaid blocks across the docs set (README ×1, `docs/architecture.md` ×4,
+`docs/workflow.md` ×1) are replaced by generated SVGs, each with a matching PNG, following the
+visual language `scripts/generate_workflow_diagram.py` already established. Content and semantics
+approved in the third pass are unchanged — this is a rendering-technology change only.
+
+- [x] `scripts/diagrams/` package created: `common.py` (shared palette, fonts, arrow markers,
+      card/group-box/badge helpers, XML escaping, deterministic file writer — nothing beyond what
+      every diagram actually shares), one `generate_<diagram>.py` module per diagram, and
+      `generate_all.py` as the single canonical command.
+- [x] `scripts/generate_workflow_diagram.py` still writes `docs/images/workflow.svg`/`.png` under
+      its original documented command, now as a thin wrapper around
+      `scripts/diagrams/generate_workflow_lifecycle.py`'s `generate()` — one source, not two
+      independently-drifting diagrams.
+- [x] Every generated SVG carries `role="img"`, a `<title id="...">`, a `<desc id="...">`,
+      `aria-labelledby` referencing both ids, a `viewBox`, and text contrast/sizing within the
+      13–22px range specified — verified by both automated checks and direct visual inspection of
+      every rendered PNG.
+- [x] No SVG/PNG generator writes outside `docs/images/`; a second run of `generate_all.py`
+      produces byte-identical SVGs (no timestamps or non-deterministic data embedded).
+- [x] `docs/maintainer.md` "Regenerating the diagrams" documents the full command, the per-diagram
+      commands, the `workflow.svg` wrapper relationship, PNG rendering dependencies (tried in
+      order: `rsvg-convert`, ImageMagick's librsvg delegate, Inkscape, `cairosvg`), and the
+      no-manual-edit rule.
+- [x] ADR-030 §3 carries a fourth, dated amendment recording the Mermaid-to-SVG migration without
+      reverting the third pass's per-document semantic-independence rule.
+- [x] `cli/tests/diagrams.test.js` added to the suite: every expected SVG/PNG exists, is
+      well-formed with the required accessibility markup, zero Mermaid fences remain in
+      README/`docs/architecture.md`/`docs/workflow.md`, every Markdown image reference resolves,
+      alt text is specific (not a generic "diagram"), output stays confined to `docs/images/`, and
+      regeneration (when `python3` is available) is a no-op.
+- [x] No new subsystem, command, flag, or manifest field introduced; no factual claim changed from
+      the third pass (AIEF never executes an assistant/CI, Harness/Hooks/Loop are non-blocking, the
+      Graph is read-only with no hidden state, `status --next` only recommends, zero historical
+      `dependsOn` edges exist in this repository's own `changes/`).

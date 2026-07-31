@@ -24,3 +24,5 @@ Thumbs.db
 
 # Tooling artifacts
 graphify-out/
+__pycache__/
+*.pyc
