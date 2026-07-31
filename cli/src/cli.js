@@ -368,11 +368,11 @@ const COMMAND_HELP = {
     next: "aief bootstrap (current directory) or aief bootstrap <name> (new project)."
   },
   status: {
-    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action.",
+    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action. Without --change, --next deterministically recommends the next eligible open Change when more than one is open (or explains why none is eligible). --graph shows the full Change dependency graph (nodes, edges, topological order, issues).",
     when: "When you want to know where the project stands, which Change to select with --change, or what a specific Change's next action is.",
-    reads: "Project structure, package.json and changes/.",
+    reads: "Project structure, package.json, changes/ and every Change's manifest.dependsOn.",
     writes: "Nothing.",
-    example: "aief status --change <id> --next",
+    example: "aief status --change <id> --next   (or: aief status --next / aief status --graph)",
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
   bootstrap: {
@@ -480,7 +480,7 @@ function printCommandHelp(command) {
 }
 function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor\n  aief status [--change change-id] [--next]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
               (long form: --assistant gemini)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }
 function evidenceTemplate() {

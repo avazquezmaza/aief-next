@@ -65,8 +65,21 @@ entries for the expected shape (Decision, Why this needs its own ADR, Alternativ
 ```bash
 npm test                          # from the repo root — full CLI suite, node --test, no dependencies
 node cli/bin/aief.js verify       # validate this repository's own AIEF structure
+git diff --check                  # no whitespace errors, run before every commit
 cd examples/todo-app && npm test  # the executable example stays runnable
 ```
+
+## Git discipline
+
+Every contribution, human or assistant, follows the same rules:
+
+- Never `git push`, force-push, `reset --hard`, delete a branch, or run another destructive/
+  irreversible Git operation without the person driving the work explicitly confirming that
+  specific action first.
+- Never delete files or directories outside what a Change's own scope calls for without the same
+  confirmation.
+- Run the full suite, `aief verify`, and `git diff --check` — all three — before every commit;
+  fix failures rather than skipping hooks or gates.
 
 ## Releasing
 

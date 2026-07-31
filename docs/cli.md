@@ -5,9 +5,11 @@
 what it writes, an example, and the recommended next step — this reference does not repeat that,
 it adds the flag-level detail the built-in help keeps compact.
 
-No command below is new for AIEF Core 3.0 — Core 3.0 landed entirely as additive, opt-in flags on
-existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
-`verify --requirements`). Every command's default (no-flag) output and exit code are unchanged.
+No command below is a new top-level command — every Core 3.0 and AIEF 3.1 addition landed as
+additive, opt-in flags on an existing command (`status --change`/`--next`/`--graph`,
+`prompt --skill`/`--list-skills`, `verify --requirements`, `doctor --verbose`). Every command's
+default (no-flag) output and exit code are unchanged; each row below cites the Change/ADR that
+introduced its flag.
 
 ## Discovery
 
