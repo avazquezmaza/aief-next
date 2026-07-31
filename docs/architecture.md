@@ -140,6 +140,17 @@ persisted beyond `manifest.json` itself (ADR-009). Three read surfaces:
 view, and `aief verify --change <id>`'s non-blocking per-Change issue note. `aief doctor` is
 untouched — the Graph is cross-Change project state, which `status` already owns.
 
+`next-change-service.js` (Change 0059, ADR-029) is a second pure function built directly on top:
+`selectNextChange(changes, graph)` — `changes: [{id, closed, manifestError, workflowBlockers}]`
+(already-computed facts) plus a `buildGraph()` result in, `{recommended, evaluations,
+tieBreakRule}` out. Eligibility reuses `buildGraph()`'s `edges`/`issues` and the existing Workflow
+Engine's `resolveWorkflowFor()`/`state.blockers` (ADR-018) unmodified — no second dependency or
+gate evaluator. `cli.js`'s `gatherOpenChangeFacts()` is the sole place real Changes' facts are
+computed for this feature; `statusNextSmart()` renders the result. Wired into `aief status --next`
+only when 2+ Changes are open — the prior "select one explicitly" error for that case is
+deliberately replaced (see ADR-029); the 0/1-open-Change paths, `resolveImplicitChange()`, and
+`nextAction()`/`deriveNextAction()` are all untouched.
+
 ## Verification Engine
 
 `verification-rule.js` defines the Verification Rule contract (scope, capabilities, `appliesTo()`,

@@ -126,9 +126,18 @@ The official Change dependency model (Change 0058): a Change's `manifest.json` m
 every invocation, a deterministic node/edge structure, a topological order (dependencies first),
 and any issues (`missing_dependency`, `self_dependency`, `duplicate_dependency`, `cycle`) — never
 persisted, never cached. `aief status`/`aief status --graph` read it; `aief verify --change <id>`
-prints a non-blocking note when the targeted Change has an issue. This is the foundation `status
---next`, automatic planning and Change navigation will read later — not their implementation.
+prints a non-blocking note when the targeted Change has an issue. This is the foundation `aief
+status --next`'s smart selection (Change 0059, below) builds on.
 See [Workflow — Graph](workflow.md#graph--the-change-dependency-model).
+
+## Smart next-Change selection
+
+`aief status --next`, when 2+ Changes are open (Change 0059), deterministically recommends one:
+open, valid manifest, every dependency exists and is closed, not a Graph cycle member, no
+unsatisfied Workflow gate blocker. Ties break on the lowest Change id. Loop and Harness are never
+consulted — both are non-blocking by design (ADR-026/027). With 0 or 1 open Changes, behavior is
+unchanged from before this Change. See
+[Workflow — Smart next-Change selection](workflow.md#smart-next-change-selection--aief-status---next).
 
 ## Verification Rule / Requirement Verification
 

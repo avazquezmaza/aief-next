@@ -4,6 +4,111 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-029: `aief status --next` gains deterministic next-Change selection for the multiple-open-Changes case, deliberately superseding the prior ambiguity error; eligibility is six existing, already-official facts — never Change id, folder name, or date; tie-break is the project's existing id-sort convention, applied only after eligibility is decided
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0059](../changes/0059-smart-workflow-next-change-selection/)'s planning artifacts (`spec.md`/`tasks.md`); builds directly on [ADR-028](#adr-028-dependson-is-the-official-change-dependency-field-the-graph-is-derived-pure-and-read-only--construction-and-validation-are-one-pass-status---graph-is-the-full-view-statuss-overview-gets-a-conditional-summary-verify-gets-a-non-blocking-note-doctor-gets-nothing)'s Graph and [ADR-018](#adr-018-user-workflow-is-a-thin-application-layer-whats-next-has-one-canonical-source-exposure-is-gated-by-adr-015)'s Workflow Engine gates, the two mechanisms this Change reuses rather than reinventing.
+
+**Decision.**
+
+> `aief status --next` (no `--change`) already has three paths (Change 0046, ADR-018): zero open
+> Changes (error), exactly one (implicit selection, unchanged by this Change), and more than one
+> — which, until now, was an unconditional "select one explicitly" error. **This Change replaces
+> only that third path** with a deterministic recommendation, computed by a new, pure
+> `next-change-service.js`'s `selectNextChange(changes, graph)`.
+>
+> A Change is **eligible** when all six hold: open; valid manifest (absence is fine, an *existing*
+> invalid one is not); every declared dependency exists (no `missing_dependency`/
+> `self_dependency`/`duplicate_dependency` Graph issue names it); every dependency is closed
+> (checked against `buildGraph()`'s own resolved edges — never recomputed); not a cycle member;
+> and not blocked by the Workflow Engine's own gates (`resolveWorkflowFor()`'s
+> `state.blockers` — a Change with no `track` trivially passes this one). **Loop and Harness are
+> deliberately excluded** — both are non-blocking by explicit design (ADR-026/027); reusing either
+> here would silently hand them authority neither ADR granted. When more than one Change is
+> eligible, the **lowest Change id wins** (string-ascending comparison of directory basenames) —
+> `getChangeDirs()`'s own existing sort, the same order `buildGraph()`'s `nodes` and
+> `statusOverview()`'s listings already use — applied strictly *after* the eligible set is fully
+> determined from real dependency/Workflow facts, never used to infer eligibility itself.
+>
+> Output is always fully explained: a recommendation names the winning Change, its eligibility
+> reasons (dependency state, Graph validity, Workflow gate state), the tie-break rule when it
+> mattered, and the other eligible ids; a "no eligible Change" result names every open Change and
+> its specific blocking reason(s) — never a bare "nothing found." Exit code is `0` either way — an
+> honest report of cross-Change state, not an error, matching `aief status`/`aief status --graph`'s
+> own convention. Nothing is written, cached, or mutated — purely observational.
+
+**Why this needs its own ADR.** A new service module and, more importantly, a **deliberate,
+documented behavior change** to an existing, previously-locked-in error path are each independently
+ADR-triggering — the behavior change specifically needs its own record because it reverses a prior
+ADR's own explicit "never guess" stance for one narrow case, and that reversal must be traceable to
+an explicit instruction, not discovered later as an unexplained diff.
+
+**Why this is a deliberate replacement, not an accidental regression.** ADR-018 (Change 0046)
+established `resolveImplicitChange()`'s "more than one open Change → error, never guess" rule
+*because no eligibility model existed yet* — guessing among undifferentiated open Changes would
+have been arbitrary. Change 0058 (ADR-028) then built the one thing that makes a principled choice
+possible: real, derived dependency structure. This Change is the direct, instructed continuation
+that ADR-028's own "Consequences" section anticipated ("a future Change implementing `status
+--next` ... must build on `buildGraph()`'s existing shape"). The single- and zero-open-Change paths
+— which never needed disambiguation — are untouched, byte-identical, and still covered by their
+original, unmodified tests.
+
+**Why Loop and Harness are excluded.** Both Change 0056 and Change 0057 went to considerable
+length — an entire ADR each — establishing that neither Hooks nor Loop attempts may ever block
+`verify`/`close`/any exit code; that is their whole design center, not an incidental property.
+Silently reading Loop's `exhausted` state or a Harness issue as an eligibility blocker here would
+be handing them exactly the blocking authority those ADRs went out of their way to deny, through a
+back door neither anticipated. If a future Change wants that, it must amend ADR-026/027 explicitly,
+not ride in on this one.
+
+**Why the tie-break is id-sort, not evidence of priority.** The commissioning instruction is
+explicit: never infer dependencies (or, by the same reasoning, priority) from Change id, folder
+name, or date. The id-sort here is not used for that — it never participates in deciding *whether*
+a Change is eligible (that is entirely conditions 1–6, all derived from real declared facts); it
+only breaks a tie *among Changes already known to be equally eligible*, using the one ordering this
+codebase already treats as canonical everywhere else. Recorded explicitly so the distinction is
+never conflated in a future reading of this ADR.
+
+**Relationship to ADR-018.** `resolveImplicitChange()`, the compact Normalized Action view
+(`nextAction()`/`deriveNextAction()`), and `aief status --change <id> --next` are unmodified —
+zero diff. This ADR only changes what happens when `resolveImplicitChange()`'s own "ambiguous"
+branch would otherwise fire, and only for the `--next` (no `--change`) invocation.
+
+**Relationship to ADR-028.** `buildGraph()`, `change-graph.js`, and `buildProjectGraph()` are
+unmodified — zero diff. `selectNextChange()` consumes a `buildGraph()` result as-is.
+
+**Alternatives considered.**
+
+- **Keep the ambiguity error, add selection only behind a new flag (e.g. `--next --smart`).**
+  Rejected — the commissioning instruction is explicit that `aief status --next` itself must gain
+  this capability; a parallel flag would leave the commissioned command's actual behavior
+  unchanged and create two ways to ask the same question.
+- **Use Change id/folder name/date as a selection signal (not just a tie-break).** Rejected
+  outright, per the commissioning instruction's explicit prohibition.
+- **Treat Loop `exhausted` or any Harness issue as blocking.** Rejected — see "Why Loop and
+  Harness are excluded" above.
+- **Recommend the first still-open Change with the most closed dependencies, or some other
+  "progress" heuristic.** Rejected — no cited evidence such a heuristic outperforms "lowest id
+  among the eligible set" (ADR-008), and it would obscure exactly the auditable, one-sentence
+  tie-break rule this Change is required to document precisely.
+- **Non-zero exit code when no Change is eligible.** Rejected — this is a normal, expected state
+  (e.g. everything genuinely is blocked on human review), not a tool failure; `aief status`/`aief
+  status --graph` already established exit `0` for "informative, unremarkable cross-Change report."
+
+**Consequences.**
+
+- `cli/src/core/domain/change-graph.js`, `cli/src/core/services/harness-service.js`,
+  `cli/src/core/services/loop-service.js`, `resolveWorkflowFor()`, `nextAction()`/
+  `deriveNextAction()`, and `aief status --change <id> --next`/`--graph` are untouched by this
+  Entrega — zero diff lines.
+- `aief status --next` with 0 or 1 open Changes is byte-identical to before this Change.
+- The one existing test asserting the superseded ambiguity-error message for 2+ open Changes is
+  updated to assert the new, documented behavior — recorded in `evidence.md`, not silently edited.
+- A future Change wanting Loop/Harness to influence eligibility, or wanting multi-step planning,
+  must amend or supersede this ADR (and, for Loop/Harness specifically, ADR-026/027 too) rather
+  than extend `selectNextChange()` informally.
+
+---
+
 ## ADR-028: `dependsOn` is the official Change dependency field; the Graph is derived, pure, and read-only — construction and validation are one pass; `status --graph` is the full view, `status`'s overview gets a conditional summary, `verify` gets a non-blocking note, `doctor` gets nothing
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0058](../changes/0058-change-graph-dependency-model/)'s planning artifacts (`spec.md`/`tasks.md`); the foundation `status --next`, automatic planning and Change navigation will read later — none of those are implemented here.

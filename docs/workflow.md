@@ -187,8 +187,9 @@ would only duplicate.
 ## Graph — the Change dependency model
 
 A Change's `manifest.json` may declare `dependsOn`, naming other Changes it depends on (Change
-0058, ADR-028). This is the **foundation** `status --next`, automatic planning and Change
-navigation will build on later — none of those exist yet.
+0058, ADR-028). This is the **foundation** `aief status --next`'s smart selection (Change 0059,
+below) builds on; automatic multi-step planning and Change navigation beyond picking one next
+Change remain unimplemented.
 
 ```json
 {
@@ -222,6 +223,49 @@ Issues detected, always as informational diagnostics, never as blockers:
 No `dependsOn` field anywhere (every Change before this one) behaves exactly as before —
 `aief status` (overview), `aief verify` (whole-project and `--change`), and `aief doctor` are
 byte-identical. `aief status --graph` is a brand-new flag.
+
+## Smart next-Change selection — `aief status --next`
+
+`aief status --next` (no `--change`) already had two paths (Change 0046): zero open Changes
+(error), exactly one (shows that Change's compact Normalized Action — unchanged). **With two or
+more open Changes, it now recommends one deterministically** instead of erroring (Change 0059,
+ADR-029) — replacing the prior "select one explicitly" message for that case specifically.
+
+A Change is **eligible** when all of:
+
+1. it is open;
+2. its manifest is valid (having none at all is fine — only an *existing*, invalid one disqualifies it);
+3. every `dependsOn` entry names a Change that exists (no Graph `missing_dependency`/
+   `self_dependency`/`duplicate_dependency` issue names it);
+4. every dependency is **closed**;
+5. it is not a member of a dependency cycle;
+6. it has no unsatisfied Workflow gate blocker (a Change with no `track` trivially passes this).
+
+**Loop and Harness are deliberately never consulted** — both are non-blocking by design
+(ADR-026/027); using either here would silently give them authority those ADRs withheld.
+
+When more than one Change is eligible, **the lowest Change id wins** (string-ascending comparison
+— the same sort `buildGraph()`'s `nodes` and `status`'s own listings already use). This tie-break
+never decides *eligibility* — only which already-equally-eligible Change to recommend.
+
+```text
+Next Change: 0002-add-login
+
+Ready because:
+- status: open
+- dependencies: all closed (0001-user-model)
+- graph: valid
+- workflow: no blocking gates
+
+Tie-break: lowest Change id, sorted ascending (...)
+Other eligible Change(s): 0004-add-payments
+```
+
+When nothing is eligible, every open Change is listed with its own specific blocking reason —
+never a bare "nothing found" — and the exit code is still `0` (an honest report, not an error).
+
+No `dependsOn`/no relevant Graph or Workflow blockers, with exactly one or zero open Changes:
+`aief status --next` is byte-identical to before Change 0059.
 
 ## Verification
 

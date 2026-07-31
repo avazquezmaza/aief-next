@@ -19,7 +19,7 @@ existing commands (`status --change`/`--next`, `prompt --skill`/`--list-skills`,
 | `aief status --graph` | Every Change's `manifest.dependsOn` | Nothing | The full Change dependency graph: every Change as a node, all edges, topological order (or an explicit cycle statement), all issues. New flag, Change 0058/ADR-028. |
 | `aief status --change <id>` | The selected Change | Nothing | Deep inspection: track, stage, gates, SDD readiness, and — only when that Change's manifest declares `harness` — a "Harness:" configuration summary (Change 0056/ADR-026). |
 | `aief status --change <id> --next` | The selected Change | Nothing | Compact Normalized Action: the one next command to run. |
-| `aief status --next` | The one open Change | Nothing | Same as above with implicit selection (fails if more than one Change is open). |
+| `aief status --next` | Every open Change, their `manifest.dependsOn`, the Graph, Workflow gate state | Nothing | Zero open Changes: error. Exactly one: same compact Normalized Action as `--change <id> --next`, unchanged. **2+ open Changes** (Change 0059/ADR-029): deterministically recommends the next eligible Change (open, valid manifest, dependencies closed, no Graph cycle, no Workflow gate blocker), tie-broken by lowest id — or explains why none is eligible. Replaces the prior "select one explicitly" error for this case only. |
 
 ## Bootstrap and adoption
 

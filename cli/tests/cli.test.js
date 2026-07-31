@@ -1260,13 +1260,21 @@ test("status --next (no --change) infers the single open Change deterministicall
   assert.match(out, /Change: changes\/0001-implicit-next-thing/);
 });
 
-test("status --next with multiple open Changes produces an actionable ambiguity error, exit 1, no guess", () => {
+// Change 0059/ADR-029: superseding this test's original assertion is a
+// deliberate, documented behavior change, not a silent edit — see
+// change.md "Deliberate, documented behavior change" and evidence.md. Both
+// Changes here are dependency-free, track-free, and open — both eligible —
+// so the deterministic id-sort tie-break recommends "first".
+test("status --next with multiple open, equally eligible Changes deterministically recommends the lowest id (Change 0059 supersedes the old ambiguity error)", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   aief(dir, ["new-change", "first"]);
   aief(dir, ["new-change", "second"]);
   const { status, out } = aief(dir, ["status", "--next"]);
-  assert.equal(status, 1);
-  assert.match(out, /Multiple open Changes/);
+  assert.equal(status, 0);
+  assert.match(out, /Next Change: 0001-first/);
+  assert.match(out, /Ready because:/);
+  assert.match(out, /Tie-break: lowest Change id, sorted ascending/);
+  assert.match(out, /Other eligible Change\(s\): 0002-second/);
 });
 
 test("status --next with no open Changes produces an actionable result, exit 1", () => {
@@ -1274,6 +1282,93 @@ test("status --next with no open Changes produces an actionable result, exit 1",
   const { status, out } = aief(dir, ["status", "--next"]);
   assert.equal(status, 1);
   assert.match(out, /No open Change found/);
+});
+
+// --- Change 0059/ADR-029: smart next-Change selection for 2+ open Changes ---
+
+test("status --next: a Change depending on an open dependency is skipped; the independent one is recommended", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "user-model"]);
+  aief(dir, ["new-change", "add-login"]);
+  fs.writeFileSync(path.join(dir, "changes", "0002-add-login", "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0002", slug: "add-login", title: "x", status: "open", dependsOn: ["0001-user-model"]
+  }), "utf8");
+  const { out, status } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /Next Change: 0001-user-model/);
+  assert.doesNotMatch(out, /0002-add-login/);
+});
+
+test("status --next: closing the dependency makes the dependent Change the recommendation (a third open Change keeps this on the 2+-open smart path)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "user-model"]);
+  aief(dir, ["new-change", "add-login"]);
+  aief(dir, ["new-change", "unrelated-blocked"]);
+  fs.writeFileSync(path.join(dir, "changes", "0002-add-login", "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0002", slug: "add-login", title: "x", status: "open", dependsOn: ["0001-user-model"]
+  }), "utf8");
+  fs.writeFileSync(path.join(dir, "changes", "0003-unrelated-blocked", "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0003", slug: "unrelated-blocked", title: "x", status: "open", dependsOn: ["0099-ghost"]
+  }), "utf8");
+  fs.appendFileSync(path.join(dir, "changes", "0001-user-model", "change.md"), "\n## Status\n\nClosed (2026-07-30)\n");
+  const { out, status } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /Next Change: 0002-add-login/);
+  assert.match(out, /dependencies: all closed \(0001-user-model\)/);
+});
+
+test("status --next: a Change with an unsatisfied Workflow gate is excluded; only the Graph issue keeps the other one out too", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "governed-thing"]);
+  aief(dir, ["new-change", "broken-dep-thing"]);
+  fs.writeFileSync(path.join(dir, "changes", "0001-governed-thing", "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0001", slug: "governed-thing", title: "x", status: "open", track: "governed"
+  }), "utf8");
+  fs.writeFileSync(path.join(dir, "changes", "0002-broken-dep-thing", "manifest.json"), JSON.stringify({
+    schema: "aief.change/v1", id: "0002", slug: "broken-dep-thing", title: "x", status: "open", dependsOn: ["0099-ghost"]
+  }), "utf8");
+  const { out, status } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /No eligible Change found among the open Changes:/);
+  assert.match(out, /0001-governed-thing: workflow:/);
+  assert.match(out, /0002-broken-dep-thing: graph: missing_dependency/);
+});
+
+test("status --next: a Change with no track is unaffected by the Workflow condition", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "plain-a"]);
+  aief(dir, ["new-change", "plain-b"]);
+  const { out, status } = aief(dir, ["status", "--next"]);
+  assert.equal(status, 0);
+  assert.match(out, /Next Change: 0001-plain-a/);
+});
+
+test("status --next: never writes any file", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "readonly-a"]);
+  aief(dir, ["new-change", "readonly-b"]);
+  const before = {};
+  for (const cd of fs.readdirSync(path.join(dir, "changes"))) {
+    before[cd] = {};
+    for (const f of fs.readdirSync(path.join(dir, "changes", cd))) before[cd][f] = fs.readFileSync(path.join(dir, "changes", cd, f), "utf8");
+  }
+  aief(dir, ["status", "--next"]);
+  for (const cd of fs.readdirSync(path.join(dir, "changes"))) {
+    for (const f of fs.readdirSync(path.join(dir, "changes", cd))) {
+      assert.equal(fs.readFileSync(path.join(dir, "changes", cd, f), "utf8"), before[cd][f], `${cd}/${f} was modified`);
+    }
+  }
+});
+
+test("status --change <id> --next and status --graph are unaffected by Change 0059 (0/1-open-Change and explicit-Change paths untouched)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "explicit-a"]);
+  aief(dir, ["new-change", "explicit-b"]);
+  const explicitOut = aief(dir, ["status", "--change", "0001-explicit-a", "--next"]).out;
+  assert.match(explicitOut, /Next action:/);
+  assert.doesNotMatch(explicitOut, /Next Change:/);
+  const graphOut = aief(dir, ["status", "--graph"]).out;
+  assert.match(graphOut, /Nodes: 2/);
 });
 
 test("status --change <id> for a closed Change reports it as closed, never presented as pending work", () => {

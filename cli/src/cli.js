@@ -22,6 +22,7 @@ import { evaluateEvent } from "./core/services/hook-service.js";
 import { resolveHarnessConfig, partitionOutcome, describeHarnessRegistry, hookTitle, formatHookLogSection, formatHookResultsBlock, describeFailingHooks } from "./core/services/harness-service.js";
 import { resolveLoopConfig, countPreviousAttempts, decideLoopOutcome, formatLoopSummary, formatLoopLogEntry } from "./core/services/loop-service.js";
 import { buildGraph } from "./core/domain/change-graph.js";
+import { selectNextChange } from "./core/services/next-change-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 
@@ -1251,9 +1252,53 @@ function statusOverview(project = detectProject(), showNext = true) {
 function printGateLine(label, g) {
   console.log(`  ${label} ${g.id}: ${g.status} — ${g.reason}`);
 }
+// gatherOpenChangeFacts() (Change 0059/ADR-029) — the one place real
+// Changes' {id, closed, manifestError, workflowBlockers} facts are computed
+// for next-change-service.js. Reuses loadChangeUnified()/resolveWorkflowFor()
+// exactly as workflowChanges() already does — no second Workflow resolution.
+function gatherOpenChangeFacts() {
+  return getChangeDirs().map((dir) => {
+    const change = loadChangeUnified(dir);
+    const id = path.basename(dir);
+    let workflowBlockers = [];
+    if (!change.manifestError && change.manifest && change.track) {
+      const workflow = resolveWorkflowFor(change);
+      workflowBlockers = workflow.kind === "resolved"
+        ? workflow.state.blockers.map((g) => `${g.id}: ${g.status} — ${g.reason}`)
+        : [workflow.error];
+    }
+    return { id, closed: change.closed, manifestError: Boolean(change.manifestError), workflowBlockers };
+  });
+}
+// aief status --next (no --change), only when 2+ Changes are open (Change
+// 0059/ADR-029) — deliberately replaces the prior "select one explicitly"
+// error for this one case; see change.md "Deliberate, documented behavior
+// change". Read-only: never writes a file, never calls verify/close/prompt.
+function statusNextSmart() {
+  section("AIEF Status"); console.log("Purpose: recommend the next eligible Change. Writes nothing.\n");
+  const graph = buildProjectGraph();
+  const result = selectNextChange(gatherOpenChangeFacts(), graph);
+  if (result.recommended) {
+    const winner = result.evaluations.find((e) => e.id === result.recommended);
+    console.log(`Next Change: ${result.recommended}\n`);
+    console.log("Ready because:");
+    for (const reason of winner.reasons) console.log(`- ${reason}`);
+    const otherEligible = result.evaluations.filter((e) => e.eligible && e.id !== result.recommended).map((e) => e.id);
+    if (otherEligible.length) {
+      console.log(`\nTie-break: ${result.tieBreakRule}`);
+      console.log(`Other eligible Change(s): ${otherEligible.join(", ")}`);
+    }
+    printNext(`aief prompt --change ${result.recommended}`);
+    return;
+  }
+  console.log("No eligible Change found among the open Changes:\n");
+  for (const e of result.evaluations) console.log(`- ${e.id}: ${e.reasons.join("; ")}`);
+  printNext("aief status (list open Changes)", "aief status --graph");
+}
 // aief status --change <id>   (deep, read-only inspection of one Change)
 // aief status --change <id> --next   (compact Normalized Action view)
-// aief status --next   (same compact view, implicit single-open-Change selection)
+// aief status --next   (same compact view, implicit single-open-Change selection;
+//   2+ open Changes goes to statusNextSmart() instead — Change 0059/ADR-029)
 //
 // Entrega 4 (Change 0046, ADR-018 §4, Path B): no new command — this is the
 // entire CLI-facing surface Path B introduces, as flags on the existing
@@ -1262,6 +1307,10 @@ function printGateLine(label, g) {
 // for workflow/SDD facts (UX-R21/R23) — no gate/track conditional lives in
 // this function itself, only rendering of what workflowService already decided.
 function statusSingleChange(parsed) {
+  if (parsed.next === true && typeof parsed.change !== "string" && openChangeDirs().length > 1) {
+    statusNextSmart();
+    return;
+  }
   section("AIEF Status"); console.log("Purpose: inspect one Change. Writes nothing.\n");
   const changeDir = typeof parsed.change === "string"
     ? resolveExplicitChange(parsed.change)
