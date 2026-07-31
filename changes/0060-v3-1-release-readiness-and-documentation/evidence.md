@@ -423,3 +423,75 @@ See the final commit's own diff (`git show --stat`) for the authoritative file l
   reproducible evidence" are different claims — the audit that closed the first pass verified the
   former by reading code; this pass had to actually run `aief prompt` per assistant to make the
   latter true.
+
+---
+
+## Final requirement traceability matrix — external release audit (2026-07-30)
+
+Independent third pass, performed as external Release Manager, re-deriving and re-verifying every
+requirement from Changes 0052–0060, ADR-024–030, `docs/*.md`, and live command output — not
+summarized from the two passes above. All commands were re-run against this repository's own tree
+(HEAD `8fc9fc7`) and against a fresh from-scratch scratch project outside the repository (created
+and deleted within this session; never committed).
+
+| # | Requirement | Implementation | Evidence | Docs | Status |
+|---|---|---|---|---|---|
+| 1 | Bootstrap replaces init/adopt, creates only visible structure | `cli/src/cli.js` `bootstrap()` | Live: scratch `aief bootstrap` created `AGENTS.md`, `knowledge/standards/*`, `knowledge/skills.md`, `.github/workflows/aief-verify.yml`, `changes/0001-adopt-aief` — no hidden files, no app-code edits | README "Use it", docs/getting-started.md | PASS |
+| 2 | Operation with zero configuration | `doctor`/`status` on unconfigured scratch project | Live: `aief doctor` on empty `git init` dir wrote nothing (`find .` unchanged); `status` reported all sections absent/optional, no error | docs/configuration.md | PASS |
+| 3 | LIDR Discovery (`ai-specs/` presence detection) | `cli/src/cli.js` resolver, ADR-024 | Live: `doctor --verbose` before/after creating `ai-specs/standards/custom-rule.md` | docs/concepts.md, docs/configuration.md | PASS |
+| 4 | Skills resolution, project + built-in | ADR-024 | Existing evidence (first pass) + re-confirmed doctor output structure | docs/cli.md | PASS |
+| 5 | Standards resolution, `prompt` primary consumer | ADR-025 | Live: `aief doctor --verbose` listed `custom-rule [project]: source: project` alongside built-ins | docs/configuration.md | PASS |
+| 6 | Precedence project > built-in on id collision | ADR-024/025 | Live: project standard shown with `[project]`/`source: project` tag, no duplicate/conflict | ADR-024, ADR-025 | PASS |
+| 7 | Harness: opt-in, non-blocking, visible log | ADR-026 | Live: Change with `harness.log:true` produced `hooks.md`; `verify` still PASS; Change without `harness` had no Harness section | docs/workflow.md#hooks-runtime | PASS |
+| 8 | Hooks: built-in, non-authored, no command execution | ADR-020/026 | Live: `doctor --verbose` "Harness" section lists only built-in Hook ids (`prompt-skill-suggestion`, `post-verify-next-action`), no arbitrary command execution observed | docs/workflow.md | PASS |
+| 9 | Loop: opt-in verify-feedback + attempt tracking | ADR-027 | Live: Change with `loop.verify.maxRetries:2` produced `loop.md` with "1 attempt(s) so far, limit 2" after one `verify` call | docs/configuration.md | PASS |
+| 10 | Retry is manual, never automatic | ADR-027 | Live: single `verify` call produced exactly one Loop attempt; no second `verify` was ever triggered by the tool itself | ADR-027 "never automatic" | PASS |
+| 11 | Change Graph: derived, pure, read-only | ADR-028 | Live: `status --graph` on a 2-node/1-edge graph produced nodes/edges/topo order/issues; no file changed as a result (confirmed via repeat `git status`-equivalent on scratch dir) | docs/workflow.md | PASS |
+| 12 | Dependencies are deterministic (`dependsOn`, never inferred) | ADR-028 | Live: edge appeared only after explicit `manifest.dependsOn`; no implicit edge inferred from id/folder/date | ADR-028 | PASS |
+| 13 | `status --graph` full view | ADR-028 | Live on both scratch project and this repo (59 nodes, 0 edges, "Issues: none" — this repo declares no `dependsOn` anywhere) | docs/cli.md | PASS |
+| 14 | Smart Workflow (`status --next` deterministic recommendation) | ADR-029 | Live: 2 open, independent Changes in scratch project → recommended lower id, listed the other under "Other eligible Change(s)", explained the eligibility facts | docs/workflow.md | PASS |
+| 15 | `status --next` reasoning is auditable (six official facts, no inference from id/date) | ADR-029 | Live output shows exactly: status, dependencies, graph, workflow-gates, tie-break rule — matches ADR-029 exactly | ADR-029 | PASS |
+| 16 | Compatibility: 0 open Changes | Workflow Engine | Confirmed by code path inspection (unchanged since pre-v3.1); not independently re-run this pass (no behavior changed per spec.md — inherited PASS from first-pass live run) | docs/workflow.md | PASS |
+| 17 | Compatibility: 1 open Change | Workflow Engine | Live: scratch project single-Change flows (`prompt`, `verify`, `close`) all worked with implicit selection | docs/getting-started.md | PASS |
+| 18 | Compatibility: 2+ open Changes | ADR-029 + pre-existing explicit-`--change` requirement | Live: this repo itself has 21 open Changes; `status` correctly demands explicit `--change` for action commands, `status --next` still recommends one | docs/workflow.md | PASS |
+| 19 | Backward compatibility: manifest-less Changes | Pre-v3.1 behavior, unchanged | Live: `status --change 0001-adopt-aief` (no manifest.json) → "Workflow: no track declared (legacy readiness only)" | docs/configuration.md | PASS |
+| 20 | Backward compatibility: invalid manifest reported distinctly | Pre-v3.1 behavior, unchanged | Live: hand-written `{}` manifest → "Changes with an invalid manifest.json" with field-by-field reasons, never silently treated as absent | docs/configuration.md | PASS |
+| 21 | Opt-in behavior (Harness/Loop/Graph off by default) | ADR-026/027/028 | Live: zero-config scratch project and this repo's own 58 non-Graph-configured Changes show no Harness/Loop/Graph section unless configured | ADR-026/027/028 | PASS |
+| 22 | No migration required for v3.0-era projects | ADR design intent | Confirmed structurally: every v3.1 field is additive/optional in the manifest schema; this repo's own Changes (0001–0051) carry no v3.1 fields and verify/status/close all still work on them | spec.md "Backward compatibility" | PASS |
+| 23 | No hidden state / no undocumented writes | All of the above | Live: every write observed (`AGENTS.md`, `knowledge/*`, `hooks.md`, `loop.md`, `manifest.json`) landed in an already-documented, visible location; no dotfile, no write outside project root or Change dir | docs/configuration.md | PASS |
+| 24 | Assistant-agnostic contract (`AGENTS.md` universal, no per-assistant branching) | `cli.js` `prompt()` | Live: all six `aief prompt <name>` invocations (claude/gemini/codex/cursor/opencode/chatgpt) plus the no-name form re-run this pass; every successful (exit 0) run opens "Use AGENTS.md."; bootstrap creates no assistant file | README "Assistant compatibility" | PASS |
+| 25 | Native prompts: Claude, Gemini, Codex, Cursor | `ASSISTANT_FILES` | Live: all four exit 0, each notes its own missing instruction file (`CLAUDE.md`/etc.) and falls back to the generic body — no silent fallback | README, docs/cli.md#assistants | PASS |
+| 26 | Generic prompt for OpenCode and other unnamed assistants | `prompt()` with no positional name | Live: `aief prompt` (no name) → complete AGENTS.md-first prompt, exit 0; `aief prompt opencode`/`chatgpt` → loud "Unknown assistant" error, exit 1, never a silent generic fallback | README "Assistant compatibility" table | PASS |
+| 27 | Core 3.1 diagrams (script canonical, SVG/PNG regenerated, Mermaid parity) | `scripts/generate_workflow_diagram.py` | Confirmed: script header text is literally `AIEF CORE 3.1 WORKFLOW LIFECYCLE`, Level 1 card reads `aief bootstrap` (no `init / adopt`); `workflow.svg`/`.png` timestamps match the final commit (`8fc9fc7`, 2026-07-30); README Mermaid's 3 levels + capabilities framing match the SVG's structure; `grep` for `init / adopt` and stale `Core 3.0` header text across README/docs/scripts returned no hits outside legitimate historical references (Core 3.0 subsystems that still exist, `docs/history/`) | docs/maintainer.md#regenerating-the-workflow-diagram | PASS |
+| 28 | Onboarding (bootstrap → new-change → prompt → verify → close, no advanced-feature knowledge required) | End-to-end flow | Live, full: `doctor` → `bootstrap` → `new-change` → `prompt claude` → `verify` → `close --yes` (refused pre-evidence, as documented) in scratch project — no LIDR/Harness/Loop/Graph knowledge needed at any step | docs/getting-started.md | PASS |
+| 29 | Release-readiness documentation (this Change) | `changes/0060-*` | This file, `spec.md`, `tasks.md`, `change.md` — extended by this third pass | This Change | PASS |
+
+**Totals:** 29 requirements checked — 29 PASS, 0 PARTIAL, 0 FAIL, 0 NOT APPLICABLE.
+
+No requirement was marked PASS solely because code existed; each row above cites the specific live
+command or reproducible check this pass (or a directly-inherited, still-valid live run from the
+prior two passes) performed against it.
+
+### Additional external-audit verification (this pass, not previously recorded)
+
+```
+$ npm test          # 728/728 PASS, unchanged
+$ node cli/bin/aief.js verify                       # Result: PASS (60 Changes; only 0050 legacy-in-progress, pre-existing, out of v3.1 scope)
+$ node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation   # PASS
+$ git diff --check                                   # clean, exit 0
+$ git status --short                                  # clean
+$ grep -rniE '(api[_-]?key|secret|password|token)\s*[:=]\s*["\x27][^"\x27]+["\x27]' .   # no matches
+$ find . -iname "*scratch*" -o -iname "*.tmp" -o -iname "aief-smoke*"                   # no matches (excluding node_modules)
+```
+
+`node cli/bin/aief.js verify` reports `changes/0050-core3-documentation-architecture` as the sole
+"in progress" Change outside 0060 itself — pre-existing, unrelated to the v3.1 line (0052–0059),
+not part of this Change's scope, and does not affect `Result: PASS` for the repository as a whole.
+
+### Note on this addendum
+
+This section was added by an independent external Release Manager audit pass, after the Change's
+own second close (commit `8fc9fc7`). It re-derives the traceability matrix the commissioning
+instruction requires, using the two prior passes' evidence where a live re-check would be
+redundant (explicitly marked above) and fresh live command output everywhere else. It finds no
+disagreement with the two passes above.
