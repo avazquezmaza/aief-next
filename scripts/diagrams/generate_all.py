@@ -29,6 +29,7 @@ GENERATORS = [
     "generate_prompt_composition",
     "generate_graph_engineering",
     "generate_workflow_lifecycle",
+    "generate_adoption_workflow",
 ]
 
 

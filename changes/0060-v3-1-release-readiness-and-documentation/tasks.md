@@ -161,3 +161,41 @@
       scratch/temp file scan (`git status --porcelain` clean of anything unexpected).
 - [x] Extended this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`; kept the Change Closed.
 - [x] No push, tag, release, or version bump; no new Change created.
+
+## Fifth pass — existing-project adoption clarity
+
+- [x] Confirmed branch (`feat/v3.1`), HEAD, and a clean working tree before editing.
+- [x] Read `doctor()`, `bootstrapHere()`/`runAdoption()`, `analyze()`, `verify()`/`verifyStructure`,
+      and their helpers (`createStandards`, `createCiGate`, `configureSddProvider`,
+      `analysisChangeFiles`, `genericChangeFiles`, `adoptionEvidence`) end to end in `cli/src/cli.js`.
+- [x] Read `cli/tests/cli.test.js`'s bootstrap/analyze/doctor tests to confirm documented behavior
+      (idempotency, no-overwrite, stack-matched standards, no application-file writes) is actually
+      test-covered, not just implied by comments.
+- [x] Added README.md's "Adopt AIEF in an existing project" section.
+- [x] Added `docs/getting-started.md`'s "Adopting an existing project" subsection (14 questions +
+      asset table) and the new adoption diagram.
+- [x] Added `docs/concepts.md`'s Adoption/Analysis/Delivery Change subsection.
+- [x] Added small, additive notes to `docs/cli.md`'s bootstrap/analyze/doctor rows only.
+- [x] Added `docs/examples.md`'s "Adopting AIEF into an existing repository" example.
+- [x] Built `scripts/diagrams/generate_adoption_workflow.py`, registered it in
+      `scripts/diagrams/generate_all.py` and `cli/tests/diagrams.test.js`, generated
+      `docs/images/adoption-workflow.svg`/`.png`.
+- [x] Ran a real scratch-project test: created `src/`, `test/`, `package.json`,
+      `.github/workflows/ci.yml`, `README.md`; recorded md5 checksums; ran `doctor` (confirmed zero
+      writes via `find`/checksum diff), `bootstrap` (confirmed exact artifact set, application files
+      unchanged), a second `bootstrap` (confirmed idempotent — "already exists" for every artifact,
+      no new `adopt-aief` Change), `verify` (PASS), `analyze` (confirmed exactly one new Change);
+      re-checked original file checksums unchanged after all four commands.
+- [x] Ran a consistency check (`grep`/`rg`) across README/getting-started/concepts/cli/examples for
+      contradictions on adopt/adoption/bootstrap/analyze/existing project/new project/never
+      overwrite/no code edits/SDD provider/OpenSpec/SpecBoot/assistant-specific files — none found.
+- [x] Reverted the incidental PNG byte-diffs `generate_all.py` produced for the six pre-existing
+      diagrams (ImageMagick re-encoding is not byte-deterministic across runs; their SVGs were
+      unchanged, confirmed via `git diff` before reverting) — kept the diff limited to the new
+      diagram and the documentation edits.
+- [x] Ran full validation: `npm test` (737/737), `node cli/bin/aief.js verify` (PASS),
+      `node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation` (PASS),
+      `git diff --check` (clean), `rg -n '```mermaid'` (only the documented Change-0050 exception),
+      `node --test cli/tests/diagrams.test.js` (9/9, including the new diagram in every check).
+- [x] Extended this Change's `change.md`/`spec.md`/`tasks.md`/`evidence.md`; kept the Change Closed.
+- [x] No push, tag, release, or version bump; no new Change created.

@@ -17,12 +17,14 @@ const DIAGRAMS = [
   "graph-engineering",
   "workflow-lifecycle",
   "workflow",
+  "adoption-workflow",
 ];
 
 const MARKDOWN_FILES = [
   path.join(REPO_ROOT, "README.md"),
   path.join(REPO_ROOT, "docs", "architecture.md"),
   path.join(REPO_ROOT, "docs", "workflow.md"),
+  path.join(REPO_ROOT, "docs", "getting-started.md"),
 ];
 
 function readSvg(name) {

@@ -22,6 +22,22 @@ A Change is **open** until its `change.md` carries a `## Status / Closed` sectio
 `closed`. Either way, **the files are the only source of truth**: there is no database, no session
 state, no hidden flag. Selection is always derived by reading `changes/` fresh.
 
+There is no separate Change type field distinguishing these in code — `analyze` sets `## Type` to
+`Analysis` in `change.md`, every other Change (including the one `bootstrap` creates) is `General`
+— but the three shapes below carry distinct purposes and are worth naming:
+
+- **Adoption Change** — created once by `aief bootstrap` (`changes/<id>-adopt-aief/`). Registers
+  that AIEF was added to the project: its `evidence.md` is generated automatically from what
+  `bootstrap` detected and created. It does not represent a product feature — there is nothing to
+  implement beyond editing the starter standards to match the project and running `aief verify`.
+- **Analysis Change** — created by `aief analyze` (`changes/<id>-analyze-current-architecture/` by
+  default). Captures the existing repository's architecture, stack, standards gaps, and risks,
+  seeded with the same signals `doctor` detects. It produces a roadmap, not code — it's the input
+  for planning the first real Changes.
+- **Delivery Change** — every Change created by `aief new-change` or `aief enrich`: a feature, fix,
+  refactor, or other real unit of work, with its own `spec.md`, `tasks.md`, and implementation
+  evidence. This is what `aief prompt` composes a context-complete prompt for.
+
 ## Change Manifest
 
 An optional `manifest.json` next to `change.md`. A Change with no manifest behaves exactly as it

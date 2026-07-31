@@ -32,6 +32,27 @@ without changing its shape; none of it blocks `verify` or `close`, and `status -
 prints a recommendation. Full detail: [docs/workflow.md](docs/workflow.md) and
 [docs/architecture.md](docs/architecture.md).
 
+## Adopt AIEF in an existing project
+
+Existing projects are AIEF's primary use case — not a special case of "new project." `aief doctor`
+inspects your environment and this repository and writes nothing. `aief bootstrap` then adds
+AIEF's visible governance structure (`AGENTS.md` if missing, `changes/`, `knowledge/`) — it never
+touches application code and never overwrites a file that's already there. It doesn't alter Git,
+CI, or any tool your project already uses. `aief verify` validates the resulting structure, and
+`aief analyze` records what AIEF detected about the existing repository as a seeded Analysis
+Change.
+
+```bash
+aief doctor
+aief bootstrap
+aief verify
+aief analyze
+```
+
+Full walkthrough — what each command reads/writes, what happens if `AGENTS.md` or `changes/`
+already exist, and how this coexists with OpenSpec/SpecBoot:
+[docs/getting-started.md — Adopting an existing project](docs/getting-started.md#adopting-an-existing-project).
+
 ## Quick start
 
 Requires Node.js >= 18. No runtime dependencies.

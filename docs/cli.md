@@ -15,7 +15,7 @@ introduced its flag.
 
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). |
+| `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/` | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). Exits 1 only when a required tool (Node, npm, git) is missing; exits 0 otherwise, including when recommended tools are absent. |
 | `aief doctor --verbose` | Same, plus every open Change's `manifest.loop`/`loop.md` | Nothing | Same, plus each Skill's/Standard's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, full `ai-specs` resolution warnings, a "Harness:" section listing every registered Hook and the event it fires on (Change 0056/ADR-026), and — only when at least one open Change configures it — a "Loop:" section with each such Change's current attempt count (Change 0057/ADR-027, read-only). |
 | `aief status` | `changes/`, project files, every Change's `manifest.dependsOn` | Nothing | Adoption overview, recent Changes, all open Changes, Workflow/SDD summaries, and — only when at least one Change declares `dependsOn` — a "Dependency Graph:" section (Change 0058/ADR-028). |
 | `aief status --graph` | Every Change's `manifest.dependsOn` | Nothing | The full Change dependency graph: every Change as a node, all edges, topological order (or an explicit cycle statement), all issues. New flag, Change 0058/ADR-028. |
@@ -30,9 +30,9 @@ both now print a one-line redirect and exit 1.
 
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief bootstrap` | `AGENTS.md`, `changes/`, PATH (OpenSpec/SpecBoot, TTY) | `AGENTS.md` if missing, `changes/`, `knowledge/`, `profiles/`, starter standards, `knowledge/skills.md`, the CI gate, an `adopt-aief` Change, and `knowledge/sdd-provider.json` only when the SDD Provider choice is ambiguous and you are prompted | Bootstrap the current directory. Never touches application code, never overwrites existing files. |
-| `aief bootstrap <name>` | Nothing | `<name>/` project skeleton | Create a new project. |
-| `aief analyze [name]` | Detected project signals | `changes/<id>-<name>/`, seeded with signals/Skills/standards | Create an Analysis Change. |
+| `aief bootstrap` | `AGENTS.md`, `changes/`, PATH (OpenSpec/SpecBoot, TTY) | `AGENTS.md` if missing, `changes/`, `knowledge/`, `profiles/`, starter standards, `knowledge/skills.md`, the CI gate, an `adopt-aief` Change, and `knowledge/sdd-provider.json` only when the SDD Provider choice is ambiguous and you are prompted | Bootstrap the current directory (the primary use case: an existing project). Never touches application code, never overwrites existing files. Idempotent — a second run creates nothing new and reports "already exists" for each artifact. Exits 0 regardless of whether anything new was created. |
+| `aief bootstrap <name>` | Nothing | `<name>/` project skeleton | Create a new project skeleton at `<name>/`, distinct from bootstrapping the current directory. |
+| `aief analyze [name]` | Detected project signals | `changes/<id>-<name>/`, seeded with signals/Skills/standards | Create an Analysis Change capturing the existing repository's architecture, stack and risks — see [Concepts — Change](concepts.md#change) for how this differs from the Adoption Change `bootstrap` creates and the Delivery Changes `new-change`/`enrich` create. Exits 0; writes exactly one new Change directory. |
 
 ## Work
 

@@ -323,3 +323,55 @@ approved in the third pass are unchanged — this is a rendering-technology chan
       the third pass (AIEF never executes an assistant/CI, Harness/Hooks/Loop are non-blocking, the
       Graph is read-only with no hidden state, `status --next` only recommends, zero historical
       `dependsOn` edges exist in this repository's own `changes/`).
+
+## Fifth pass — existing-project adoption clarity (2026-07-30)
+
+**F11.** README, `docs/getting-started.md`, `docs/concepts.md`, `docs/cli.md`, and
+`docs/examples.md` did not clearly document existing-project adoption (the primary use case) end to
+end: what `doctor` inspects vs. writes, exactly what `bootstrap` creates/preserves, how `doctor`,
+`bootstrap`, `verify`, and `analyze` relate, the Adoption/Analysis/Delivery Change distinction, and
+behavior when AIEF-adjacent files/directories (or OpenSpec/SpecBoot) already exist. The underlying
+implementation (`cli/src/cli.js`'s `doctor()`, `bootstrapHere()`/`runAdoption()`, `analyze()`) was
+already correct and covered by `cli/tests/cli.test.js` — this was a documentation gap, not a
+functional one, confirmed by reading the code and by exercising every command live in a scratch
+project (see `evidence.md`).
+
+- [x] README.md carries a new, ~90-word "Adopt AIEF in an existing project" section (between "The
+      core workflow" and "Quick start") stating the primary-use-case framing, the four-command
+      flow, and a link to the detailed getting-started section — verified to stay within the
+      commissioned ~120–160 word budget.
+- [x] `docs/getting-started.md`'s existing "Bootstrap a project" section gained an "Adopting an
+      existing project" subsection answering all 14 commissioned questions (where to run commands,
+      what `doctor` inspects, what `bootstrap` creates/preserves, what `analyze` creates, why two
+      Changes are normally open, which to work on first, existing-file behavior for `AGENTS.md`/
+      `changes/`/`knowledge/`, OpenSpec/SpecBoot coexistence, no application-code edits, no
+      assistant-specific files, how to inspect the diff, how to stop) plus an asset-behavior table
+      using the exact phrasing (`read only`, `created only when missing`, `reused`, `detected but
+      not modified`, `not created by bootstrap`) the commissioning instruction required — every
+      claim checked against `cli.js` and a live scratch-project run, not assumed.
+- [x] `docs/concepts.md`'s "Change" section gained an explicit Adoption Change / Analysis Change /
+      Delivery Change subsection, cross-checked against `analyze()`'s `analysisChangeFiles()` and
+      `runAdoption()`'s `genericChangeFiles()`/`adoptionEvidence()` in `cli.js` — there is no
+      separate `type` enum in code beyond `Analysis` vs. `General`, stated explicitly rather than
+      implying a richer type system exists.
+- [x] `docs/cli.md`'s bootstrap/analyze/doctor rows gained small, additive notes only (bootstrap's
+      idempotency and exit code, analyze's exit code and a cross-reference to the Change-type
+      distinction, doctor's exit-code condition) — no row rewritten beyond these additions, matching
+      the commissioning instruction not to expand other sections without need.
+- [x] `docs/examples.md` gained an "Adopting AIEF into an existing repository" example: a realistic
+      `my-service/` tree, the exact artifact set `bootstrap` creates (verified live, not invented),
+      and the state after `analyze` — no fabricated files.
+- [x] A new diagram, `docs/images/adoption-workflow.svg`/`.png` (source:
+      `scripts/diagrams/generate_adoption_workflow.py`, registered in `generate_all.py` and
+      `cli/tests/diagrams.test.js`), answers "How is AIEF adopted into an existing repository?" with
+      the doctor -> bootstrap -> verify -> analyze -> first delivery Change pipeline and a
+      preserved-vs-added-or-reused side-by-side split — distinct content from the existing Product
+      Workflow diagram (Change lifecycle, not adoption-specific), so it does not duplicate it. Built
+      with the existing `scripts/diagrams/common.py` helpers; no Mermaid; passes the same
+      accessibility/determinism checks as the other six diagrams.
+- [x] Consistency check: no contradiction found across README/getting-started/concepts/cli/examples
+      on adopt/adoption/bootstrap/analyze/existing project/never overwrite/no code edits/SDD
+      provider/OpenSpec/SpecBoot/assistant-specific files — same vocabulary and sequence used
+      throughout (`rg` verification in `evidence.md`).
+- [x] No CLI behavior, command, flag, or manifest field changed; Change 0060 reused, not a new
+      Change; no `package.json` version bump; no push, tag, or release.

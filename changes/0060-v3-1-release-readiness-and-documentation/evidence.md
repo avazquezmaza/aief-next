@@ -704,3 +704,238 @@ file was touched; no CLI command, flag, or manifest field changed.
 
 **Confirmation.** No push. No tag. No release. No version bump. No new Change created — Change 0060
 reused and kept Closed.
+
+## Fifth pass — existing-project adoption clarity (2026-07-30)
+
+**Commissioned as:** Release Documentation Engineer, after the Change's fourth close (commit
+`828aa86`). Scope: close the documentation gap on adopting AIEF into an existing project — the
+primary use case — with no CLI behavior change.
+
+### Pre-flight validation
+
+```
+$ git branch --show-current
+feat/v3.1
+$ git rev-parse HEAD
+828aa868e7af790b552f918c901b702f5eadbb51
+$ git status --short
+(no output — clean)
+```
+
+### Real scratch-project test
+
+Created a representative existing project outside this repository (scratch, deleted after this
+pass) with application code, tests, package metadata, and CI configuration:
+
+```
+$ find . -type f -not -path './.git/*' | sort | xargs md5sum
+32963c020ab18b99a39aabc93ec835ea  ./.github/workflows/ci.yml
+88bba215a775f20213315cdf17bd1661  ./package.json
+16706a70c314b5318654c25ee7b8b059  ./README.md
+d0da5574e9ec939fa12caeba50280652  ./src/app.js
+15d11c58756d783fc6232e9904b45759  ./test/app.test.js
+```
+
+```
+$ node .../aief.js doctor
+... (environment + project readiness report)
+Next:
+  aief bootstrap
+$ find . -type f -not -path './.git/*' | sort
+./.github/workflows/ci.yml
+./package.json
+./README.md
+./src/app.js
+./test/app.test.js
+```
+
+Doctor produced **zero writes** — file list and checksums unchanged.
+
+```
+$ node .../aief.js bootstrap </dev/null
+✓ Created AGENTS.md
+✓ Created knowledge/standards/base-standards.md
+✓ Created knowledge/standards/documentation-standards.md
+✓ Created knowledge/standards/testing-standards.md
+✓ Created knowledge/standards/security-standards.md
+Skills documented: knowledge/skills.md
+✓ Created .github/workflows/aief-verify.yml — CI gate: runs aief verify on every push/PR
+✓ Created changes/0001-adopt-aief (evidence generated automatically)
+SDD Provider:
+  local (default)
+Bootstrap complete — created 10 new artifact(s) (see above).
+```
+
+```
+$ md5sum src/app.js test/app.test.js package.json README.md .github/workflows/ci.yml
+d0da5574e9ec939fa12caeba50280652  src/app.js
+15d11c58756d783fc6232e9904b45759  test/app.test.js
+88bba215a775f20213315cdf17bd1661  package.json
+16706a70c314b5318654c25ee7b8b059  README.md
+32963c020ab18b99a39aabc93ec835ea  .github/workflows/ci.yml
+```
+
+All five pre-existing files unchanged (checksums identical to the pre-bootstrap baseline).
+Application code, tests, CI configuration, and package metadata were not touched.
+
+```
+$ node .../aief.js bootstrap </dev/null   # second run — idempotency
+✓ AGENTS.md already exists
+✓ knowledge/standards/ already present (nothing overwritten)
+Skills documentation already exists: knowledge/skills.md
+✓ CI gate already present (nothing overwritten): .github/workflows/aief-verify.yml
+✓ Adoption Change already exists
+Bootstrap complete — this directory was already bootstrapped, nothing new to create.
+```
+
+No new `adopt-aief` Change appeared; every artifact reported "already exists" — confirms
+idempotency and no-overwrite behavior exactly as documented.
+
+```
+$ node .../aief.js verify
+✓ README.md
+✓ AGENTS.md
+✓ changes
+✓ knowledge/
+✓ changes/0001-adopt-aief
+Result: PASS
+```
+
+```
+$ node .../aief.js analyze
+Created Change: changes/0002-analyze-current-architecture
+Seeded change.md with 1 detected signal(s), 1 skill(s) and 4 standard(s).
+```
+
+```
+$ find . -type f -not -path './.git/*' | sort
+./AGENTS.md
+./changes/0001-adopt-aief/change.md
+./changes/0001-adopt-aief/evidence.md
+./changes/0001-adopt-aief/spec.md
+./changes/0001-adopt-aief/tasks.md
+./changes/0002-analyze-current-architecture/change.md
+./changes/0002-analyze-current-architecture/evidence.md
+./changes/0002-analyze-current-architecture/spec.md
+./changes/0002-analyze-current-architecture/tasks.md
+./.github/workflows/aief-verify.yml
+./.github/workflows/ci.yml
+./knowledge/README.md
+./knowledge/skills.md
+./knowledge/standards/base-standards.md
+./knowledge/standards/documentation-standards.md
+./knowledge/standards/security-standards.md
+./knowledge/standards/testing-standards.md
+./package.json
+./profiles/README.md
+./README.md
+./src/app.js
+./test/app.test.js
+```
+
+Exactly two Changes open (`0001-adopt-aief`, `0002-analyze-current-architecture`), `analyze`
+created exactly one new Change directory, and the original five files (`src/app.js`,
+`test/app.test.js`, `package.json`, `README.md`, `.github/workflows/ci.yml`) remained present and
+unmodified throughout the whole sequence — matches `docs/getting-started.md`'s and
+`docs/examples.md`'s new adoption content exactly. This transcript is also the source for the
+"Adopting AIEF into an existing repository" example added to `docs/examples.md`. The scratch
+directory was created under, and removed from, the session scratchpad — never committed to this
+repository.
+
+### Consistency check
+
+```
+$ grep -rn "never overwrite\|no code edit\|assistant.specific" README.md docs/getting-started.md docs/cli.md
+docs/cli.md: - `init`/`adopt`/`analyze` never modify application code and never overwrite an existing file.
+docs/getting-started.md: **Does AIEF create assistant-specific files?** No. `bootstrap` never creates `CLAUDE.md`, ...
+docs/cli.md: `aief bootstrap` never creates any of `CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` ...
+```
+
+No contradiction found across README/getting-started/concepts/cli/examples on adopt/adoption/
+bootstrap/analyze/existing project/new project/never overwrite/no code edits/SDD provider/
+OpenSpec/SpecBoot/assistant-specific files — same vocabulary and sequence throughout.
+
+### Diagram
+
+```
+$ python3 scripts/diagrams/generate_adoption_workflow.py
+Generated docs/images/adoption-workflow.svg
+$ python3 scripts/diagrams/generate_all.py
+Using renderer: imagemagick
+Generated files:
+  ... (7 existing pairs) ...
+  docs/images/adoption-workflow.svg
+  docs/images/adoption-workflow.png
+```
+
+Visual review (rendered PNG): 6-step pipeline (Existing repository -> doctor -> bootstrap -> verify
+-> analyze -> first delivery Change) with two side-by-side boxes ("Preserved," green; "Added or
+reused," blue) matching the commissioned content exactly, plus five clarifying notes. Distinct from
+the Product Workflow diagram (Change lifecycle, not adoption-specific) — not a duplicate.
+
+`docs/images/*.png` for the six pre-existing diagrams were regenerated as an unavoidable
+side-effect of running `generate_all.py` (their SVGs are unchanged and still pass the determinism
+test) but re-encode to different PNG bytes each run (ImageMagick is not byte-deterministic); those
+six PNGs were reverted with `git checkout --` after generation to keep this pass's diff limited to
+the new diagram plus the documentation edits — confirmed no SVG content differs (`git diff` showed
+no hunks for any pre-existing `.svg` file at any point in this pass).
+
+### Full validation suite (re-run after all fifth-pass edits)
+
+```
+$ npm test
+1..737
+# tests 737
+# pass 737
+# fail 0
+
+$ node cli/bin/aief.js verify
+Result: PASS
+
+$ node cli/bin/aief.js verify --change 0060-v3-1-release-readiness-and-documentation
+Result: PASS
+
+$ git diff --check
+(no output — clean)
+
+$ node --test cli/tests/diagrams.test.js
+1..9
+# pass 9
+# fail 0
+
+$ rg -n '```mermaid' -g '*' .
+changes/0050-core3-documentation-architecture/design.md:330:```mermaid
+```
+
+The single hit is the same documented, unchanged historical exception from the fourth pass — no
+Mermaid anywhere in README/docs.
+
+```
+$ git status --short
+ M README.md
+ M cli/tests/diagrams.test.js
+ M docs/cli.md
+ M docs/concepts.md
+ M docs/examples.md
+ M docs/getting-started.md
+ M scripts/diagrams/generate_all.py
+?? changes/0060-v3-1-release-readiness-and-documentation/  (this Change's own files)
+?? docs/images/adoption-workflow.png
+?? docs/images/adoption-workflow.svg
+?? scripts/diagrams/generate_adoption_workflow.py
+```
+
+737/737 PASS — unchanged in count (documentation, one new diagram generator wired into the
+existing diagram test list, no `cli/src/` behavior changed). `aief verify` PASS at both project and
+Change scope. `git diff --check` clean. No unrelated files.
+
+### Files touched this pass
+
+`README.md`, `docs/getting-started.md`, `docs/concepts.md`, `docs/cli.md`, `docs/examples.md`,
+`scripts/diagrams/generate_adoption_workflow.py` (new), `scripts/diagrams/generate_all.py`,
+`docs/images/adoption-workflow.svg`/`.png` (new), `cli/tests/diagrams.test.js`, this Change's own
+`change.md`/`spec.md`/`tasks.md`/`evidence.md`. No `cli/src/` file was touched; no CLI command,
+flag, or manifest field changed; no test needed updating beyond the new diagram registration.
+
+**Confirmation.** No push. No tag. No release. No version bump. No new Change created — Change
+0060 reused and kept Closed.

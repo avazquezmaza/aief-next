@@ -52,6 +52,92 @@ After adoption you'll typically have two open Changes (`adopt-aief` and the Anal
 expected. With more than one Change open, commands that act on one require an explicit
 `--change <id>` instead of guessing.
 
+### Adopting an existing project
+
+![AIEF adoption workflow: an existing repository flows through doctor (inspect only), bootstrap (adds visible governance structure), verify (validates the structure), and analyze (records an Analysis Change), before the first delivery Change begins; application code, tests, CI, Git history and existing tools are preserved throughout](images/adoption-workflow.svg)
+
+**Where do I run the commands?** From the root of the existing project's own repository — the same
+directory as its `package.json`/`README.md`. `aief bootstrap` (no argument) always targets the
+current directory; only `aief bootstrap <name>` creates a new project elsewhere.
+
+**What does `doctor` inspect?** Your local toolchain (Node, npm, git, and optional tools like
+OpenSpec/SpecBoot) plus the current project's files — `package.json`, `README.md`, `AGENTS.md`,
+`changes/`, `knowledge/`, `profiles/`, `adapters/`, `ai-specs/`. It never writes anything, in this
+project or any other.
+
+**What does `bootstrap` create?** `AGENTS.md` (only if missing), `changes/`, `knowledge/`,
+`profiles/`, `knowledge/standards/` starter standards matched to your detected stack,
+`knowledge/skills.md`, a CI gate (`.github/workflows/aief-verify.yml`), and one Adoption Change
+(`changes/<id>-adopt-aief/`). It also writes `knowledge/sdd-provider.json`, but only when the SDD
+Provider choice is genuinely ambiguous and you're prompted for it interactively.
+
+**What does `bootstrap` preserve?** Everything else — application source, tests, package files, CI
+configuration, Git history, and any file that already exists at a path `bootstrap` would otherwise
+create. It never overwrites; a pre-existing `AGENTS.md` or `knowledge/standards/base-standards.md`
+is left byte-for-byte untouched, reported as already present instead.
+
+**What does `analyze` create?** Exactly one Change — `changes/<next-id>-analyze-current-architecture/`
+(or the name you pass) — seeded with the same signals, Skills, and Standards `doctor` already
+detects, under a "Detected Context" section marked as inference to confirm or discard.
+
+**Why are there normally two open Changes?** `bootstrap` creates the Adoption Change (evidence that
+AIEF was added, with no functional code changed); `analyze` creates a separate Analysis Change
+(architecture, stack, standards gaps, and risks of the existing repository). They record different
+things, so they stay separate Changes rather than merging into one. Full definitions, plus the
+Delivery Change that follows them: [Concepts — Change](concepts.md#change).
+
+**Which Change should I work on first?** Either order works — closing the Adoption Change only
+requires `aief verify` to pass and its own checklist done; the Analysis Change is typically worked
+on afterward, since it produces the roadmap for what to build next. With both open, name the target
+explicitly: `aief close --yes --change adopt-aief` or `aief prompt --change <analysis-id>`.
+
+**What happens if `AGENTS.md` already exists?** `bootstrap` detects it, prints "AGENTS.md already
+exists," and does not touch it. This is the most common case for a project that already uses AIEF
+or a similar assistant-instruction convention.
+
+**What happens if `changes/` or `knowledge/` already exists?** The directories are reused
+as-is (created only if missing); files inside them are individually checked — an existing
+`knowledge/standards/*.md` is reused untouched, a missing one is created from the matching
+template, and an existing `changes/*-adopt-aief/` means bootstrap is idempotent and reports nothing
+new to create.
+
+**What happens when OpenSpec or SpecBoot is already present?** Both are detected but not modified.
+`bootstrap` reports what it found (OpenSpec CLI/project structure, SpecBoot markers) and resolves
+the SDD Provider accordingly — asking only when both are present and the choice is ambiguous.
+Neither tool's own files are ever written or changed by AIEF.
+
+**Does AIEF modify application code?** No. No command under `bootstrap`, `analyze`, `doctor`, or
+`verify` writes to source, test, or build files — read only there, in every case.
+
+**Does AIEF create assistant-specific files?** No. `bootstrap` never creates `CLAUDE.md`,
+`GEMINI.md`, `CODEX.md`, or `CURSOR.md` — those are optional, hand-authored adaptations you add
+yourself. `AGENTS.md` is the one universal instruction file AIEF creates and every `aief prompt`
+output points an assistant to first.
+
+**How do I inspect the resulting diff?** `git status` and `git diff --stat` after `bootstrap` show
+exactly the new, visible files listed above — nothing under a hidden directory, nothing outside the
+project root.
+
+**How do I stop before proceeding further?** `doctor` alone is fully safe to run and re-run — it
+never writes. After `bootstrap`, if you decide not to continue, the new files are ordinary tracked
+files: `git restore --staged` and remove them, or simply don't commit, exactly like undoing any
+other local change.
+
+| Existing project asset | AIEF behavior |
+|---|---|
+| Application source | read only |
+| Tests | read only |
+| Package files (`package.json`, lockfiles) | read only |
+| CI configuration | detected but not modified |
+| Git history | not touched |
+| `AGENTS.md` | created only when missing |
+| `changes/` | created only when missing; reused |
+| `knowledge/` | created only when missing; reused |
+| `ai-specs/` | detected but not modified |
+| `CLAUDE.md` / `GEMINI.md` / `CODEX.md` / `CURSOR.md` | not created by bootstrap |
+| OpenSpec (`openspec/`, CLI) | detected but not modified |
+| SpecBoot | detected but not modified |
+
 ## Your first Change
 
 ```bash
