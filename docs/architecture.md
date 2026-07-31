@@ -189,7 +189,7 @@ engine.
 
 ## Detection
 
-`detect.js` plus `skills-catalog.json` drive `doctor`/`adopt`/`analyze`'s project detection: strong
+`detect.js` plus `skills-catalog.json` drive `doctor`/`bootstrap`/`analyze`'s project detection: strong
 signals (dependencies, files) and weak signals (documented keywords, word-boundary matched) map to
 recommended Skills, always with a stated reason. This is the **Skill Catalog** — static,
 unexecuted, contextual recommendation data — distinct from the Skills Runtime above, which is a

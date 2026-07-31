@@ -65,6 +65,56 @@ Change handling, invalid-manifest reporting) matched its documentation and its A
 in the scratch-project runs recorded in `evidence.md`. No regression, no silent write, no
 undocumented blocking authority was found.
 
+### F5 — The workflow diagram still described AIEF Core 3.0 (fixed, second audit pass)
+
+`scripts/generate_workflow_diagram.py` — the diagram's own declared canonical source — still
+rendered a header reading "AIEF CORE 3.0 WORKFLOW LIFECYCLE," a Level 1 card literally labeled
+`aief init / adopt` (that command pair was replaced by `aief bootstrap` in Change 0052/ADR-022+),
+and covered none of the eight capabilities Changes 0053–0059 shipped (LIDR Discovery, Skills,
+Standards, Harness/Hooks, Loop, the Change Graph, Smart Workflow). `docs/images/workflow.svg` and
+`docs/images/workflow.png` — both generated/derived from that script — inherited the same drift.
+`docs/workflow.md`'s Level-1 Mermaid subgraph and one sentence in `docs/architecture.md`
+("`doctor`/`adopt`/`analyze`'s project detection") had the same `init / adopt` residue.
+
+**Fix:** rewrote `scripts/generate_workflow_diagram.py` for AIEF Core 3.1 — updated header, renamed
+the Level 1 card to `aief bootstrap`, added an assistant-agnostic Level 2 card listing Claude Code /
+Gemini CLI / Codex CLI / Cursor / OpenCode / "others via portable prompt," relabeled the fail
+loopback "fail — human fixes, re-prompts" (never implying automatic retry) and the next-Change
+loopback "recommends next (not automatic)" (never implying automatic execution), and added a
+cross-cutting capabilities sidebar (LIDR Discovery, Skills & Standards, Harness/Hooks, Loop, Change
+Graph, Smart Workflow) so Level 3 doesn't have to cram every capability into three fixed cards.
+Regenerated `docs/images/workflow.svg` from the script and `docs/images/workflow.png` from the SVG
+(see `docs/maintainer.md` "Regenerating the workflow diagram," added by this pass). Fixed the
+`init / adopt` residue in `docs/workflow.md` and `docs/architecture.md`. Updated the README's
+Mermaid source to stay semantically equivalent to the regenerated SVG (same commands, same three
+levels, same opt-in/non-blocking framing) — not required to be visually identical.
+
+### F6 — The assistant-agnostic promise had no reproducible, categorized evidence (fixed, second audit pass)
+
+The code's assistant-agnostic behavior was already correct — `aief prompt`'s output always opens
+"Use AGENTS.md." regardless of assistant, `aief bootstrap` never creates any of
+`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`, and there is no per-assistant branch anywhere in
+the engine beyond `ASSISTANT_FILES`' filename lookup — but no document had ever run a live smoke
+test across the five commissioned assistants, and no document distinguished a Native target
+(`claude`/`gemini`/`codex`/`cursor` — recognized `aief prompt` values) from a Generic prompt
+compatible one (OpenCode: `aief prompt opencode` is a hard "unknown assistant" error; `aief prompt`
+with no name is the assistant-neutral form OpenCode actually consumes). Separately, `aief help
+prompt`'s purpose string named "ChatGPT" — not a recognized `ASSISTANT_FILES` entry — while the
+top-level `--help` banner two lines away correctly listed only `claude|gemini|codex|cursor`, the
+same self-contradiction shape as F2.
+
+**Fix:** ran `aief prompt claude|gemini|codex|cursor|opencode|chatgpt --change <id>` plus the
+no-name generic form in a from-scratch scratch project (transcripts in `evidence.md`); confirmed
+Native-target behavior for the first four, the documented "unknown assistant" error for
+`opencode`/`chatgpt`, and a complete, AGENTS.md-first generic prompt with no assistant named.
+Confirmed project-over-built-in Standards precedence still holds with an assistant named (same
+mechanism ADR-024/025 already cover — re-verified, not re-designed). Added README.md "Assistant
+compatibility" (a full matrix: assistant, level, mechanism, instruction file, recommended command,
+limitations) and expanded `docs/cli.md` "Assistants" with the same three category labels. Fixed
+`cli.js`'s `aief help prompt` purpose string to match `ASSISTANT_FILES` exactly. Added ADR-030
+formalizing the three category labels and reconfirming `AGENTS.md`'s role (extends ADR-004,
+supersedes nothing).
+
 ## Architectural coherence vs. ADR-024–029 (checked, not assumed)
 
 | ADR | Claim | Verified how |
@@ -150,6 +200,12 @@ to and unaffected by this Change.
   mitigation — per the commissioning instruction's explicit requirement to never declare "no
   breaking changes" without verifying it.
 - **R6 — This Change adds no new command, flag, manifest field, or file format.**
+- **R7 — The workflow diagram is regenerated from its own canonical script**, not hand-edited, and
+  represents AIEF Core 3.1 (bootstrap, LIDR, Skills, Standards, Harness/Hooks, Loop, Graph, Smart
+  Workflow) without implying any opt-in capability is blocking or automatic.
+- **R8 — Every compatibility claim about an assistant is evidenced by a real `aief prompt`
+  invocation** in this Change's `evidence.md`, categorized as Native target / Generic prompt
+  compatible / Not currently supported — never a bare "supported."
 
 ## Acceptance Criteria
 
@@ -166,3 +222,18 @@ to and unaffected by this Change.
 - [x] `aief verify` passes for this Change and for the repository.
 - [x] `git diff --check` is clean (no whitespace errors).
 - [x] Working tree is clean after the commit; no push performed.
+- [x] `scripts/generate_workflow_diagram.py` renders AIEF Core 3.1 (three levels, cross-cutting
+      capabilities sidebar, assistant-agnostic Level 2, no automatic-execution framing);
+      `docs/images/workflow.svg`/`.png` were regenerated from it; the README's Mermaid source
+      stays semantically equivalent.
+- [x] `aief prompt` was smoke-tested live for `claude`, `gemini`, `codex`, `cursor`, `opencode`
+      (error case), and the no-name generic form; results recorded in `evidence.md`.
+- [x] README.md and `docs/cli.md` state three explicit compatibility categories and a matrix
+      covering Claude Code, Gemini CLI, Codex CLI, Cursor, and OpenCode — no bare "supported."
+- [x] `cli.js`'s `aief help prompt` purpose string matches `ASSISTANT_FILES` exactly (no "ChatGPT"
+      claim).
+- [x] `docs/workflow.md`/`docs/architecture.md`'s remaining `init / adopt` residue is corrected to
+      `bootstrap`.
+- [x] `docs/maintainer.md` documents how to regenerate the diagram and which artifact is canonical.
+- [x] ADR-030 records the three compatibility categories, reconfirms `AGENTS.md`'s role for 3.1,
+      and names the diagram script canonical.

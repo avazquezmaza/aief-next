@@ -9,7 +9,7 @@ Verification Rule) is defined in [Concepts](concepts.md).
 ```mermaid
 flowchart TD
     subgraph L1["1 . Context (AIEF)"]
-        A1[doctor] --> A2[init / adopt] --> A3[verify] --> A4[analyze / new-change / enrich] --> A5[prompt]
+        A1[doctor] --> A2[bootstrap] --> A3[verify] --> A4[analyze / new-change / enrich] --> A5[prompt]
     end
     subgraph L2["2 . Feature (assistant, optionally OpenSpec)"]
         B1[Explore] --> B2[Propose] --> B3[Apply] --> B4[Archive]

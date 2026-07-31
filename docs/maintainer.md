@@ -60,6 +60,48 @@ entries for the expected shape (Decision, Why this needs its own ADR, Alternativ
 - Historical, superseded, or study material goes under `docs/history/` — never in the main set,
   never mixed into a current document "just for context."
 
+## Regenerating the workflow diagram
+
+`scripts/generate_workflow_diagram.py` is the **canonical source** of `docs/images/workflow.svg`.
+Never hand-edit the SVG — edit the script and regenerate, so the file stays reproducible and
+diffable:
+
+```bash
+python3 scripts/generate_workflow_diagram.py   # writes docs/images/workflow.svg
+```
+
+`docs/images/workflow.png` (the image README.md actually embeds) is then rendered from that SVG —
+it must never be edited or regenerated independently of it. Any SVG renderer works; this repository
+verified it with PyGObject's Rsvg binding plus Cairo (both ship with common Linux desktop stacks;
+no network access, no Node dependency):
+
+```bash
+python3 - <<'EOF'
+import gi
+gi.require_version('Rsvg', '2.0')
+from gi.repository import Rsvg
+import cairo
+
+handle = Rsvg.Handle.new_from_file("docs/images/workflow.svg")
+dim = handle.get_dimensions()
+scale = 2  # 2x for a crisp README embed
+surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, dim.width * scale, dim.height * scale)
+ctx = cairo.Context(surface)
+ctx.scale(scale, scale)
+ctx.set_source_rgb(1, 1, 1)
+ctx.paint()
+handle.render_cairo(ctx)
+surface.write_to_png("docs/images/workflow.png")
+EOF
+```
+
+If `PyGObject`/`Rsvg` isn't available, any equivalent SVG→PNG renderer (e.g. `rsvg-convert
+docs/images/workflow.svg -o docs/images/workflow.png`, or a browser's "export as PNG") is fine —
+the SVG is the source of truth, the PNG is a derived, regenerable artifact. After regenerating
+either file, review the README's embedded Mermaid block (`README.md` "How does it work?") for
+semantic drift: it does not need to be visually identical to the SVG, but it must describe the same
+commands, the same three levels, and the same opt-in/non-blocking capabilities.
+
 ## Testing
 
 ```bash
@@ -67,6 +109,7 @@ npm test                          # from the repo root — full CLI suite, node 
 node cli/bin/aief.js verify       # validate this repository's own AIEF structure
 git diff --check                  # no whitespace errors, run before every commit
 cd examples/todo-app && npm test  # the executable example stays runnable
+python3 scripts/generate_workflow_diagram.py  # confirms the diagram script still runs cleanly
 ```
 
 ## Git discipline

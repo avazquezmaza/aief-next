@@ -416,7 +416,7 @@ const COMMAND_HELP = {
     next: "Review the proposal, then aief prompt."
   },
   prompt: {
-    purpose: "Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or ChatGPT.",
+    purpose: "Generate a ready-to-paste, assistant-agnostic prompt (native file for Claude, Gemini, Codex or Cursor; a generic AGENTS.md-only prompt for any other assistant, e.g. OpenCode).",
     when: "After creating a Change. With several open Changes, name the target with --change <id>.",
     reads: "AGENTS.md, assistant files, profiles and the selected Change (implicit only when exactly one Change is open).",
     writes: "Nothing.",

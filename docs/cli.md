@@ -75,8 +75,30 @@ an unknown or ambiguous selector is a loud, actionable error, never "last match 
 
 `aief prompt [claude|gemini|codex|cursor]` (positional) or `aief prompt --assistant gemini` select
 which instruction file (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`) is included; the explicit
-flag wins if both are given. An unknown assistant name fails with the list of known ones — never a
-silent fallback. No assistant is required and none is treated specially by the engine.
+flag wins if both are given. An unknown assistant name (e.g. `opencode`, `chatgpt`) fails with the
+list of known ones — never a silent fallback. No assistant is required and none is treated
+specially by the engine: `AGENTS.md` is the one instruction file every prompt tells the assistant
+to read first, generated identically no matter which (if any) assistant name is passed.
+
+`aief bootstrap` never creates any of `CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` — they are
+optional, hand-authored, per-assistant adaptations of format only (this repository's own four are
+an example: each says "follow `AGENTS.md`," "do not duplicate it," and adds only tone/emphasis
+guidance, never a contradictory engineering rule).
+
+Compatibility levels, verified live against a from-scratch scratch project (evidence:
+`changes/0060-*/evidence.md`):
+
+| Assistant | Level | Instruction file |
+|---|---|---|
+| Claude Code | Native target — recognized positional/`--assistant` value | `CLAUDE.md` |
+| Gemini CLI | Native target | `GEMINI.md` |
+| Codex CLI | Native target | `CODEX.md` |
+| Cursor | Native target | `CURSOR.md` |
+| OpenCode | Generic prompt compatible — not a recognized positional value; use `aief prompt` (no assistant name) | `AGENTS.md` only |
+| Any other prompt-driven assistant (Continue, Copilot Chat, ...) | Generic prompt compatible, not validated natively in this repository | `AGENTS.md` only |
+
+Full compatibility matrix with mechanism/command/limitations per row: [README.md — Assistant
+compatibility](../README.md#assistant-compatibility).
 
 ## Guarantees
 

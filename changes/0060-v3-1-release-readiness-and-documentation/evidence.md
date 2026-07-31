@@ -13,6 +13,17 @@ the `AGENTS.md` template was deliberately left untouched (it is shipped verbatim
 project, not this repo's own dev guide). The full suite passes at 728/728, unchanged in count from
 the pre-Change baseline (two changed strings, one changed sentence — no test needed updating).
 
+**Second pass (see "Second pass — visual documentation and assistant-agnostic evidence" below):**
+a further audit found the workflow diagram still described AIEF Core 3.0 (F5) and the
+assistant-agnostic promise, while already true in the code, had no reproducible smoke-test evidence
+or official compatibility categories in any document (F6). Both fixed: the diagram's canonical
+script was rewritten and the SVG/PNG regenerated from it; `aief prompt` was smoke-tested live for
+Claude Code, Gemini CLI, Codex CLI, Cursor, and OpenCode (plus the generic no-assistant form) in a
+fresh scratch project; three compatibility categories (Native target / Generic prompt compatible /
+Not currently supported) were documented in README.md and `docs/cli.md`; ADR-030 formalizes both.
+One more stale string was fixed (`aief help prompt` naming "ChatGPT," not an `ASSISTANT_FILES`
+entry). Full suite still 728/728; `aief verify` still PASS.
+
 ## Activities Performed
 
 1. Read `changes/0052-*` through `changes/0059-*` (`change.md`/`spec.md`) and their ADRs
@@ -192,3 +203,223 @@ regressions; zero undocumented blocking authority; zero backward-compatibility b
 None required by this audit. Any future v3.1-adjacent work (e.g. the actual `aief release 3.1.0`
 step, or any post-v3.1 idea surfaced but out of scope here) starts as its own Change, per
 `AGENTS.md`.
+
+---
+
+## Second pass — visual documentation and assistant-agnostic evidence (F5/F6)
+
+### Summary
+
+A final release-readiness pass found two gaps the first close missed: the workflow diagram
+(`scripts/generate_workflow_diagram.py` → `docs/images/workflow.svg`/`.png`) still described AIEF
+Core 3.0, and the assistant-agnostic promise, while true in the code, had no reproducible smoke-test
+evidence or official compatibility categories in the docs. Both are fixed below; no code behavior
+changed except one help-text string (`aief help prompt`'s stale "ChatGPT" claim).
+
+### Diagram regeneration
+
+```
+$ python3 scripts/generate_workflow_diagram.py
+Generated docs/images/workflow.svg successfully.
+```
+
+`docs/images/workflow.png` was then rendered from that SVG with PyGObject's Rsvg binding + Cairo
+(no network, no Node dependency) — see `docs/maintainer.md` "Regenerating the workflow diagram" for
+the exact script. Visual review (rendered to a local preview) confirmed: header reads "AIEF CORE
+3.1 WORKFLOW LIFECYCLE"; Level 1 shows `aief bootstrap` (not `init / adopt`); Level 2's assistant
+card lists "Claude Code, Gemini CLI, Codex CLI, Cursor, OpenCode, others via portable prompt"; Level
+3 covers `aief verify` (noting opt-in Harness/Loop logs never block PASS/FAIL), `aief close --yes`,
+and `aief status --graph/--next` (noting `--next` "prints only, never executes"); a cross-cutting
+capabilities strip covers LIDR Discovery, Skills & Standards, Harness/Hooks, Loop, Change Graph, and
+Smart Workflow; the fail loopback reads "fail — human fixes, re-prompts" and the next-Change
+loopback reads "recommends next (not automatic)" — neither implies automation.
+
+```
+$ file docs/images/workflow.svg docs/images/workflow.png
+docs/images/workflow.svg: SVG Scalable Vector Graphics image, Unicode text, UTF-8 text
+docs/images/workflow.png: PNG image data, 2720 x 1960, 8-bit/color RGB, non-interlaced
+```
+
+`docs/workflow.md`'s Level-1 Mermaid subgraph and `docs/architecture.md`'s "Detection" paragraph
+both still read `init / adopt` — both corrected to `bootstrap`. README's Mermaid source updated for
+semantic parity with the regenerated SVG (same three levels, same commands, same fail/pass/
+recommends-next framing) — verified by side-by-side reading, not required to be visually identical.
+
+### Assistant smoke tests (from-scratch scratch project, live)
+
+```
+$ git init -q && node .../aief.js bootstrap
+✓ Created AGENTS.md
+✓ Created knowledge/standards/*.md (4 files)
+Skills documented: knowledge/skills.md
+✓ Created .github/workflows/aief-verify.yml
+✓ Created changes/0001-adopt-aief
+```
+
+Bootstrap output confirmed **zero** assistant-specific files were created — only `AGENTS.md` and
+project-generic structure. `find . -maxdepth 1` after bootstrap: `AGENTS.md`, `changes/`,
+`.github/`, `knowledge/`, `profiles/` — no `CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`.
+
+```
+$ node .../aief.js new-change "smoke feature"
+Created Change: changes/0002-smoke-feature
+$ for a in claude gemini codex cursor; do node .../aief.js prompt "$a" --change 0002-smoke-feature; done
+Note: CLAUDE.md not found in this project.
+... (same shape for gemini/codex/cursor, each noting its own missing file) ...
+AIEF Prompt
+────────────────────────────────────────────────────────────
+Copy this prompt into your AI assistant:
+────────────────────────────────────────────────────────────
+Use AGENTS.md.
+...
+exit=0 (all four)
+
+$ node .../aief.js prompt opencode --change 0002-smoke-feature
+Unknown assistant "opencode".
+
+Known assistants:
+
+- claude
+- gemini
+- codex
+- cursor
+
+If you meant a role, use:
+
+--profile opencode
+exit=1
+
+$ node .../aief.js prompt chatgpt --change 0002-smoke-feature
+Unknown assistant "chatgpt".
+... (same shape) ...
+exit=1
+
+$ node .../aief.js prompt --change 0002-smoke-feature   # no assistant name — the generic form
+AIEF Prompt
+────────────────────────────────────────────────────────────
+Copy this prompt into your AI assistant:
+────────────────────────────────────────────────────────────
+Use AGENTS.md.
+
+Act as the developer profile.
+...
+exit=0
+```
+
+**Findings, categorized (see README.md "Assistant compatibility" / `docs/cli.md` "Assistants" for
+the published matrix, and ADR-030 for the category definitions):**
+
+- **Claude Code, Gemini CLI, Codex CLI, Cursor — Native target.** Each recognized as a positional
+  `aief prompt` value; each looks for its own instruction file
+  (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`) and falls back to a warning + the generic
+  `AGENTS.md`-only prompt when that file is absent — never a silent, unannounced fallback. Exit 0
+  in all four cases; the prompt body is otherwise identical across all four (same Change context,
+  same Skills/Standards resolution) — only the "Read these files first" line for the assistant file
+  differs.
+- **OpenCode — Generic prompt compatible.** `opencode` is not a recognized `ASSISTANT_FILES` key —
+  `aief prompt opencode` fails loudly (exit 1, "Unknown assistant") exactly like any other
+  unrecognized name (confirmed identical error shape with `chatgpt` as a second, deliberately-tried
+  unknown name). `aief prompt` with **no** assistant name produces the fully portable, AGENTS.md-
+  first prompt — this is the form OpenCode (or any other prompt-consuming tool) actually uses; nothing
+  OpenCode-specific exists in the engine, by design (ADR-030).
+- **Every prompt path, regardless of assistant, opens with "Use AGENTS.md."** — confirmed
+  byte-for-byte across all six invocations above (`grep -c "Use AGENTS.md." /tmp/prompt_*.txt`
+  → 1 for every successful (exit 0) run). This is the load-bearing evidence for the
+  assistant-agnostic contract: engineering rules come from one file no assistant name changes.
+- **This repository's own four assistant files** (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`,
+  present at the repo root, read directly): each opens "Follow all rules in `AGENTS.md`," each ends
+  "Do not duplicate `AGENTS.md`; treat it as the source of truth," and every guidance line in
+  between is tone/emphasis (e.g. Claude's "explain trade-offs clearly," Codex's "keep patches
+  small," Cursor's "prefer incremental edits") — none states an engineering rule `AGENTS.md`
+  doesn't already state, and none contradicts another. Confirmed by direct reading, not inference.
+- **No network access was used or required** for any invocation above — every `aief prompt` call
+  reads only local files (`AGENTS.md`, the assistant file if present, `knowledge/`, the Change
+  directory); confirmed by code inspection (`cli.js`'s `prompt()`) and by the fact all six
+  invocations completed instantly in an offline scratch project.
+- **Project-over-built-in precedence still holds with an assistant named** (re-verification, not
+  re-design): `ai-specs/standards/base-standards.md` created in the scratch project;
+  `aief doctor --verbose` reported it `[project override]`, `source: project`; `aief prompt gemini`
+  listed `ai-specs/standards/base-standards.md [project override]` first in "Project standards to
+  follow" — same precedence mechanism ADR-024/025 already established, unaffected by which (or
+  whether an) assistant is named.
+
+### `aief help prompt` fix
+
+Before: `purpose: "Generate a ready-to-paste prompt for Claude, Gemini, Codex, Cursor or
+ChatGPT."` — "ChatGPT" is not an `ASSISTANT_FILES` key and `aief prompt chatgpt` fails (see above),
+contradicting this very sentence, the same self-contradiction shape F2 fixed for `docs/cli.md`.
+After: `purpose: "Generate a ready-to-paste, assistant-agnostic prompt (native file for Claude,
+Gemini, Codex or Cursor; a generic AGENTS.md-only prompt for any other assistant, e.g.
+OpenCode)."` — matches `ASSISTANT_FILES` exactly, states the generic fallback explicitly instead of
+naming an unsupported one.
+
+### Full validation suite (re-run after all second-pass fixes)
+
+```
+$ npm test   # from repo root
+1..728
+# tests 728
+# suites 0
+# pass 728
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+```
+
+728/728 PASS — unchanged in count (one help string and documentation/diagram changes only; no
+test-covered runtime behavior changed).
+
+```
+$ node cli/bin/aief.js verify
+Result: PASS
+$ git diff --check
+(no output, exit 0)
+$ node cli/bin/aief.js doctor
+(exit 0 — no errors, no writes)
+$ node cli/bin/aief.js doctor --verbose
+(exit 0 — Standards/Skills/Harness/Loop sections all consistent with docs/configuration.md)
+$ node cli/bin/aief.js status
+(exit 0 — shows this repository's own open Change: 0060)
+$ node cli/bin/aief.js status --graph
+(exit 0 — this repository has no manifest.dependsOn anywhere; reports 0 edges, no issues, as
+expected for a project using no v3.1 opt-in Graph configuration)
+$ node cli/bin/aief.js status --next
+(exit 0 — recommends 0060, the only open Change, unchanged single-open-Change path)
+```
+
+All PASS, all consistent with documented behavior. NUL-byte scan
+(`grep -rlP '\x00' <changed files>`) and secret-shaped-string scan (`grep -rniE
+'(api[_-]?key|secret|password|token)\s*[:=]\s*["\x27][^"\x27]+["\x27]'` over the same set) both
+returned no matches. No scratch project or temp artifact from this pass was left inside the
+repository (`aief-smoke`/`aief-smoke2` scratch directories were created under, and removed from,
+the session scratchpad — never under this repository's own tree).
+
+### Files touched by this second pass
+
+See the final commit's own diff (`git show --stat`) for the authoritative file list — it covers
+`scripts/generate_workflow_diagram.py`, `docs/images/workflow.svg`, `docs/images/workflow.png`,
+`README.md`, `docs/cli.md`, `docs/workflow.md`, `docs/architecture.md`, `docs/maintainer.md`,
+`knowledge/decisions.md` (ADR-030), `cli/src/cli.js` (one help string), and this Change's own
+`change.md`/`spec.md`/`tasks.md`/`evidence.md`.
+
+### Risks (unchanged from the first pass, still open)
+
+- `package.json` still reports `"version": "3.0.0"`. Still deliberately not bumped here — see
+  `change.md` "Out of scope" (both passes) and `docs/maintainer.md` "Releasing": `aief release
+  <version>` is a separate, human-triggered step. **Recommendation, updated:** run
+  `aief release 3.1.0` after this Change is reviewed and merged, before tagging; confirm
+  `releases/v3.1.0.md` links back to Change 0060 and its final commit.
+- No native `OPENCODE.md` adapter exists. Not a defect — OpenCode is documented as Generic prompt
+  compatible, which is both true and sufficient; adding a native adapter is new-subsystem work for
+  its own Change, per ADR-030's "Alternatives considered."
+
+### Lessons learned (second pass)
+
+- A generated artifact (the SVG) without a documented regeneration procedure or an explicit
+  "canonical source" statement will drift silently — exactly what happened between Core 3.0 and
+  3.1. `docs/maintainer.md` now closes that gap.
+- "The code is already assistant-agnostic" and "the assistant-agnostic promise is documented with
+  reproducible evidence" are different claims — the audit that closed the first pass verified the
+  former by reading code; this pass had to actually run `aief prompt` per assistant to make the
+  latter true.

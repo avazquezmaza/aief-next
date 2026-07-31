@@ -4,6 +4,100 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-030: The assistant-agnostic contract is formalized as three official compatibility categories (Native target / Generic prompt compatible / Not currently supported); `AGENTS.md` is reconfirmed as the sole universal instruction file for AIEF 3.1; `scripts/generate_workflow_diagram.py` is the canonical, only-edit-here source of the workflow diagram
+
+**Status: Accepted (2026-07-30), by the project owner.** Proposed as part of [Change
+0060](../changes/0060-v3-1-release-readiness-and-documentation/)'s release-readiness audit, after
+that audit found AIEF 3.1's visual documentation (`docs/images/workflow.svg`, the README's Mermaid
+source) still described AIEF Core 3.0 and had never once claimed formal, verified assistant
+compatibility levels — a gap serious enough to block the assistant-agnostic promise from being
+demonstrably true rather than merely asserted. Extends [ADR-004](#adr-004-agentsmd-is-the-primary-source-of-rules)
+(which established `AGENTS.md` as the primary rules source) with the specific claims Change 0060's
+audit needed to make durable.
+
+**Decision.**
+
+> 1. **Compatibility categories.** Any AI assistant's relationship to `aief prompt` is described
+>    with exactly one of these labels — never a single undifferentiated "supported":
+>    - **Native target** — a recognized `aief prompt <name>` value with its own instruction file
+>      (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` today).
+>    - **Generic prompt compatible** — not a recognized `aief prompt` value, but able to consume
+>      the generic `aief prompt` output (`AGENTS.md` plus Change context, Skills, Standards) as-is,
+>      pasted manually. OpenCode is this category today: `aief prompt opencode` is a hard,
+>      documented error (unknown assistant name); `aief prompt` with no name works because the
+>      generic prompt was already assistant-neutral by construction, not because of any
+>      OpenCode-specific code.
+>    - **Not currently supported** — reserved for a claim this project cannot back with either of
+>      the above; never used to describe an assistant this repository has not actually run `aief
+>      prompt` against as either Native or Generic.
+>    A "documented workflow only" claim (a written recipe with no live verification) must say so
+>    explicitly and never borrow the word "supported" alone.
+> 2. **`AGENTS.md` is the universal contract, confirmed for AIEF 3.1.** Every `aief prompt` output,
+>    for every assistant and for none, opens with "Use AGENTS.md." first — verified unchanged by
+>    reading `cli/src/cli.js`'s `prompt()` (Change 0060 audit, `evidence.md`). An assistant file
+>    only ever adds format-level adaptation (tone, phrasing, emphasis); it must never state an
+>    engineering rule `AGENTS.md` doesn't already state or contradicts it — confirmed true today for
+>    all four of this repository's own assistant files. `aief bootstrap` never creates any
+>    assistant-specific file (confirmed live, Change 0060 `evidence.md`): a freshly bootstrapped
+>    project has `AGENTS.md` and nothing else, and `aief prompt` still produces a complete prompt.
+> 3. **Canonical diagram source.** `scripts/generate_workflow_diagram.py` is the only file ever
+>    hand-edited to change `docs/images/workflow.svg`; the SVG itself is a generated artifact
+>    (regenerate with `python3 scripts/generate_workflow_diagram.py`), and `docs/images/workflow.png`
+>    is, in turn, rendered from that SVG, never edited or produced independently of it. The README's
+>    Mermaid block is a second, independently-maintained representation of the same architecture —
+>    it does not have to be visually identical to the SVG, but it must stay semantically equivalent
+>    (same commands, same three levels, same opt-in/non-blocking capabilities) — see
+>    `docs/maintainer.md` "Regenerating the workflow diagram."
+
+**Why this needs its own ADR.** Three durable, easily-second-guessed claims are being formalized at
+once: an official compatibility taxonomy (previously undocumented — the pre-3.1 diagram and docs
+used one undifferentiated "supported" concept), a confirmation that `AGENTS.md`'s primacy
+(ADR-004) still holds unchanged through eight more Changes (0052–0059), and a single source of
+truth for a generated artifact that had drifted silently before (the pre-3.1 SVG still said "AIEF
+CORE 3.0" and "aief init / adopt"). Each is exactly the kind of decision ADR-004's own "Alternatives
+considered" anticipated might need revisiting as the project grew; recording it here means a future
+Change can cite or amend it explicitly instead of re-deriving it from scratch or silently drifting
+again.
+
+**Why "Not currently supported" exists as a category, not just "Native"/"Generic."** The
+commissioning instruction for Change 0060 was explicit that no assistant may be declared compatible
+without evidence this repository actually produced. An assistant nobody has run `aief prompt`
+against — Native or Generic — is honestly "not currently supported," not silently omitted or
+lumped in with the Generic row by default.
+
+**Relationship to ADR-004.** ADR-004 is not superseded — its core claim (`AGENTS.md` is the primary
+source of rules) is reaffirmed, re-verified against the current codebase, and given the specific
+3.1-era evidence (bootstrap creates no assistant file; every prompt path opens with "Use
+AGENTS.md.") that ADR-004 itself predates.
+
+**Alternatives considered.**
+
+- **Declare OpenCode (and similar tools) "supported" without qualification**, matching the informal
+  tone of the pre-3.1 diagram's "Claude, Gemini, Codex, Cursor...". Rejected — indistinguishable
+  from Native-target support to a reader, which is not true and not verifiable from this repo alone.
+- **Add an `OPENCODE.md`/native adapter now to make OpenCode a Native target.** Rejected as out of
+  scope for a release-readiness consolidation Change (Change 0060's own scope explicitly excludes
+  new subsystems or adapters); nothing in the audit found a functional gap, only a documentation
+  gap — OpenCode already works today via the generic prompt.
+- **Make `docs/images/workflow.png` the canonical artifact and hand-edit it directly (or hand-edit
+  the SVG) instead of maintaining a generator script.** Rejected — the pre-3.1 drift (SVG still
+  reading "AIEF CORE 3.0 WORKFLOW LIFECYCLE" and "aief init / adopt" long after both were renamed)
+  is exactly the failure mode a hand-edited-only artifact produces; a script diffs like code and
+  can be reviewed for what actually changed.
+
+**Consequences.**
+
+- `docs/cli.md` "Assistants", `README.md` "Assistant compatibility", and
+  `changes/0060-*/evidence.md` all cite these three category labels identically — a future doc
+  change introducing a fourth label, or reusing "supported" bare, contradicts this ADR and should
+  be caught in review.
+- A future native adapter (e.g. an `OPENCODE.md` template) is a new Change, not a silent edit to
+  `ASSISTANT_FILES` — and should update this ADR's category table when it lands.
+- `scripts/generate_workflow_diagram.py` changes and `docs/images/workflow.svg`/`.png` changes must
+  land in the same commit; a PR touching one without the other is a review-time defect per this ADR.
+
+---
+
 ## ADR-029: `aief status --next` gains deterministic next-Change selection for the multiple-open-Changes case, deliberately superseding the prior ambiguity error; eligibility is six existing, already-official facts — never Change id, folder name, or date; tie-break is the project's existing id-sort convention, applied only after eligibility is decided
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0059](../changes/0059-smart-workflow-next-change-selection/)'s planning artifacts (`spec.md`/`tasks.md`); builds directly on [ADR-028](#adr-028-dependson-is-the-official-change-dependency-field-the-graph-is-derived-pure-and-read-only--construction-and-validation-are-one-pass-status---graph-is-the-full-view-statuss-overview-gets-a-conditional-summary-verify-gets-a-non-blocking-note-doctor-gets-nothing)'s Graph and [ADR-018](#adr-018-user-workflow-is-a-thin-application-layer-whats-next-has-one-canonical-source-exposure-is-gated-by-adr-015)'s Workflow Engine gates, the two mechanisms this Change reuses rather than reinventing.

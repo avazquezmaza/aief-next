@@ -97,6 +97,54 @@ byte-identical to pre-v3.1.
   mitigation.
 - Full test suite, `aief verify`, and `git diff --check` all pass before commit.
 
+## Reopened — final audit pass (2026-07-30)
+
+The first close (2026-07-30, see `evidence.md`'s original transcript below) found and fixed two
+discoverability gaps (F1/F2) but did not check the **visual** documentation or the
+**assistant-agnostic promise** against live evidence — both were assumed correct rather than
+verified. A second, final audit pass found:
+
+- **F5 — the workflow diagram still described AIEF Core 3.0.** `scripts/generate_workflow_diagram.py`
+  (the diagram's own canonical source), and therefore `docs/images/workflow.svg`/`.png`, still read
+  "AIEF CORE 3.0 WORKFLOW LIFECYCLE," still showed `aief init / adopt` (renamed to `aief bootstrap`
+  in Change 0052), and covered none of Changes 0053–0059 (LIDR, Skills, Standards, Harness/Hooks,
+  Loop, Graph, Smart Workflow). `docs/workflow.md`'s and `docs/architecture.md`'s own Mermaid/prose
+  had the same `init / adopt` residue in one place each.
+- **F6 — the assistant-agnostic promise was true but never demonstrated with reproducible
+  evidence, and never given official compatibility categories.** The code already behaved
+  correctly (`AGENTS.md`-first prompts, no per-assistant branching, `aief bootstrap` creates no
+  assistant file) — but no live smoke test existed for Claude/Gemini/Codex/Cursor/OpenCode, and
+  no document distinguished "native target" from "generic prompt compatible," so a reader could not
+  tell OpenCode's real status from a document alone.
+
+**In scope for this pass** (additive to the original scope above, still no new subsystem):
+
+- Rewrite `scripts/generate_workflow_diagram.py` for AIEF Core 3.1 (three levels, a cross-cutting
+  capabilities sidebar for Harness/Hooks/Loop/Graph, an assistant-agnostic Level 2, no automatic
+  retry/execution implied anywhere) and regenerate `docs/images/workflow.svg`/`.png` from it.
+  Update the README's Mermaid source to stay semantically equivalent (not pixel-identical).
+- Live smoke test `aief prompt <name>` for `claude`/`gemini`/`codex`/`cursor`/`opencode` (plus the
+  no-name generic form) in a from-scratch scratch project; record the results.
+- Document three official compatibility categories (Native target / Generic prompt compatible /
+  Not currently supported) and a compatibility matrix covering Claude Code, Gemini CLI, Codex CLI,
+  Cursor, OpenCode (README.md and docs/cli.md).
+- Fix `cli.js`'s `aief help prompt` purpose string, which named "ChatGPT" — not a recognized
+  `ASSISTANT_FILES` entry — while the top-level `--help` banner correctly listed only
+  `claude|gemini|codex|cursor`.
+- Fix the remaining `aief init / adopt` residue in `docs/workflow.md`/`docs/architecture.md`.
+- Add `docs/maintainer.md` "Regenerating the workflow diagram" (a genuine, previously-missing gap:
+  no document said how to regenerate the SVG/PNG, or which one is canonical).
+- Add ADR-030 formalizing the three compatibility categories, reconfirming `AGENTS.md`'s
+  universal-contract role for 3.1 (extending ADR-004), and naming
+  `scripts/generate_workflow_diagram.py` the canonical diagram source.
+- Extend this Change's `spec.md`/`tasks.md`/`evidence.md` with the new findings, fixes and
+  reproducible evidence; re-close.
+
+**Still out of scope:** any new subsystem, command, manifest field, or native adapter (e.g. an
+`OPENCODE.md` template) — the audit found a documentation and evidence gap, not a functional one.
+`package.json`'s version bump remains deferred to the human-triggered `aief release` step (see
+`evidence.md` "Recommendations").
+
 ## Status
 
-Closed (2026-07-31)
+Closed (2026-07-30)
