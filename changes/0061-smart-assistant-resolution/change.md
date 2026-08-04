@@ -80,3 +80,7 @@ adding a new command verb.
   and `--clear-assistant` write, and each says so.
 - `npm test`, `node cli/bin/aief.js verify`, and `node cli/bin/aief.js verify --change
   0061-smart-assistant-resolution` all pass.
+
+## Status
+
+Closed (2026-08-04)
