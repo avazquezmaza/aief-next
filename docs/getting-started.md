@@ -16,6 +16,16 @@ aief --help
 
 Prefer not to link a global command? Run it directly: `node cli/bin/aief.js <command>`.
 
+### Platform support
+
+- **Linux, macOS** — fully supported, no caveats. The CLI is POSIX-generic (`path.join`
+  throughout, no OS-specific branching needed) and every external tool `aief doctor` checks for
+  (git, npm, OpenSpec, SpecBoot, assistant CLIs) is detected the same way on both.
+- **Windows** — the code has `win32`-specific branches (`cli/src/cli.js`,
+  `cli/src/sdd-providers/openspec.js`: `where` instead of `which`, `shell: true` for spawned
+  processes), but native Windows is not verified end-to-end (no CI runner, no dogfooding evidence).
+  **WSL2** is the recommended path today — inside it, `aief` runs exactly as it does on Linux.
+
 ## Check your environment
 
 ```bash
