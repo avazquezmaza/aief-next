@@ -329,6 +329,54 @@ test("doctor does not recommend governance for generic prose", () => {
   assert.doesNotMatch(out, /multitenant-saas-architect/);
 });
 
+// --- Change 0064: graphify-ast-architecture Skill recommendation + read-only graph-engine line ---
+
+test("doctor recommends graphify-ast-architecture when graphify-out/ is present", () => {
+  const dir = makeProject({ "graphify-out/.gitkeep": "" });
+  const { status, out } = aief(dir, ["doctor"]);
+  assert.equal(status, 0);
+  assert.match(out, /graphify-ast-architecture/);
+});
+
+test("doctor does not recommend graphify-ast-architecture for unrelated projects", () => {
+  const dir = makeProject({ "README.md": "A simple library." });
+  const { out } = aief(dir, ["doctor"]);
+  assert.doesNotMatch(out, /graphify-ast-architecture/);
+});
+
+test("doctor reports the semantic engine when GEMINI_API_KEY is set, never both lines", () => {
+  const dir = makeProject({ "README.md": "x" });
+  const { out } = aief(dir, ["doctor"], { GEMINI_API_KEY: "fake-key-for-test" });
+  assert.match(out, /\[✓\] Graphify Semantic Engine available \(GEMINI_API_KEY set\)/);
+  assert.doesNotMatch(out, /AST Engine active/);
+});
+
+test("doctor reports the AST engine when GEMINI_API_KEY is absent or empty", () => {
+  const dir = makeProject({ "README.md": "x" });
+  const unset = aief(dir, ["doctor"], { GEMINI_API_KEY: undefined });
+  assert.match(unset.out, /\[✓\] AST Engine active \(no GEMINI_API_KEY — static, offline, \$0\)/);
+  assert.doesNotMatch(unset.out, /Semantic Engine/);
+
+  const empty = aief(dir, ["doctor"], { GEMINI_API_KEY: "" });
+  assert.match(empty.out, /\[✓\] AST Engine active/);
+  assert.doesNotMatch(empty.out, /Semantic Engine/);
+});
+
+test("doctor's graph-engine line never leaks the key value", () => {
+  const dir = makeProject({ "README.md": "x" });
+  const { out } = aief(dir, ["doctor"], { GEMINI_API_KEY: "super-secret-value-should-not-appear" });
+  assert.doesNotMatch(out, /super-secret-value-should-not-appear/);
+});
+
+test("bootstrap/analyze/prompt output is unaffected by the graph-engine line (Change 0064 R5)", () => {
+  const dir = makeProject({ "README.md": "x" });
+  aief(dir, ["bootstrap"]);
+  for (const args of [["analyze"], ["prompt"]]) {
+    const { out } = aief(dir, args, { GEMINI_API_KEY: "fake-key-for-test" });
+    assert.doesNotMatch(out, /Graphify Semantic Engine|AST Engine active/);
+  }
+});
+
 // --- Change 0054/ADR-024: ai-specs skill recommendations wired into `aief doctor` only ---
 
 test("doctor: with no ai-specs/skills/, default output is unchanged from before this Change", () => {

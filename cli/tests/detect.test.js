@@ -88,3 +88,27 @@ test("no signals falls back to general reviewer", () => {
   assert.equal(skills.length, 1);
   assert.equal(skills[0].id, "project-architecture-reviewer");
 });
+
+test("graphify-out/ presence triggers the graph-understanding skill (Change 0064)", () => {
+  const dir = makeProject({ "graphify-out/.gitkeep": "" });
+  const project = detectProject(dir);
+  const ids = project.signals.map((s) => s.id);
+  assert.ok(ids.includes("codeGraphUnderstanding"));
+  const skills = recommendSkills(project);
+  assert.ok(skills.some((s) => s.id === "graphify-ast-architecture"));
+});
+
+test("dependency-graph keyword triggers the graph-understanding skill without graphify-out/ (Change 0064)", () => {
+  const dir = makeProject({
+    "README.md": "This document explains our module dependency graph and call graph."
+  });
+  const project = detectProject(dir);
+  const skills = recommendSkills(project);
+  assert.ok(skills.some((s) => s.id === "graphify-ast-architecture"));
+});
+
+test("graph-understanding skill does not fire on unrelated projects", () => {
+  const dir = makeProject({ "README.md": "A simple library." });
+  const skills = recommendSkills(detectProject(dir));
+  assert.ok(!skills.some((s) => s.id === "graphify-ast-architecture"));
+});
