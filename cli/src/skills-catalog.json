@@ -80,6 +80,14 @@
       "signal": "weak",
       "keywords": ["llm", "llms", "genai", "ai-powered", "ai assistant", "ai assistants", "ai features", "artificial intelligence", "machine learning"],
       "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+    },
+    {
+      "id": "codeGraphUnderstanding",
+      "description": "Code-graph / architecture-topology understanding",
+      "signal": "weak",
+      "files": ["graphify-out"],
+      "keywords": ["dependency graph", "call graph", "architecture graph", "codebase graph", "code graph"],
+      "searchFiles": ["README.md", "AGENTS.md", "docs/architecture.md"]
     }
   ],
   "skills": [
@@ -148,6 +156,17 @@
       "promptContext": "AI-generated artifacts start inactive and require human approval before affecting runtime; every generation/approval should be attributable and auditable.",
       "commonRisks": ["auto-activating generated artifacts", "no record of who approved what", "prompts or outputs containing secrets"],
       "evidenceExpectations": "Evidence should show the approval path for anything AI-generated."
+    },
+    {
+      "id": "graphify-ast-architecture",
+      "name": "Graphify / AST Architecture Understanding",
+      "description": "Hybrid code-graph understanding: Graphify's Gemini-enriched semantic graph when available, static AST reading otherwise.",
+      "when": ["codeGraphUnderstanding"],
+      "whenToUse": "Understand/Plan phases of a Change that needs the repository's architecture or dependency topology, or when graphify-out/ already exists.",
+      "standardsToRead": ["documentation-standards.md"],
+      "promptContext": "Build architecture/dependency understanding with a hybrid rule: if GEMINI_API_KEY is available to you, use the Graphify Skill to produce the enriched semantic graph; if it is not, read the codebase statically (imports, module boundaries, call sites) to build the same understanding offline, at $0. Either way, persist findings under graphify-out/ (already gitignored — never a hidden .aief/ directory, ADR-009) and summarize the result in knowledge/architecture-graph.md.",
+      "commonRisks": ["treating the static fallback as lower-confidence without saying so in evidence", "AIEF's own CLI never calls Gemini or holds the API key — that stays entirely on the assistant side"],
+      "evidenceExpectations": "Evidence should state which mode was used (semantic or static) and where the resulting summary was written."
     },
     {
       "id": "project-architecture-reviewer",

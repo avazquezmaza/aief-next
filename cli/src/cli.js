@@ -213,6 +213,18 @@ function parseArgs(args) {
 }
 function section(title) { console.log("\n" + title); console.log("─".repeat(60)); }
 // The sole caller is doctor() (AIEF 3.1, Change 0054/ADR-024) — bootstrap/
+// Called from doctor() only (Change 0064) — informational, read-only: reads
+// GEMINI_API_KEY's presence and nothing else. Never calls Gemini, never
+// validates the key, never logs its value, never writes it anywhere. Exists
+// so `doctor` can report which mode of the graphify-ast-architecture Skill
+// (recommended via skills-catalog.json, printSkills() below) an assistant
+// would currently use — the CLI itself never executes either mode.
+function printGraphEngineStatus() {
+  const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  console.log(hasGeminiKey
+    ? "[✓] Graphify Semantic Engine available (GEMINI_API_KEY set)"
+    : "[✓] AST Engine active (no GEMINI_API_KEY — static, offline, $0)");
+}
 // analyze/prompt all call recommendSkills() directly and are unaffected by
 // options.verbose or by a project's ai-specs/skills/*.md.
 function printSkills(project, options = {}) {
@@ -1582,7 +1594,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a
