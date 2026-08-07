@@ -141,6 +141,44 @@ Keep it a convention/template. The human-approval line uses the `(human)` gate f
 
 Recorded in [knowledge/backlog.md](../../knowledge/backlog.md). **Not** implemented in this cycle: no Initiative entity, no `Depends-On` metadata, no dependency graph.
 
+## 9. Findings Status — tracking resolution across Changes
+
+An Analysis Change (`## Type: Analysis`, e.g. `changes/0013-analyze-current-architecture`) records
+a `## Findings` list in its `evidence.md` and is then closed. Left there, that list is a snapshot:
+as later Changes fix individual findings, nothing links back to say which is fixed, by which
+Change, or what's still open — the answer has to be reconstructed by memory or by grepping every
+subsequent Change. **Findings Status** is a living table, appended after `## Findings`, that later
+Changes keep current instead.
+
+```markdown
+## Findings Status
+
+| Finding | Status | Resolved By | Notes |
+|---|---|---|---|
+| Adoption Engine ID collision | Resolved | 0014 | Fixed via `nextChangeId()`. |
+| Zero test coverage on the CLI | Resolved | 0014 | 20 tests added; 21 by 0015. |
+| OpenSpec integration unvalidated | Open | — | Runtime `--help` heuristic added in 0014; never run against a real OpenSpec release. |
+```
+
+Rules:
+
+- **Status vocabulary** reuses §2's deferred-work terms rather than inventing a parallel one:
+  `Open`, `In Progress`, `Resolved`, `Not Applicable`, `Deferred`.
+- **Who writes the table**: the Analysis Change's own author, before that Change is closed — one
+  row per entry in its `## Findings` section, all starting `Open`. The table is a restatement of
+  findings already required, not new content.
+- **Who updates a row**: whichever *later* Change resolves that specific finding, as part of
+  *that later Change's own* Documentation step (`AGENTS.md` → Document: "Update evidence.md").
+  The Analysis Change itself is never reopened or re-closed to make the edit — only its
+  `evidence.md` file is touched, the same way any Change may correct a typo in a closed sibling's
+  documentation.
+- **Citing the resolution**: `Resolved By` names the Change id; `Notes` gives one line pointing to
+  what that Change actually did, so the claim is checkable against that Change's own `evidence.md`
+  rather than asserted.
+
+This does not create a new Change Type, CLI command, or enforced structure — it is a convention for
+`evidence.md` content, same family as §7's Architecture Checkpoint.
+
 ---
 
 ## Parser compatibility
@@ -149,6 +187,6 @@ Verified against the current `aief verify` / `aief close` (which count only `^\s
 
 - `- [ ] (human) …` / `- [ ] (review) …` → still `- [ ]` → **blocking while pending** (intended).
 - `- [-] Moved To: …` (and every §2 deferred marker) → not `- [ ]` → **not counted, never blocks close** (intended).
-- Optional `## Validation Harness`, `## Increments`, `## Architecture Checkpoint` sections → free-form Markdown, ignored by verify/close.
+- Optional `## Validation Harness`, `## Increments`, `## Architecture Checkpoint`, `## Findings Status` sections → free-form Markdown, ignored by verify/close.
 
 No convention here changes the meaning of an existing checkbox, and none requires a CLI change. If any graduates to machine enforcement later, it does so through the closability-contract workstream, backed by evidence.

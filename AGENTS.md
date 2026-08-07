@@ -158,6 +158,10 @@ Avoid long theoretical explanations in starter documents.
 3. What remains pending?
 4. What was learned?
 
+An Analysis Change's `evidence.md` keeps a living `## Findings Status` table so later Changes that
+resolve a finding record it there instead of leaving the list to go stale — see [governance
+conventions §9](https://github.com/avazquezmaza/aief-next/blob/main/docs/history/governance-conventions.md#9-findings-status--tracking-resolution-across-changes).
+
 ---
 
 ## Human Responsibilities

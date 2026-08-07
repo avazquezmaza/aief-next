@@ -28,6 +28,18 @@ Full architecture and code review of the repository. Conclusion: the repo is coh
 - **Hygiene:** `LICENSE` contained only the words "MIT License"; CHANGELOG/releases/README told contradictory version stories; `knowledge/` was missing from the framework's own repo; two evidence files were template placeholders; no CI existed.
 - **Not applicable (worth recording):** no Next.js app, middleware, API routes, multitenancy, RBAC or n8n integration exists here — those keywords in the CLI are detection signals inherited from the AIEF v4 origin project.
 
+## Findings Status
+
+> Convention: [governance conventions §9](../../docs/history/governance-conventions.md#9-findings-status--tracking-resolution-across-changes). Retrofitted by Change 0063; every status below is cited against the resolving Change's own `evidence.md`, not asserted.
+
+| Finding | Status | Resolved By | Notes |
+|---|---|---|---|
+| Adoption Engine bugs (ID collision, keyword false positives, `release` message, `help` gaps, CRLF) | Resolved | 0014 | `nextChangeId()`, data-driven `detect.js` catalog, honest `writeFile`/`release` output, full `COMMAND_HELP`, CRLF-tolerant Analysis regex — all listed in 0014's Activities Performed. |
+| Zero test coverage on the CLI | Resolved | 0014 | 20 tests added (`detect.test.js`, `cli.test.js`); grew to 21 in 0015. |
+| OpenSpec integration unvalidated | Open | — | 0014 added a runtime `--help` heuristic with a loud fallback (not a fix, a safety net); `adapters/openspec/README.md` still states the real OpenSpec CLI "has not been validated against" as of this writing. |
+| Hygiene (LICENSE text, CHANGELOG/README version story, missing `knowledge/`, template placeholders, no CI) | Resolved | 0014, 0015 | `knowledge/decisions.md` added in 0014; LICENSE text, CHANGELOG reconciliation, and CI workflow all in 0015. |
+| Not applicable (Next.js/middleware/API routes/multitenancy/RBAC/n8n keywords) | Not Applicable | — | Recorded as inherited detection signals, not a defect; no resolution needed. |
+
 ## Risks
 
 - Windows-specific behavior untested (`shell: true` in `run()`, CRLF handling) — no Windows environment available during analysis.
