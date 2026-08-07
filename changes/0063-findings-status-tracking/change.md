@@ -66,4 +66,4 @@ convention plus a short documentation update, not a new CLI entity, command, or 
 
 ## Status
 
-Open
+Closed (2026-08-07)
