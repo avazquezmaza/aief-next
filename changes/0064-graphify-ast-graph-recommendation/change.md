@@ -72,5 +72,4 @@ reporting whether `GEMINI_API_KEY` is present in the environment — a read, nev
 
 ## Status
 
-In Progress (implementation, tests, docs and evidence complete — pending human review/close per
-`AGENTS.md`'s checklist)
+Closed (2026-08-07)
