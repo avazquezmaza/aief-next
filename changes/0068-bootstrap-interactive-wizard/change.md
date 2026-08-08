@@ -61,4 +61,4 @@ directly. The non-interactive path removes nothing and stays the default.
 
 ## Status
 
-Open
+Closed (2026-08-08)
