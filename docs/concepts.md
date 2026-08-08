@@ -1,7 +1,8 @@
 # Core Concepts
 
 AIEF has a small vocabulary. Learn these terms once; every other document and every CLI message
-uses them consistently.
+uses them consistently. Looking a single term up mid-flow instead of reading this end to end? See
+the [Cheat Sheet](cheat-sheet.md).
 
 ## Change
 
