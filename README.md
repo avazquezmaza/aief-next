@@ -123,7 +123,7 @@ Adapter files, fallback behavior, and how compatibility was verified: [docs/cli.
 | I want to... | Go to |
 |---|---|
 | Get from zero to a verified Change | [Getting Started](docs/getting-started.md) |
-| Learn the vocabulary (Change, Track, Gate, SDD Provider, Skill, Hook, Verification Rule) | [Concepts](docs/concepts.md) |
+| Learn the vocabulary (Change, Track, Gate, SDD Provider, Skill, Hook, Verification Rule) | [Concepts](docs/concepts.md) ([Cheat Sheet](docs/cheat-sheet.md) for a one-page lookup) |
 | Understand the full lifecycle, tracks, and verification model | [Workflow](docs/workflow.md) |
 | Understand the implemented architecture | [Architecture](docs/architecture.md) |
 | Look up a CLI command or flag | [CLI Reference](docs/cli.md) |
