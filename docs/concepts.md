@@ -113,6 +113,12 @@ This is distinct from the **Skill Catalog** (`aief doctor`/`aief bootstrap`'s re
 written to `knowledge/skills.md`) — that is passive, static, contextual knowledge; the Skills
 Runtime above is a registered, invocable contract. See [CLI Reference](cli.md#prompt) for both.
 
+A Skill Catalog recommendation carries a `confidence`: `strong` when a real dependency in
+`package.json` triggered it, `weak` when only a keyword in a doc file (`README.md`, `AGENTS.md`, ...)
+did (Change 0072). `aief prompt` tags a weak-confidence Skill (`(weak signal — confirm before
+relying on this)`) so the assistant reading it can tell a speculative match from a solid one;
+`aief doctor`'s report lists strong-confidence recommendations first for the same reason.
+
 ## Hook / Harness
 
 A **Hook** is a versioned observer that reacts to one of a small, closed set of lifecycle events

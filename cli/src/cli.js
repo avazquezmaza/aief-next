@@ -936,8 +936,13 @@ function prompt(args) {
   // it in directly would silently drop every builtin's operational content.
   const builtinSkills = recommendSkills(project);
   const builtinSkillById = new Map(builtinSkills.map((s) => [s.id, s]));
+  // Change 0072: a builtin recommended only from a "weak" (keyword-in-doc)
+  // signal is tagged here — the one place this reasoning actually reaches
+  // an assistant. "strong" (real dependency) and the no-signals fallback
+  // (confidence: null, an honest statement, not a guess) are untagged,
+  // keeping output byte-identical to before this Change in both cases.
   const skills = resolveSkillRecommendations(builtinSkills, process.cwd()).items.map((item) => item.source === "builtin"
-    ? builtinSkillById.get(item.id)
+    ? { ...builtinSkillById.get(item.id), tag: builtinSkillById.get(item.id).confidence === "weak" ? " (weak signal — confirm before relying on this)" : "" }
     : { id: item.id, name: item.id, tag: item.overridesBuiltin ? " [project override]" : " [project]" });
   // Re-run guardrail: derived from files, no hidden state. Empty or template
   // ("Pending.") evidence is the normal fresh case and gets no warning.

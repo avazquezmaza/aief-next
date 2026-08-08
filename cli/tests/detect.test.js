@@ -89,6 +89,51 @@ test("no signals falls back to general reviewer", () => {
   assert.equal(skills[0].id, "project-architecture-reviewer");
 });
 
+// --- Change 0072: confidence reflects strong (dependency) vs weak (keyword-in-doc) signals ---
+
+test("recommendSkills: a Skill triggered by a strong (dependency) signal gets confidence 'strong'", () => {
+  const project = { packageJson: {}, tech: {}, signals: [{ id: "nextjs", description: "Next.js", signal: "strong", reasons: ["dep"] }, { id: "nestjs", description: "NestJS", signal: "strong", reasons: ["dep"] }] };
+  const skills = recommendSkills(project);
+  const match = skills.find((s) => s.id === "nextjs-nestjs-architecture");
+  assert.equal(match.confidence, "strong");
+});
+
+test("recommendSkills: a Skill triggered only by weak (keyword-in-doc) signals gets confidence 'weak'", () => {
+  const project = { packageJson: {}, tech: {}, signals: [{ id: "multitenant", description: "Multitenant", signal: "weak", reasons: ["keyword"] }] };
+  const skills = recommendSkills(project);
+  const match = skills.find((s) => s.id === "multitenant-saas-architect");
+  assert.equal(match.confidence, "weak");
+});
+
+test("recommendSkills: the no-signals fallback gets confidence null — an honest statement, not a guess", () => {
+  const project = { packageJson: {}, tech: {}, signals: [] };
+  const skills = recommendSkills(project);
+  assert.equal(skills[0].confidence, null);
+});
+
+test("recommendSkills: a Skill triggered by both a strong and a weak signal gets confidence 'strong' (any strong trigger is enough)", () => {
+  const project = { packageJson: {}, tech: {}, signals: [{ id: "rbac", description: "RBAC", signal: "weak", reasons: ["keyword"] }, { id: "multitenant", description: "Multitenant", signal: "strong", reasons: ["dep"] }] };
+  const skills = recommendSkills(project);
+  const match = skills.find((s) => s.id === "security-rbac-reviewer");
+  assert.equal(match.confidence, "strong");
+});
+
+test("recommendSkills: strong-confidence recommendations sort before weak, catalog order preserved within each group", () => {
+  const project = {
+    packageJson: {},
+    tech: {},
+    signals: [
+      { id: "multitenant", description: "Multitenant", signal: "weak", reasons: ["keyword"] },
+      { id: "nextjs", description: "Next.js", signal: "strong", reasons: ["dep"] },
+      { id: "nestjs", description: "NestJS", signal: "strong", reasons: ["dep"] },
+      { id: "rbac", description: "RBAC", signal: "weak", reasons: ["keyword"] }
+    ]
+  };
+  const skills = recommendSkills(project);
+  const ids = skills.map((s) => s.id);
+  assert.deepEqual(ids, ["nextjs-nestjs-architecture", "multitenant-saas-architect", "security-rbac-reviewer"]);
+});
+
 test("graphify-out/ presence triggers the graph-understanding skill (Change 0064)", () => {
   const dir = makeProject({ "graphify-out/.gitkeep": "" });
   const project = detectProject(dir);
