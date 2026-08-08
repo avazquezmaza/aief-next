@@ -64,4 +64,4 @@ capability-model question is left for a separate, explicitly-scoped Change if th
 
 ## Status
 
-Open
+Closed (2026-08-08)
