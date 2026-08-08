@@ -47,4 +47,4 @@ own solution to the exact problem it just described.
 
 ## Status
 
-Open
+Closed (2026-08-08)
