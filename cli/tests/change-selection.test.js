@@ -202,3 +202,19 @@ test("status lists all open Changes and flags multiplicity", () => {
   assert.match(s.out, /- 0002-remove-banner/);
   assert.match(s.out, /aief prompt --change <id>/);
 });
+
+test("status with 2+ open Changes surfaces `aief status --next` as a recommendation, inline and in Next: (Change 0067)", () => {
+  const dir = twoOpenChanges();
+  const s = aief(dir, ["status"]);
+  assert.equal(s.status, 0);
+  // Inline note still states the explicit-selection requirement, and now also
+  // points at the command that recommends one.
+  assert.match(s.out, /Multiple Changes in progress — commands that act on a Change need an explicit --change <id>\. Run `aief status --next` for a recommendation\./);
+  // Next: block lists `aief status --next` first, ahead of the existing suggestions.
+  const nextBlock = s.out.slice(s.out.indexOf("\nNext:"));
+  const statusNextIndex = nextBlock.indexOf("aief status --next");
+  const promptIndex = nextBlock.indexOf("aief prompt --change <id>");
+  assert.ok(statusNextIndex > -1, "Next: block should mention `aief status --next`");
+  assert.ok(promptIndex > -1, "Next: block should still mention `aief prompt --change <id>`");
+  assert.ok(statusNextIndex < promptIndex, "`aief status --next` should be listed first");
+});

@@ -1234,7 +1234,7 @@ function statusOverview(project = detectProject(), showNext = true) {
   if (open.length) {
     console.log(`\nOpen Changes: ${open.length}`);
     for (const d of open) console.log(`- ${path.basename(d)}`);
-    if (open.length > 1) console.log("\nMultiple Changes in progress — commands that act on a Change need an explicit --change <id>.");
+    if (open.length > 1) console.log("\nMultiple Changes in progress — commands that act on a Change need an explicit --change <id>. Run `aief status --next` for a recommendation.");
   }
   // Additive only (WF-R15): this section is absent whenever no Change has an
   // invalid manifest.json, which is every Change in this repository today.
@@ -1329,7 +1329,7 @@ function statusOverview(project = detectProject(), showNext = true) {
   if (!showNext) return;
   if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief bootstrap"); return; }
   if (!changes.length) { printNext("aief analyze"); return; }
-  if (open.length > 1) { printNext("aief prompt --change <id>", "aief close --yes --change <id>"); return; }
+  if (open.length > 1) { printNext("aief status --next", "aief prompt --change <id>", "aief close --yes --change <id>"); return; }
   // ADR-018 §1 (Change 0046): for the one case where this suggestion and the
   // "Workflow status" block above could actually disagree — a single open,
   // track-carrying Change — both now come from the exact same
