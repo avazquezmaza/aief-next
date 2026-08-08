@@ -26,6 +26,8 @@ import { buildGraph } from "./core/domain/change-graph.js";
 import { selectNextChange } from "./core/services/next-change-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
+import { parseJUnitReport, renderCapturedVerification } from "./core/domain/junit-report.js";
+import { replaceOrAppendEvidenceSection } from "./core/domain/evidence-sections.js";
 
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
 const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "ci", "aief-verify.yml");
@@ -442,9 +444,9 @@ const COMMAND_HELP = {
   close: {
     purpose: "Check that a Change is ready (files, tasks, evidence) and mark it Closed.",
     when: "After evidence is complete, before commit. With several open Changes, --change <id> is required — close never picks one implicitly.",
-    reads: "The selected Change (implicit only when exactly one is open): change.md, tasks.md, evidence.md.",
-    writes: "A Status section in change.md — only with --yes and only when all checks pass. Without --yes it writes nothing.",
-    example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)",
+    reads: "The selected Change (implicit only when exactly one is open): change.md, tasks.md, evidence.md. With --evidence-from <path>, also a JUnit XML report at that path (already produced by your own test runner/CI — never executed by AIEF).",
+    writes: "A Status section in change.md — only with --yes and only when all checks pass. With --evidence-from <path> (Change 0071), the Change's evidence.md ## Verification section, filled in with the report's counts — existing content there is never overwritten, only appended to or, on a repeat capture, replaced in place. Without --yes or --evidence-from, writes nothing.",
+    example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)\naief close --evidence-from test-results.xml --change 0002-add-login   (capture test counts into evidence.md first)",
     next: "Commit your work, then aief status."
   },
   release: {
@@ -1058,8 +1060,31 @@ function close(args) {
     : resolveImplicitChange("aief close --yes");
   if (!changeDir) { printNext("aief status (list open Changes)", "aief new-change <name>"); return; }
   const name = path.relative(process.cwd(), changeDir);
-  const change = loadChange(changeDir);
+  let change = loadChange(changeDir);
   if (change.closed) { console.log(`${name} is already closed.`); return; }
+  // --evidence-from <path> (Change 0071): AIEF never executes a test, a
+  // command, or reaches the network (ADR-021) — this only reads a report
+  // file the user's own test runner/CI already produced, and fills in
+  // evidence.md's ## Verification section with it. Runs before the
+  // readiness check below, so a freshly-captured report is reflected in it.
+  if (typeof parsed["evidence-from"] === "string") {
+    const reportPath = parsed["evidence-from"];
+    const resolvedPath = path.resolve(process.cwd(), reportPath);
+    if (!fs.existsSync(resolvedPath)) { console.error(`--evidence-from: no such file: ${reportPath}`); process.exitCode = 1; return; }
+    let reportContent;
+    try { reportContent = fs.readFileSync(resolvedPath, "utf8"); } catch (err) { console.error(`--evidence-from: could not read ${reportPath}: ${err.message}`); process.exitCode = 1; return; }
+    const report = parseJUnitReport(reportContent);
+    if (!report) { console.error(`--evidence-from: no <testsuite> element found in ${reportPath}. Supported format: JUnit XML.`); process.exitCode = 1; return; }
+    const verificationBody = renderCapturedVerification(reportPath, report);
+    const evidencePath = path.join(changeDir, "evidence.md");
+    const currentEvidence = read(evidencePath);
+    const updatedEvidence = replaceOrAppendEvidenceSection(currentEvidence, "Verification", "Captured from `", verificationBody);
+    if (updatedEvidence !== currentEvidence) {
+      writeFile(evidencePath, updatedEvidence, true);
+      console.log(`Captured ${report.tests} test(s) (${report.failures} failed, ${report.errors} error(s)) from ${reportPath} into ${name}/evidence.md's Verification section.\n`);
+      change = loadChange(changeDir); // re-read: evidenceState may have changed
+    }
+  }
   // Same rules aief verify uses (core/services/change-verifier.js), never a
   // second, diverging implementation of "is this Change ready".
   const problems = checkChangeReadiness(change);
