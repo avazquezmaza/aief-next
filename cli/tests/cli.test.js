@@ -542,7 +542,7 @@ test("doctor: an override alone (no invalid resource) does not trigger the defau
   assert.doesNotMatch(out, /ignored/, "an override is a successful precedence decision, not something ignored");
 });
 
-test("bootstrap/analyze/prompt are unaffected by ai-specs/skills/ (Change 0054 touches only doctor)", () => {
+test("bootstrap/analyze are unaffected by ai-specs/skills/ (Change 0054 touches only doctor; Change 0069 later adds prompt — see its own tests below)", () => {
   const dir = makeProject({
     "README.md": "plain project",
     "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
@@ -552,6 +552,80 @@ test("bootstrap/analyze/prompt are unaffected by ai-specs/skills/ (Change 0054 t
   assert.doesNotMatch(bootstrap.out, /pair-programming/);
   const skillsDoc = fs.readFileSync(path.join(dir, "knowledge", "skills.md"), "utf8");
   assert.doesNotMatch(skillsDoc, /pair-programming/);
+});
+
+// --- Change 0069/ADR-023 follow-up: ai-specs/skills/ wired into `aief prompt` too ---
+
+test("prompt: with no ai-specs/skills/, the Skill context is byte-identical to before this Change", () => {
+  const dir = makeProject({ "README.md": "Multi-tenant SaaS platform." });
+  aief(dir, ["bootstrap"]);
+  const before = aief(dir, ["prompt", "--change", "0001-adopt-aief"]).out;
+  fs.mkdirSync(path.join(dir, "ai-specs", "skills"), { recursive: true });
+  // No files in it yet — presence of the empty directory alone must not
+  // change anything (discoverAiSpecs()'s own "no strong signal" contract).
+  const after = aief(dir, ["prompt", "--change", "0001-adopt-aief"]).out;
+  assert.equal(after, before);
+  assert.doesNotMatch(before, /ai-specs/);
+});
+
+test("prompt: a project-only ai-specs skill (no built-in match) appears tagged [project], with the honest no-operational-content fallback", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nRotate driver/navigator often.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- pair-programming \[project\]: recommended for this project, but it has no operational content yet/);
+});
+
+test("prompt: an ai-specs skill overriding a built-in id replaces it wholly — the built-in's promptContext/commonRisks never show for that id", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/ai-workflow-governance.md": "# Our Own Governance\n\nOverride text.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- ai-workflow-governance \[project override\]: recommended for this project, but it has no operational content yet/);
+  assert.doesNotMatch(out, /AI-generated artifacts start inactive/, "the built-in's own promptContext must not leak through for an overridden id");
+});
+
+test("prompt: a built-in Skill not overridden by any ai-specs/skills/ file keeps its full promptContext/commonRisks rendering", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- AI Workflow Governance: AI-generated artifacts start inactive/);
+  assert.match(out, /Watch out for: auto-activating generated artifacts/);
+});
+
+test("prompt: a second file claiming an already-claimed ai-specs id is excluded (never duplicated), the first still resolves normally, built-ins untouched", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/dup.md": "one",
+    "ai-specs/skills/dup.MD": "two"
+  });
+  aief(dir, ["bootstrap"]);
+  const { status, out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.equal(status, 0);
+  // "dup.MD" sorts before "dup.md" (ASCII), so it claims the id; "dup.md" is
+  // the duplicate — exactly one "dup" entry appears, never two.
+  assert.equal((out.match(/- dup \[project\]/g) || []).length, 1);
+  assert.match(out, /- AI Workflow Governance: AI-generated artifacts start inactive/, "the built-in Skill set is untouched by an unrelated ai-specs entry");
+});
+
+test("doctor's Skills report and prompt's Standards block are unaffected by Change 0069 (no shared ai-specs.js code touched)", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n",
+    "ai-specs/standards/api-design.md": "# API Design\n\nUse REST.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const doctorOut = aief(dir, ["doctor", "--verbose"]).out;
+  assert.match(doctorOut, /pair-programming \[project\]/);
+  const promptOut = aief(dir, ["prompt", "--change", "0001-adopt-aief"]).out;
+  assert.match(promptOut, /- ai-specs\/standards\/api-design\.md \[project\]/);
 });
 
 test("analyze creates an Analysis Change with the standard evidence structure", () => {

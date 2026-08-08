@@ -932,7 +932,18 @@ function prompt(args) {
   const isEnrichment = type === "enrichment";
   const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
   const project = detectProject();
-  const skills = recommendSkills(project);
+  // Change 0069: mirrors standardItems above — an ai-specs/skills/ addition
+  // or override (already visible in `aief doctor`, Change 0054/ADR-024) now
+  // also reaches the Skill context actually sent to an assistant. Builtin
+  // fields (promptContext/commonRisks/name) are reattached by id after
+  // resolving, since resolveSkillRecommendations()'s generic output only
+  // carries id/description/because/source/path/overridesBuiltin — swapping
+  // it in directly would silently drop every builtin's operational content.
+  const builtinSkills = recommendSkills(project);
+  const builtinSkillById = new Map(builtinSkills.map((s) => [s.id, s]));
+  const skills = resolveSkillRecommendations(builtinSkills, process.cwd()).items.map((item) => item.source === "builtin"
+    ? builtinSkillById.get(item.id)
+    : { id: item.id, name: item.id, tag: item.overridesBuiltin ? " [project override]" : " [project]" });
   // Re-run guardrail: derived from files, no hidden state. Empty or template
   // ("Pending.") evidence is the normal fresh case and gets no warning.
   const evidenceContent = read(path.join(changeDir, "evidence.md"));
@@ -949,8 +960,8 @@ function prompt(args) {
     ? `- knowledge/standards/${s.id}.md`
     : `- ai-specs/standards/${s.id}.md${s.overridesBuiltin ? " [project override]" : " [project]"}`).join("\n")}\n` : "";
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
-    ? `- ${s.name || s.id}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
-    : `- ${s.name || s.id}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
+    ? `- ${s.name || s.id}${s.tag || ""}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
+    : `- ${s.name || s.id}${s.tag || ""}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
   // Entrega 4 (Change 0046, ADR-018 §"work") — additive Workflow/SDD context,
   // same discipline as standardsBlock/skillsBlock: empty string, no header,
   // when the Change never opted in (no track / no sdd). Purely informational
