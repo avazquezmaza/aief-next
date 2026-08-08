@@ -596,7 +596,11 @@ test("prompt: a built-in Skill not overridden by any ai-specs/skills/ file keeps
   });
   aief(dir, ["bootstrap"]);
   const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
-  assert.match(out, /- AI Workflow Governance: AI-generated artifacts start inactive/);
+  // "AI Workflow Governance" is triggered by the aiRoadmap detector (a weak,
+  // keyword-in-doc signal — AGENTS.md's own boilerplate text mentions "AI
+  // assistants") — Change 0072 tags it accordingly; this assertion was
+  // updated to match, not silently left describing untagged output.
+  assert.match(out, /- AI Workflow Governance \(weak signal — confirm before relying on this\): AI-generated artifacts start inactive/);
   assert.match(out, /Watch out for: auto-activating generated artifacts/);
 });
 
@@ -612,7 +616,10 @@ test("prompt: a second file claiming an already-claimed ai-specs id is excluded 
   // "dup.MD" sorts before "dup.md" (ASCII), so it claims the id; "dup.md" is
   // the duplicate — exactly one "dup" entry appears, never two.
   assert.equal((out.match(/- dup \[project\]/g) || []).length, 1);
-  assert.match(out, /- AI Workflow Governance: AI-generated artifacts start inactive/, "the built-in Skill set is untouched by an unrelated ai-specs entry");
+  // Tagged per Change 0072 (aiRoadmap is a weak signal) — see the dedicated
+  // test above for that reasoning; this assertion only cares that the
+  // built-in Skill itself is untouched by an unrelated ai-specs entry.
+  assert.match(out, /- AI Workflow Governance \(weak signal — confirm before relying on this\): AI-generated artifacts start inactive/, "the built-in Skill set is untouched by an unrelated ai-specs entry");
 });
 
 test("doctor's Skills report and prompt's Standards block are unaffected by Change 0069 (no shared ai-specs.js code touched)", () => {
@@ -626,6 +633,39 @@ test("doctor's Skills report and prompt's Standards block are unaffected by Chan
   assert.match(doctorOut, /pair-programming \[project\]/);
   const promptOut = aief(dir, ["prompt", "--change", "0001-adopt-aief"]).out;
   assert.match(promptOut, /- ai-specs\/standards\/api-design\.md \[project\]/);
+});
+
+// --- Change 0072: weak-signal Skills are tagged in prompt's Skill context ---
+
+test("prompt: a Skill triggered only by a weak (keyword-in-doc) signal is tagged 'weak signal — confirm before relying on this'", () => {
+  const dir = makeProject({ "README.md": "Multi-tenant SaaS platform." });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- Multitenant SaaS Architect \(weak signal — confirm before relying on this\): This is a multitenant system/);
+});
+
+test("prompt: the no-signals fallback Skill is never tagged as a weak signal — it is an honest statement, not a guess", () => {
+  // Deliberately no bootstrap: AIEF's own generated AGENTS.md text ("AI
+  // assistants...") would itself trigger the weak aiRoadmap signal, making
+  // a genuine zero-signal project impossible to reach post-bootstrap. A
+  // plain new-change on a project with no AGENTS.md/README keyword avoids
+  // that self-triggering entirely.
+  const dir = makeProject({ "README.md": "x" });
+  aief(dir, ["new-change", "thing"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /- Project Architecture Reviewer: recommended for this project, but it has no operational content yet/);
+  assert.doesNotMatch(out, /weak signal/);
+});
+
+test("prompt: project-sourced ai-specs Skills keep their existing [project]/[project override] tags, unaffected by Change 0072's weak-signal tag", () => {
+  const dir = makeProject({
+    "README.md": "Multi-tenant SaaS platform.",
+    "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /- pair-programming \[project\]: recommended for this project/);
+  assert.doesNotMatch(out, /pair-programming.*weak signal/);
 });
 
 test("analyze creates an Analysis Change with the standard evidence structure", () => {

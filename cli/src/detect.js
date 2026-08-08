@@ -87,8 +87,14 @@ export function recommendSkills(project, catalog = loadCatalog()) {
     if (skill.fallback) continue;
     const triggers = (skill.when || []).filter((id) => signalById.has(id));
     if (!triggers.length) continue;
+    // Change 0072: confidence reflects the strongest trigger — "strong" for
+    // a real dependency (package.json), "weak" when every trigger is only a
+    // keyword found in a doc file. Never a new signal, only a reflection of
+    // what detectProject() already computed per-detector.
+    const confidence = triggers.some((id) => signalById.get(id).signal === "strong") ? "strong" : "weak";
     recommendations.push({
       ...skill,
+      confidence,
       because: triggers.map((id) => {
         const signal = signalById.get(id);
         return `${signal.description} detected (${signal.reasons.join("; ")}) — ${signal.signal} signal`;
@@ -101,9 +107,14 @@ export function recommendSkills(project, catalog = loadCatalog()) {
     if (fallback) {
       recommendations.push({
         ...fallback,
+        confidence: null, // an honest fallback statement, not a guess — never tagged as uncertain
         because: ["no strong technology signals detected; general review recommended"]
       });
     }
   }
-  return recommendations;
+  // Deterministic reordering of already-computed data, not a new heuristic:
+  // strong-confidence recommendations first, weak/fallback after. Array.sort
+  // is stable in every JS engine this project targets (Node >= 18), so
+  // catalog order is preserved within each group.
+  return recommendations.sort((a, b) => (a.confidence === "strong" ? 0 : 1) - (b.confidence === "strong" ? 0 : 1));
 }
