@@ -1595,7 +1595,7 @@ function doctorEnvironment() {
   return missingRequired;
 }
 function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
-function initProject(name) { if (!name) return bootstrapHere(); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
+function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a
 // non-interactive shell (CI, piped input, the test suite).
@@ -1636,7 +1636,7 @@ function configureSddProvider(specbootMarker) {
 // 0052). It creates only visible structure via runAdoption(), reports how
 // AIEF fits with OpenSpec and SpecBoot, resolves the SDD Provider (R4), and
 // ends with one recommended next command.
-function bootstrapHere() {
+function bootstrapHere(opts = {}) {
   section("AIEF Bootstrap");
   console.log("Purpose: bootstrap the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
   const openspecCli = commandExists("openspec") || commandExists("opsx");
@@ -1656,6 +1656,8 @@ function bootstrapHere() {
   console.log(artifacts.length
     ? `Bootstrap complete — created ${artifacts.length} new artifact(s) (see above).`
     : "Bootstrap complete — this directory was already bootstrapped, nothing new to create.");
+  const guided = opts.interactive === true && bootstrapInteractiveNextStep();
+  if (guided) return;
   console.log("\nNext steps:");
   console.log("  1. Run: aief doctor");
   console.log("  2. Install OpenSpec if missing: npm install -g @fission-ai/openspec@latest");
@@ -1663,9 +1665,54 @@ function bootstrapHere() {
   if (specboot) console.log("  4. SpecBoot detected — see adapters/specboot/README.md (deeper LIDR integration is a following AIEF 3.1 Change).");
   console.log(`  ${specboot ? "5" : "4"}. Create your first AIEF change: aief new-change <name>`);
 }
+// Line-buffered stdin reader for --interactive's (possibly multi-question)
+// flow. Unlike promptSync() (a single blocking read, used only for
+// configureSddProvider()'s ambiguous-provider case, where stdin is always a
+// real, canonical-mode TTY and exactly one line is ever needed), --interactive
+// has no isTTY gate and may run over piped/automated stdin (Change 0068's own
+// test suite) — where a single read() can return several newline-terminated
+// answers at once. This buffers any bytes read past the first newline so a
+// second question doesn't lose them.
+function makeLineReader() {
+  let buffered = "";
+  return function readLine(question) {
+    process.stdout.write(question);
+    while (!buffered.includes("\n")) {
+      const chunk = Buffer.alloc(2048);
+      let bytesRead = 0;
+      try { bytesRead = fs.readSync(0, chunk, 0, chunk.length, null); } catch { bytesRead = 0; }
+      if (bytesRead === 0) break; // EOF — return whatever was buffered, if anything.
+      buffered += chunk.toString("utf8", 0, bytesRead);
+    }
+    const newlineIndex = buffered.indexOf("\n");
+    let line;
+    if (newlineIndex === -1) { line = buffered; buffered = ""; }
+    else { line = buffered.slice(0, newlineIndex); buffered = buffered.slice(newlineIndex + 1); }
+    return line.trim();
+  };
+}
+// `--interactive` (Change 0068): merges the manual "read Next steps, then
+// separately type aief analyze / aief new-change <name>" flow into one
+// guided prompt, for users who opt in. Returns true if it handled the
+// "what's next" step itself (so bootstrapHere() skips the static text);
+// false if the caller should fall back to it.
+function bootstrapInteractiveNextStep() {
+  const readLine = makeLineReader();
+  const answer = readLine(
+    '\nCreate your first Change now?\n  [a] Analyze this existing project (aief analyze)\n  [n] Start a new feature Change (aief new-change)\n  [s] Skip — I\'ll run a command myself\nChoice [s]: '
+  ).toLowerCase();
+  if (answer === "a" || answer === "analyze") { analyze([]); return true; }
+  if (answer === "n" || answer === "new-change") {
+    const name = readLine("Change name: ");
+    if (name) { newChange([name]); return true; }
+    console.log("No name given — skipping.");
+    return false;
+  }
+  return false;
+}
 function bootstrap(args) {
   const parsed = parseArgs(args);
-  initProject(parsed._[0]);
+  initProject(parsed._[0], { interactive: parsed.interactive === true });
 }
 // Validate the OpenSpec CLI contract before delegating. Never assume
 // "openspec propose <idea>" exists: check installation, version and
