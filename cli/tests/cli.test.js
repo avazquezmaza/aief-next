@@ -27,6 +27,18 @@ function aief(cwd, args, env = {}) {
   });
   return { status: result.status, out: `${result.stdout}${result.stderr}` };
 }
+// For --interactive (Change 0068): feeds piped stdin, simulating a user's
+// typed answers (one per line). Also proves --interactive never hangs when
+// stdin isn't a real TTY, since spawnSync would time out rather than pass.
+function aiefWithInput(cwd, args, input, env = {}) {
+  const result = spawnSync(process.execPath, [BIN, ...args], {
+    cwd,
+    input,
+    encoding: "utf8",
+    env: { ...process.env, ...env }
+  });
+  return { status: result.status, out: `${result.stdout}${result.stderr}` };
+}
 
 test("new-change assigns sequential ids", () => {
   const dir = makeProject();
@@ -58,6 +70,68 @@ test("bootstrap does not touch application files", () => {
   const dir = makeProject({ "src/app.js": "console.log('app');" });
   aief(dir, ["bootstrap"]);
   assert.equal(fs.readFileSync(path.join(dir, "src", "app.js"), "utf8"), "console.log('app');");
+});
+
+test("bootstrap (no --interactive) is byte-identical to before Change 0068", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Create your first Change now\?/);
+  assert.match(out, /Next steps:/);
+});
+
+test("bootstrap --interactive: no answer given (immediate EOF) falls back to the static Next steps text, after asking (Change 0068)", () => {
+  const dir = makeProject();
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "--interactive"], "");
+  assert.equal(status, 0);
+  assert.match(out, /Create your first Change now\?/);
+  assert.match(out, /Next steps:/);
+});
+
+test("bootstrap --interactive: 's' (skip) falls back to the static Next steps text (Change 0068)", () => {
+  const dir = makeProject();
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "--interactive"], "s\n");
+  assert.equal(status, 0);
+  assert.match(out, /Next steps:/);
+  assert.match(out, /Create your first AIEF change: aief new-change <name>/);
+});
+
+test("bootstrap --interactive: 'a' runs analyze() directly, no separate command needed (Change 0068)", () => {
+  const dir = makeProject();
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "--interactive"], "a\n");
+  assert.equal(status, 0);
+  assert.match(out, /AIEF Analyze/);
+  assert.doesNotMatch(out, /Next steps:/);
+  const changes = fs.readdirSync(path.join(dir, "changes")).sort();
+  assert.ok(changes.some((c) => c.includes("analyze-current-architecture")));
+});
+
+test("bootstrap --interactive: 'n' + a name runs new-change() directly, even with both answers piped in one write (Change 0068)", () => {
+  const dir = makeProject();
+  // Both lines arrive in a single write — the line reader must not lose the
+  // second answer to the first read() call (the bug this Change's own
+  // line-buffered reader fixes over a naive single-read-per-question prompt).
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "--interactive"], "n\nmy first feature\n");
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Next steps:/);
+  const changes = fs.readdirSync(path.join(dir, "changes")).sort();
+  assert.ok(changes.some((c) => c.includes("my-first-feature")));
+});
+
+test("bootstrap --interactive: 'n' with no name given falls back to the static Next steps text (Change 0068)", () => {
+  const dir = makeProject();
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "--interactive"], "n\n\n");
+  assert.equal(status, 0);
+  assert.match(out, /No name given — skipping\./);
+  assert.match(out, /Next steps:/);
+});
+
+test("bootstrap <name> --interactive: new-project skeleton is unaffected, no prompt, no hang (Change 0068)", () => {
+  const dir = makeProject();
+  const { status, out } = aiefWithInput(dir, ["bootstrap", "new-proj", "--interactive"], "");
+  assert.equal(status, 0);
+  assert.match(out, /Created AIEF project/);
+  assert.doesNotMatch(out, /Create your first Change now\?/);
 });
 
 test("bootstrap creates starter standards and never overwrites existing ones", () => {
