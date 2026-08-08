@@ -50,4 +50,4 @@ place to actually learn a term.
 
 ## Status
 
-Open
+Closed (2026-08-08)
