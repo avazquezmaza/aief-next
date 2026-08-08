@@ -79,4 +79,4 @@ to `evidence.md`, the same way `aief bootstrap` already auto-writes the Adoption
 
 ## Status
 
-Open
+Closed (2026-08-08)
