@@ -1,18 +1,12 @@
 // OpenSpecProvider (AIEF Core 3.0, Entrega 3 — SDD Provider, Change 0045).
 //
-// Deliberate, documented duplication note: `run()`/`commandExists()`-style
-// detection already exists in cli.js's private `openspecInfo()`, used by
-// `propose()`. That function is NOT relocated or imported here — the
-// commissioning instruction is explicit that `propose()` and everything it
-// depends on must not change in this Entrega ("no cambies: detección actual
-// del binario ... no refactorices propose()"). Editing cli.js at all, even
-// to relocate a helper, carries a real risk of behavior drift for a working,
-// tested command. This module therefore has its own small, self-contained
-// binary-detection implementation instead — a few lines of generic shell
-// process-spawning code, not business logic — and the resulting duplication
-// is recorded here and in design.md/evidence.md as a known, bounded,
-// deliberately deferred consolidation (ADR-017's own recorded obligation to
-// wire `propose()` to this provider in a later Change would resolve it).
+// `run()`/`commandExists()` used to be duplicated here — Change 0045's
+// commissioning instruction forbade touching cli.js in that Entrega, so this
+// module got its own private copy of cli.js's identical binary-detection
+// helpers instead of importing them, and the duplication was recorded as a
+// known, bounded, deliberately deferred consolidation (ADR-017's own
+// obligation for "whichever later Change" wired it up). Change 0070 is that
+// Change: both files now import the one shared implementation below.
 //
 // Directory shape resolved against `adapters/openspec/mapping.md` (verified
 // against the upstream OpenSpec project's documented convention):
@@ -21,7 +15,7 @@
 // both approaches") — its absence is `not_applicable`, never `missing`.
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { commandExists } from "../process-utils.js";
 
 import { makeArtifact, readArtifactFile, parseRequirements, parseTasks } from "../core/domain/sdd-model.js";
 
@@ -35,16 +29,6 @@ export const CAPABILITIES = {
   validate: true,
   archive: false
 };
-
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "pipe", shell: process.platform === "win32", encoding: "utf8" });
-  return { status: result.status, stdout: result.stdout || "", stderr: result.stderr || "" };
-}
-
-function commandExists(command) {
-  const checker = process.platform === "win32" ? "where" : "which";
-  return run(checker, [command]).status === 0;
-}
 
 // detect(cwd) -> { available, cliPresent, structurePresent, reason? }
 // Binary presence and project-structure presence are checked and reported
