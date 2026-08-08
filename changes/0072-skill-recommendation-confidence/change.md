@@ -65,4 +65,4 @@ exists and is computed — it just never reaches the one place that matters most
 
 ## Status
 
-Open
+Closed (2026-08-08)
