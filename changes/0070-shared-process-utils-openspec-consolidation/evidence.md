@@ -86,3 +86,18 @@ note"): the provider's `CAPABILITIES.create` is `false` and `createChange()` is 
 making that a real capability-model decision, not a helper deduplication. That is #17b in the
 agreed roadmap and would need its own explicitly-scoped Change (and likely its own ADR, matching
 the precedent ADR-019/020/021 set for Skills/Hooks/Verification Rules).
+
+**#17b follow-up (evaluated, no further Change needed):** the lighter alternative — having
+`propose()` reuse the provider's `detect()` for its own OpenSpec-presence check, without touching
+the capability model — was evaluated and found unsafe, not merely low-value. `detect()` answers
+"does `openspec/` project structure already exist" and deliberately skips the CLI-binary check
+when it does (`cliPresent: null`) — a committed `openspec/` with no local CLI install is a valid
+case for *reading* artifacts (e.g. CI). `propose()`'s `openspecInfo()` answers a different
+question — "can the `openspec` binary be invoked right now to delegate `propose <idea>`" — needed
+regardless of whether `openspec/` exists yet (delegating `propose` is typically what creates it).
+Reusing `detect().available` for `propose()`'s decision would make a project with a committed
+`openspec/` but no installed CLI incorrectly attempt delegation instead of falling back to local
+generation — a real regression, not a cleanup. No further Change follows from this; the one safe,
+real duplication this ADR named was `run()`/`commandExists()`, already resolved above. The full
+`create`-capability path remains available as a separate, explicitly-scoped, ADR-backed decision
+if the project ever wants `propose()` to delegate through the provider boundary itself.
