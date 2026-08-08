@@ -60,4 +60,4 @@ override never reaches the prompt an assistant actually receives. This Change cl
 
 ## Status
 
-Open
+Closed (2026-08-08)
