@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { run, commandExists } from "./process-utils.js";
 import { detectProject, recommendSkills } from "./detect.js";
 import { PROVIDERS, providerList } from "./requirement.js";
 import { retrieveRequirement, hasAdapter, implementedProviders } from "./requirement-providers/index.js";
@@ -44,13 +44,8 @@ function writeFile(filePath, content, overwrite = false) {
   fs.writeFileSync(filePath, content, "utf8");
   return true;
 }
-function run(command, args = [], options = {}) {
-  return spawnSync(command, args, { stdio: options.stdio || "pipe", shell: process.platform === "win32", encoding: "utf8" });
-}
-function commandExists(command) {
-  const checker = process.platform === "win32" ? "where" : "which";
-  return run(checker, [command]).status === 0;
-}
+// run()/commandExists() now live in ./process-utils.js (Change 0070) —
+// shared with sdd-providers/openspec.js, which used to carry its own copy.
 function slugify(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
