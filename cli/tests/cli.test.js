@@ -902,6 +902,107 @@ test("close refuses an incomplete Change and explains what is pending", () => {
   assert.doesNotMatch(fs.readFileSync(path.join(dir, "changes", "0001-thing", "change.md"), "utf8"), /## Status/);
 });
 
+// --- Change 0071: `aief close --evidence-from <path>` (JUnit XML capture) ---
+
+const JUNIT_REPORT = '<testsuites><testsuite name="unit" tests="10" failures="1" errors="0" skipped="0" time="2.5"/></testsuites>';
+
+test("close --evidence-from: a valid JUnit report fills in evidence.md's Verification section and proceeds with the normal readiness report", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  const { status, out } = aief(dir, ["close", "--evidence-from", "report.xml"]);
+  assert.equal(status, 0);
+  assert.match(out, /Captured 10 test\(s\) \(1 failed, 0 error\(s\)\) from report\.xml into changes\/0001-thing\/evidence\.md's Verification section\./);
+  assert.match(out, /unchecked task/, "the normal readiness report still runs after the capture");
+  const evidence = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
+  assert.match(evidence, /### Captured Test Report/);
+  assert.match(evidence, /Captured from `report\.xml` \(JUnit XML, 1 suite\(s\)\) — not executed by AIEF\./);
+  assert.match(evidence, /- Tests: 10/);
+});
+
+test("close --evidence-from: a missing report path exits 1 with a clear message, writes nothing", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const before = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
+  const { status, out } = aief(dir, ["close", "--evidence-from", "does-not-exist.xml"]);
+  assert.equal(status, 1);
+  assert.match(out, /--evidence-from: no such file: does-not-exist\.xml/);
+  assert.equal(fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8"), before);
+});
+
+test("close --evidence-from: a file with no <testsuite> element exits 1, writes nothing", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  fs.writeFileSync(path.join(dir, "not-a-report.xml"), "<html>nope</html>", "utf8");
+  const before = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
+  const { status, out } = aief(dir, ["close", "--evidence-from", "not-a-report.xml"]);
+  assert.equal(status, 1);
+  assert.match(out, /no <testsuite> element found in not-a-report\.xml\. Supported format: JUnit XML\./);
+  assert.equal(fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8"), before);
+});
+
+test("close --evidence-from: running it twice (updated report) updates the numbers without duplicating the section", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  aief(dir, ["close", "--evidence-from", "report.xml"]);
+  const updatedReport = '<testsuites><testsuite name="unit" tests="10" failures="0" errors="0" skipped="0" time="2.1"/></testsuites>';
+  fs.writeFileSync(path.join(dir, "report.xml"), updatedReport, "utf8");
+  aief(dir, ["close", "--evidence-from", "report.xml"]);
+  const evidence = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
+  assert.equal((evidence.match(/### Captured Test Report/g) || []).length, 1);
+  assert.match(evidence, /- Failed: 0/);
+  assert.doesNotMatch(evidence, /- Failed: 1/);
+});
+
+test("close --evidence-from: a Verification section with real human-written content is preserved, capture appended below it, idempotent on repeat", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const changeDir = path.join(dir, "changes", "0001-thing");
+  const humanEvidence = "# Evidence\n\n## Summary\n\nPending.\n\n## Verification\n\nI ran the tests manually and they passed.\n\n## Findings\n\nPending.\n";
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), humanEvidence, "utf8");
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  aief(dir, ["close", "--evidence-from", "report.xml"]);
+  aief(dir, ["close", "--evidence-from", "report.xml"]);
+  const evidence = fs.readFileSync(path.join(changeDir, "evidence.md"), "utf8");
+  assert.match(evidence, /I ran the tests manually and they passed\./, "human-written content must survive both captures");
+  assert.equal((evidence.match(/### Captured Test Report/g) || []).length, 1, "must not duplicate on the second capture");
+});
+
+test("close --evidence-from: without --yes is a capture-only run — no ## Status is written even when the rest of the Change is otherwise ready", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const changeDir = path.join(dir, "changes", "0001-thing");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n\n## Verification\n\nPending.\n", "utf8");
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  const { status, out } = aief(dir, ["close", "--evidence-from", "report.xml"]);
+  assert.equal(status, 0);
+  assert.match(out, /All readiness checks passed/);
+  assert.doesNotMatch(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Status/);
+});
+
+test("close --evidence-from combined with --yes captures then closes in one call, when the rest of the Change is ready", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const changeDir = path.join(dir, "changes", "0001-thing");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n\n## Verification\n\nPending.\n", "utf8");
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  const { status, out } = aief(dir, ["close", "--evidence-from", "report.xml", "--yes"]);
+  assert.equal(status, 0);
+  assert.match(out, /✓ Closed changes\/0001-thing/);
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Status\n\nClosed \(\d{4}-\d{2}-\d{2}\)/);
+});
+
+test("close without --evidence-from is byte-identical to before Change 0071", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const { status, out } = aief(dir, ["close"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Captured \d+ test/);
+});
+
 test("close --yes marks a ready Change as Closed; the Change stops being active", () => {
   const dir = makeProject();
   aief(dir, ["new-change", "thing"]);
