@@ -2645,3 +2645,73 @@ test("verify --requirements does not affect close/propose/status/prompt/Skills/H
   const { out } = aief(dir, ["verify", "--change", "0001-vr-scope-thing", "--requirements"]);
   assert.doesNotMatch(out, /Skill Catalog|Skills Runtime|─── Skill:/);
 });
+
+// --- F7/H4: unknown CLI options are rejected explicitly (Change 0077) ----
+
+test("verify --verboes (unknown flag) fails explicitly instead of running as plain verify", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["verify", "--verboes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("doctor --verbos (unknown flag) fails explicitly instead of silently running non-verbose doctor", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["doctor", "--verbos"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("status --nex (unknown flag) fails explicitly instead of silently running plain status", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["status", "--nex"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("new-change --typ enrichment (unknown flag) fails explicitly, no Change is created", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["new-change", "--typ", "enrichment", "a thing"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+  assert.ok(!fs.existsSync(path.join(dir, "changes")), "no changes/ directory should be created on a rejected invocation");
+});
+
+test("close --yess (unknown flag) fails explicitly instead of silently behaving like a dry run", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "yess-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-yess-thing");
+  const before = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  const { status, out } = aief(dir, ["close", "--yess", "--change", "0001-yess-thing"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+  assert.equal(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), before, "close --yess must not mutate change.md");
+});
+
+test("a genuinely unknown top-level flag on a flag-free command (analyze --bogus) fails explicitly", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["analyze", "--bogus"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("valid flags still work after the parser migration: verify --requirements, status --next --graph, close --yes, new-change --type", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const nc = aief(dir, ["new-change", "--type", "analysis", "typed thing"]);
+  assert.equal(nc.status, 0);
+  assert.match(nc.out, /Created Change/);
+  assert.equal(aief(dir, ["status", "--next"]).status, 0);
+  assert.equal(aief(dir, ["status", "--graph"]).status, 0);
+  assert.equal(aief(dir, ["verify", "--change", "0001-typed-thing", "--requirements"]).status, 0);
+});
+
+test("--help / help / --version output is unaffected by the parser migration", () => {
+  const dir = makeProject();
+  const help1 = aief(dir, ["--help"]);
+  const help2 = aief(dir, ["help"]);
+  const version = aief(dir, ["--version"]);
+  assert.equal(help1.status, 0);
+  assert.equal(help1.out, help2.out);
+  assert.equal(version.status, 0);
+  assert.match(version.out, /^aief \d+\.\d+\.\d+/);
+});

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs as nodeParseArgs } from "node:util";
 import { run, commandExists } from "./process-utils.js";
 import { detectProject, recommendSkills } from "./detect.js";
 import { PROVIDERS, providerList } from "./requirement.js";
@@ -195,18 +196,51 @@ function printNext(...commands) {
   console.log("\nNext:");
   for (const command of commands) console.log(`  ${command}`);
 }
-function parseArgs(args) {
-  const parsed = { _: [] };
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    if (arg.startsWith("--")) {
-      const key = arg.slice(2);
-      const next = args[i + 1];
-      if (!next || next.startsWith("--")) parsed[key] = true;
-      else { parsed[key] = next; i += 1; }
-    } else parsed._.push(arg);
+// Strict, schema-based flag parsing (Change 0077, finding F7/H4). Every
+// command declares its own exact, already-known option set up front
+// (KNOWN_FLAGS below, one entry per command) via node:util.parseArgs()'s
+// own `options` shape — an option outside that set is rejected explicitly
+// (exit 1, clear message) instead of the old hand-rolled parser's silent
+// accept-and-ignore. Callers get back the same `{ _, ...flags }` shape
+// parseArgs() has always returned (positionals under `_`, boolean/string
+// flags at the top level) so no command handler's `parsed._`/`parsed.<flag>`
+// reads need to change — only the parsing call site itself does.
+function parseCommandArgs(command, args, optionsSchema = {}) {
+  let result;
+  try {
+    result = nodeParseArgs({ args, options: optionsSchema, allowPositionals: true, strict: true });
+  } catch (err) {
+    console.error(`aief ${command}: ${err.message}`);
+    process.exitCode = 1;
+    return null;
   }
-  return parsed;
+  return { _: result.positionals, ...result.values };
+}
+// Every command's exact current flag set, enumerated from its existing
+// parsed.<flag>/parsed["<flag>"] reads — no flag added, none removed.
+const KNOWN_FLAGS = {
+  "new-change": { type: { type: "string" } },
+  enrich: { file: { type: "string" } },
+  analyze: {},
+  propose: { change: { type: "string" } },
+  prompt: {
+    assistant: { type: "string" },
+    profile: { type: "string" },
+    change: { type: "string" },
+    skill: { type: "string" },
+    "list-skills": { type: "boolean" },
+    "set-assistant": { type: "string" },
+    "show-assistant": { type: "boolean" },
+    "clear-assistant": { type: "boolean" }
+  },
+  close: { yes: { type: "boolean" }, change: { type: "string" }, "evidence-from": { type: "string" } },
+  verify: { change: { type: "string" }, requirements: { type: "boolean" } },
+  status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
+  doctor: { verbose: { type: "boolean" } },
+  bootstrap: { interactive: { type: "boolean" } }
+};
+function parseArgs(command, args) {
+  return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});
 }
 function section(title) { console.log("\n" + title); console.log("─".repeat(60)); }
 // The sole caller is doctor() (AIEF 3.1, Change 0054/ADR-024) — bootstrap/
@@ -554,7 +588,7 @@ function createChange(name, options = {}) {
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
-function newChange(args) { const parsed = parseArgs(args); const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
+function newChange(args) { const parsed = parseArgs("new-change", args); if (!parsed) return; const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
 
 // Requirement Sources / Enrichment: real work starts in Jira, Notion, GitHub
 // Issues or a document, not in `aief new-change`. Every provider is read-only
@@ -601,7 +635,8 @@ function enrichmentChangeFiles(id, slug, provider, sourceId, requirement, retrie
   return { "change.md": changeMd, "spec.md": specMd, "tasks.md": tasksMd, "evidence.md": evidenceMd };
 }
 function enrich(args) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("enrich", args);
+  if (!parsed) return;
   const provider = (parsed._[0] || "").toLowerCase();
   const sourceId = parsed._[1] || "";
   section("AIEF Enrich");
@@ -762,7 +797,8 @@ function runAdoption() {
   return artifacts;
 }
 function analyze(args) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("analyze", args);
+  if (!parsed) return;
   section("AIEF Analyze");
   console.log("Purpose: create an Analysis Change seeded with the project context doctor already detects.\nWrites only under changes/<id>-<name>/.\n");
   const project = detectProject();
@@ -822,7 +858,9 @@ function showAssistantPreference() {
   console.log(`Resolved assistant: ${resolution.assistantId} (source: ${sourceLabel})`);
 }
 function prompt(args) {
-  const parsed = parseArgs(args); const profile = typeof parsed.profile === "string" ? parsed.profile : "developer";
+  const parsed = parseArgs("prompt", args);
+  if (!parsed) return;
+  const profile = typeof parsed.profile === "string" ? parsed.profile : "developer";
   if (parsed["set-assistant"] !== undefined) return setAssistantPreference(typeof parsed["set-assistant"] === "string" ? parsed["set-assistant"] : "");
   if (parsed["clear-assistant"] === true) return clearAssistantPreference();
   if (parsed["show-assistant"] === true) return showAssistantPreference();
@@ -1055,7 +1093,8 @@ function evidenceIsPlaceholder(changeDir) {
   return isEvidencePlaceholderContent(read(path.join(changeDir, "evidence.md")));
 }
 function close(args) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("close", args);
+  if (!parsed) return;
   section("AIEF Close");
   console.log("Purpose: check that the active Change is ready and, with --yes, mark it Closed in change.md.\n");
   // Closing is the most destructive workflow command: with multiple open
@@ -1212,7 +1251,8 @@ function runRequirementVerification(changeDir, report, inspection) {
   if (overall === "FAIL" || overall === "INVALID" || overall === "ERROR") process.exitCode = 1;
 }
 function verify(args = []) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("verify", args);
+  if (!parsed) return;
   section("AIEF Verify");
   console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n");
   // `--change <id>` verifies exactly one Change (and says which); the default
@@ -1562,7 +1602,8 @@ function statusGraph() {
   for (const issue of graph.issues) console.log(`- ${issue.type}: ${issue.detail}`);
 }
 function status(args = []) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("status", args);
+  if (!parsed) return;
   if (parsed.graph === true) {
     statusGraph();
     return;
@@ -1630,7 +1671,7 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-function doctor(args = []) { const parsed = parseArgs(args); const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
 function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check (bootstrap's ambiguous-provider case), so it never hangs a
@@ -1747,7 +1788,8 @@ function bootstrapInteractiveNextStep() {
   return false;
 }
 function bootstrap(args) {
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("bootstrap", args);
+  if (!parsed) return;
   initProject(parsed._[0], { interactive: parsed.interactive === true });
 }
 // Validate the OpenSpec CLI contract before delegating. Never assume
@@ -1764,7 +1806,8 @@ function openspecInfo() {
 }
 function propose(args) {
   section("AIEF Propose");
-  const parsed = parseArgs(args);
+  const parsed = parseArgs("propose", args);
+  if (!parsed) return;
   // --change continues an existing Change (e.g. after `aief enrich` + Human
   // Review) instead of forking a new one: it only adds/keeps proposal.md,
   // never touching change.md/spec.md/tasks.md, so the Requirement Source,
