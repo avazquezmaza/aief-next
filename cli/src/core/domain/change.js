@@ -159,8 +159,14 @@ export function isEvidencePlaceholderContent(evidenceMd) {
   return classifyEvidence(evidenceMd) === "placeholder";
 }
 
+// Recognizes all three standard CommonMark unordered-list bullets (-, *, +),
+// not just "-" (Change 0075, finding F1): an unchecked task written with a
+// standard, equally-valid Markdown bullet was previously invisible here,
+// letting a genuinely incomplete Change pass readiness. Fenced-code-block
+// content is deliberately still matched textually (unchanged, out of scope
+// for this fix) — see change 0075's evidence.md.
 export function countOpenTasks(tasksMd) {
-  return (tasksMd.match(/^\s*- \[ \]/gm) || []).length;
+  return (tasksMd.match(/^\s*[-*+] \[ \]/gm) || []).length;
 }
 
 // The single shared implementation of Change selection (Flux Portal dogfooding

@@ -74,6 +74,42 @@ test("loadChange: pending tasks are counted and surfaced by close's readiness ch
   assert.ok(checkChangeReadiness(change).includes("2 unchecked task(s) in tasks.md"));
 });
 
+// --- F1: standard Markdown unordered-list bullets ('-', '*', '+') --------
+
+test("loadChange: an unchecked task using a '*' bullet blocks readiness, same as '-' (Change 0075)", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n* [ ] Genuinely incomplete.\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 1);
+  assert.ok(checkChangeReadiness(change).includes("1 unchecked task(s) in tasks.md"));
+});
+
+test("loadChange: an unchecked task using a '+' bullet blocks readiness, same as '-' (Change 0075)", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n+ [ ] Genuinely incomplete.\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 1);
+  assert.ok(checkChangeReadiness(change).includes("1 unchecked task(s) in tasks.md"));
+});
+
+test("loadChange: a checked task using '*' or '+' bullets does not block readiness (Change 0075)", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n* [x] Done via asterisk.\n+ [x] Done via plus.\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 0);
+  assert.equal(checkChangeReadiness(change).length, 0);
+});
+
+test("loadChange: a mix of '-', '*', '+' unchecked tasks are all counted together (Change 0075)", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n- [ ] Hyphen.\n* [ ] Asterisk.\n+ [ ] Plus.\n- [x] Done.\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 3);
+  assert.ok(checkChangeReadiness(change).includes("3 unchecked task(s) in tasks.md"));
+});
+
+test("loadChange: a checkbox-looking line inside a fenced code block is still counted as open (explicitly unchanged by Change 0075 — out of scope)", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n```markdown\n- [ ] example inside a code block\n```\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 1, "fenced-code-block awareness is explicitly out of scope for Change 0075");
+});
+
 test("Discovery/Enrichment rules: an Enrichment Change missing its required sections fails verifyProject with specific problems", () => {
   const dir = makeChangeDir({
     "change.md": "# Change\n\n## ID\n\n`0002-jira-issue-1`\n\n## Type\n\nEnrichment\n\n## Objective\n\nEnrich.\n",
