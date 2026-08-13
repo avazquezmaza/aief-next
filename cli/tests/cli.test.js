@@ -2715,3 +2715,60 @@ test("--help / help / --version output is unaffected by the parser migration", (
   assert.equal(version.status, 0);
   assert.match(version.out, /^aief \d+\.\d+\.\d+/);
 });
+
+// --- Nested bootstrap protection (Change 0078) ---------------------------
+
+test("bootstrap from the actual project root is unchanged", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+});
+
+test("bootstrap from a fresh, unrelated directory with no AIEF ancestor anywhere is unchanged", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+});
+
+test("bootstrap from a subdirectory of an already-bootstrapped project refuses and creates nothing (Change 0078)", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const sub = path.join(root, "src");
+  fs.mkdirSync(sub, { recursive: true });
+  const { status, out } = aief(sub, ["bootstrap"]);
+  assert.equal(status, 1);
+  assert.match(out, /already exists at/i);
+  assert.ok(!fs.existsSync(path.join(sub, "AGENTS.md")), "no nested AGENTS.md should be created");
+  assert.ok(!fs.existsSync(path.join(sub, "changes")), "no nested changes/ should be created");
+});
+
+test("bootstrap --force in that same subdirectory proceeds, creating the nested structure explicitly (Change 0078)", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const sub = path.join(root, "src");
+  fs.mkdirSync(sub, { recursive: true });
+  const { status, out } = aief(sub, ["bootstrap", "--force"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+  assert.ok(fs.existsSync(path.join(sub, "AGENTS.md")), "--force should still create the nested structure, explicitly opted into");
+});
+
+test("bootstrap re-run in an already-bootstrapped directory (idempotency) is unaffected by the ancestor guard", () => {
+  const dir = makeProject();
+  aief(dir, ["bootstrap"]);
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /already exists|already bootstrapped/i);
+});
+
+test("bootstrap <name> (new project elsewhere) is unaffected by the ancestor guard even from inside an already-bootstrapped project", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const { status, out } = aief(root, ["bootstrap", "new-elsewhere-project"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created AIEF project/);
+  assert.ok(fs.existsSync(path.join(root, "new-elsewhere-project", "AGENTS.md")));
+});

@@ -237,7 +237,7 @@ const KNOWN_FLAGS = {
   verify: { change: { type: "string" }, requirements: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
-  bootstrap: { interactive: { type: "boolean" } }
+  bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
 };
 function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});
@@ -1713,9 +1713,41 @@ function configureSddProvider(specbootMarker) {
 // 0052). It creates only visible structure via runAdoption(), reports how
 // AIEF fits with OpenSpec and SpecBoot, resolves the SDD Provider (R4), and
 // ends with one recommended next command.
+// True if `startDir` has an ancestor (strictly above it, never itself)
+// whose own AGENTS.md and changes/ coexist — the same two markers
+// bootstrap's own "Detected:" section already checks for this directory.
+// Walks up to the filesystem root; returns null if none is found.
+function findAncestorAiefProject(startDir) {
+  let dir = path.dirname(startDir);
+  while (true) {
+    const changesDir = path.join(dir, "changes");
+    if (fs.existsSync(path.join(dir, "AGENTS.md")) && fs.existsSync(changesDir) && fs.statSync(changesDir).isDirectory()) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null; // reached the filesystem root
+    dir = parent;
+  }
+}
 function bootstrapHere(opts = {}) {
   section("AIEF Bootstrap");
   console.log("Purpose: bootstrap the current directory to work with AIEF.\nCreates only visible AIEF structure; never modifies application code, never overwrites existing files.\n");
+  // Ancestor-detection guard (Change 0078): nothing in AIEF walks upward to
+  // find a project root (docs/getting-started.md — explicit over implicit,
+  // by design), so a subdirectory of an already-bootstrapped project looks,
+  // from here, exactly like a fresh location. That silence is dangerous
+  // specifically for bootstrap, the one command that WRITES a governance
+  // structure: unchecked, it creates a second, independent one nested
+  // inside the real project with no warning. Only fires when this
+  // directory isn't already bootstrapped itself — an ordinary idempotent
+  // re-run (below) is untouched. Narrow and local to this one pre-flight
+  // check; no other command's working-directory resolution changes.
+  if (!(exists("AGENTS.md") && exists("changes")) && opts.force !== true) {
+    const ancestor = findAncestorAiefProject(process.cwd());
+    if (ancestor) {
+      console.error(`An AIEF project already exists at ${ancestor} — bootstrapping here would create a second, independent structure nested inside it.\nRun aief commands from ${ancestor} instead, or pass --force to bootstrap here anyway.`);
+      process.exitCode = 1;
+      return;
+    }
+  }
   const openspecCli = commandExists("openspec") || commandExists("opsx");
   const openspecProject = exists("openspec") || exists(".openspec");
   const specboot = commandExists("specboot") || exists("specboot") || exists(".specboot");
@@ -1790,7 +1822,7 @@ function bootstrapInteractiveNextStep() {
 function bootstrap(args) {
   const parsed = parseArgs("bootstrap", args);
   if (!parsed) return;
-  initProject(parsed._[0], { interactive: parsed.interactive === true });
+  initProject(parsed._[0], { interactive: parsed.interactive === true, force: parsed.force === true });
 }
 // Validate the OpenSpec CLI contract before delegating. Never assume
 // "openspec propose <idea>" exists: check installation, version and
