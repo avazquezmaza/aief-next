@@ -61,6 +61,16 @@ shape:
 **SDD Provider**. Both are optional and independent. Full field reference:
 [Configuration](configuration.md).
 
+**Current limitation — manifest status has no writer yet.** No AIEF command today creates,
+writes, or synchronizes `manifest.json` or its `status` field — `aief close --yes` writes only
+`change.md`'s `## Status` section. If a Change carries a manifest, closing it through `aief close`
+leaves `manifest.status` exactly as it was; `status`/`status --next`/`prompt` (which read the
+manifest as authoritative when present) will keep treating that Change as open until the manifest
+is updated by hand or by an external tool. `aief verify` and `aief close` are unaffected — both
+always read `change.md` directly, never the manifest, for the closed/open question. Treat a
+manifest's `status` field as advisory today, and keep `change.md`'s own `## Status` as the
+practical way to close a Change.
+
 ## Workflow Engine — Track, Stage, Gate
 
 A Change that declares a `track` gets a small state machine layered on top of it, read-only from

@@ -98,7 +98,12 @@ paths — see [Your first Change](#your-first-change) below.
 
 **Where do I run the commands?** From the root of the existing project's own repository — the same
 directory as its `package.json`/`README.md`. `aief bootstrap` (no argument) always targets the
-current directory; only `aief bootstrap <name>` creates a new project elsewhere.
+current directory; only `aief bootstrap <name>` creates a new project elsewhere. Every AIEF command
+resolves paths relative to the directory you run it from, not the project root — running from a
+subdirectory doesn't fail loudly, it silently treats that subdirectory as its own, separate
+project (and `aief bootstrap` run there creates a second, independent governance structure nested
+inside the real one). If a command reports "no AIEF project detected" somewhere you expected one,
+check you're at the actual root before assuming something else is wrong.
 
 **What does `doctor` inspect?** Your local toolchain (Node, npm, git, and optional tools like
 OpenSpec/SpecBoot) plus the current project's files — `package.json`, `README.md`, `AGENTS.md`,
