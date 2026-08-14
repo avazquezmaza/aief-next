@@ -3,14 +3,17 @@
 [![CI](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml/badge.svg)](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**AIEF turns any requirement into a context-complete prompt, then verifies the evidence your AI
-assistant leaves behind — the same discipline no matter which assistant does the work.**
+**AIEF is a repository-native governance framework for humans and AI assistants across software
+definition, implementation, verification, and change lifecycle management — the same discipline
+whether application code already exists or a project is still a PRD.**
 
 ## Why AIEF exists
 
 AI-assisted development gets messy fast: every developer prompts differently, requirements live in
 chat histories, decisions go untracked, "done" has no proof, and documentation drifts the moment a
-session ends. Assistants are excellent at implementing and remember nothing between sessions.
+session ends. Assistants are excellent at implementing and remember nothing between sessions. That
+same discipline gap starts even earlier for a project that has no code yet — architecture and
+product decisions get made in chat and never survive the conversation that made them.
 
 AIEF is a **workflow engine**, not an assistant. It doesn't write code — it composes context, keeps
 the record, and checks the evidence. It is a dependency-free Node.js CLI (`aief`) plus a set of
@@ -32,6 +35,23 @@ without changing its shape; none of it blocks `verify` or `close`, and `status -
 prints a recommendation. Full detail: [docs/workflow.md](docs/workflow.md) and
 [docs/architecture.md](docs/architecture.md).
 
+## Definition and Analysis: two starting points
+
+`aief analyze` classifies a repository from file evidence alone (never semantic guessing) before
+deciding what kind of Change to create:
+
+| Maturity | Evidence | Routes to | Answers |
+|---|---|---|---|
+| **Implemented** | real application source under a recognized source directory | Analysis Change | What exists today, and what should change? |
+| **Definition** | no application source, but a README/PRD/requirements document with real content | Definition Change | What should be built, and what must be decided first? |
+| **Ambiguous** | neither signal clears its bar (near-empty repository) | Analysis Change (explicit, backward-compatible fallback) | — override with `aief analyze --maturity definition` if it's actually pre-implementation work |
+
+A Definition Change is not a smaller Analysis Change — it never generates application code, and it
+gates on human governance: every architecture or product decision needs an explicit human-approved
+`Decision (human)`, never one an assistant fills in itself. Full model:
+[Concepts — Project Maturity](docs/concepts.md#project-maturity) and
+[Getting Started — Starting from a PRD](docs/getting-started.md#starting-from-a-prd-no-code-yet).
+
 ## Adopt AIEF in an existing project
 
 Existing projects are AIEF's primary use case — not a special case of "new project." `aief doctor`
@@ -52,6 +72,24 @@ aief analyze
 Full walkthrough — what each command reads/writes, what happens if `AGENTS.md` or `changes/`
 already exist, and how this coexists with OpenSpec/SpecBoot:
 [docs/getting-started.md — Adopting an existing project](docs/getting-started.md#adopting-an-existing-project).
+
+## Start a software initiative before code exists
+
+A repository can be legitimately pre-implementation — a README, a PRD, business/stakeholder
+constraints, and nothing under `src/` yet. The same two commands apply; `analyze` detects the
+difference and creates a Definition Change instead of an Analysis Change:
+
+```bash
+aief bootstrap
+aief analyze     # detects no application source + real PRD/README content
+                  # -> creates a Definition Change, not an Analysis one
+```
+
+The Definition Change captures Context, Known Requirements, Open Questions and Decisions Required;
+approved decisions are recorded durably in `knowledge/decisions.md`; `aief verify --strict`
+objectively checks completeness (every decision resolved, no unresolved human-approval task) before
+the Change can close. Full walkthrough:
+[docs/getting-started.md — Starting from a PRD](docs/getting-started.md#starting-from-a-prd-no-code-yet).
 
 ## Quick start
 
@@ -76,6 +114,9 @@ Full install steps and a first-Change walkthrough: [docs/getting-started.md](doc
 
 - **Context** — `aief prompt` composes `AGENTS.md`, an optional assistant adapter, project
   Standards and Skills, and the active Change into one portable, ready-to-paste prompt.
+- **Pre-implementation governance** — `aief analyze` detects when a project is still Definition
+  (no application source yet) and routes it to a Definition Change instead of an Analysis one, with
+  human-approved decisions gating close.
 - **Change management** — every unit of work is a Change directory; optional `manifest.json` opts
   it into staged tracks and gates.
 - **Evidence and verification** — `aief verify` checks structure unconditionally, and can
@@ -123,7 +164,8 @@ Adapter files, fallback behavior, and how compatibility was verified: [docs/cli.
 | I want to... | Go to |
 |---|---|
 | Get from zero to a verified Change | [Getting Started](docs/getting-started.md) |
-| Learn the vocabulary (Change, Track, Gate, SDD Provider, Skill, Hook, Verification Rule) | [Concepts](docs/concepts.md) ([Cheat Sheet](docs/cheat-sheet.md) for a one-page lookup) |
+| Start a project from a PRD, no code yet | [Getting Started — Starting from a PRD](docs/getting-started.md#starting-from-a-prd-no-code-yet) |
+| Learn the vocabulary (Change, Track, Gate, SDD Provider, Skill, Hook, Verification Rule, Project Maturity) | [Concepts](docs/concepts.md) ([Cheat Sheet](docs/cheat-sheet.md) for a one-page lookup) |
 | Understand the full lifecycle, tracks, and verification model | [Workflow](docs/workflow.md) |
 | Understand the implemented architecture | [Architecture](docs/architecture.md) |
 | Look up a CLI command or flag | [CLI Reference](docs/cli.md) |

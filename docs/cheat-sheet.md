@@ -10,6 +10,8 @@ One page, one line per term. For the full definition, follow the link into
 |---|---|---|
 | Change | The unit of work — a `changes/<id>-<slug>/` directory of Markdown files; the only source of truth. | [Concepts — Change](concepts.md#change) |
 | Change Manifest | Optional `manifest.json` next to `change.md`; opts a Change into Workflow Engine / SDD Provider features. | [Concepts — Change Manifest](concepts.md#change-manifest) |
+| Project Maturity | `aief analyze`'s deterministic, file-evidence classification — Implemented / Definition / Ambiguous — that decides whether it creates an Analysis or a Definition Change. | [Concepts — Project Maturity](concepts.md#project-maturity) |
+| Definition Change | Pre-implementation Change type answering *what should be built* — Context, Open Questions, Decisions Required, human-approved `Decision (human)`; never generates application code. | [Concepts — Change](concepts.md#change) |
 | Track / Stage / Gate | The Workflow Engine's read-only state machine: which stages/gates apply (`track`), where the Change stands (`stage`), what's blocking the next one (`gate`). | [Concepts — Workflow Engine](concepts.md#workflow-engine--track-stage-gate) |
 | SDD Provider | Where a Change's spec/tasks actually live — `local` (default) or `openspec`. | [Concepts — SDD Provider](concepts.md#sdd-provider) |
 | Requirement Source | A read-only view of a requirement from Jira/manual (Notion/GitHub Issues planned), normalized into one shape. | [Concepts — Requirement Source](concepts.md#requirement-source--normalized-requirement) |
@@ -25,7 +27,9 @@ One page, one line per term. For the full definition, follow the link into
 ## Canonical flow
 
 1. **`aief bootstrap`** — adopt AIEF into the current project (or scaffold a new one).
-2. **`aief analyze`** — capture the existing architecture, stack, and risks (existing projects).
+2. **`aief analyze`** — capture the existing architecture, stack, and risks (Implemented projects),
+   or open a Definition Change to resolve requirements/decisions first (Definition projects — see
+   [Concepts — Project Maturity](concepts.md#project-maturity)).
 3. **`aief new-change <name>`** or **`aief enrich <provider> <source-id>`** — start the unit of work.
 4. **`aief prompt`** — generate a context-complete prompt for your assistant.
 5. *(implement, with the assistant, outside AIEF)*

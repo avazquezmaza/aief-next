@@ -66,6 +66,13 @@ classification field. The shapes below carry distinct purposes and are worth nam
 Real source always wins over documentation richness: a well-documented, already-implemented
 project is still classified Implemented, never Definition.
 
+Project Standards (Change 0082) carry the same distinction where it matters: `base-standards.md`,
+`testing-standards.md` and `security-standards.md` each split into an **Applies now** section (what
+holds during Definition, before code exists — e.g. deciding testability and data ownership up
+front) and an **Applies once implementation starts** section (conventional code-level guidance). A
+Definition-stage project is never held to implementation-only guidance it hasn't reached yet; other
+standards (frontend, backend, documentation) are not maturity-split because they only apply once
+implementation exists.
 ## Change Manifest
 
 An optional `manifest.json` next to `change.md`. A Change with no manifest behaves exactly as it
