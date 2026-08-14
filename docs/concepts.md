@@ -23,21 +23,48 @@ A Change is **open** until its `change.md` carries a `## Status / Closed` sectio
 `closed`. Either way, **the files are the only source of truth**: there is no database, no session
 state, no hidden flag. Selection is always derived by reading `changes/` fresh.
 
-There is no separate Change type field distinguishing these in code — `analyze` sets `## Type` to
-`Analysis` in `change.md`, every other Change (including the one `bootstrap` creates) is `General`
-— but the three shapes below carry distinct purposes and are worth naming:
+`change.md`'s `## Type` names which of these a Change is (`General` by default; `Analysis`,
+`Enrichment` or `Definition` when created by the command that sets one) — read by `aief prompt`,
+`aief status`, and `aief verify` to decide what guidance/checks apply, never by a second
+classification field. The shapes below carry distinct purposes and are worth naming:
 
 - **Adoption Change** — created once by `aief bootstrap` (`changes/<id>-adopt-aief/`). Registers
   that AIEF was added to the project: its `evidence.md` is generated automatically from what
   `bootstrap` detected and created. It does not represent a product feature — there is nothing to
   implement beyond editing the starter standards to match the project and running `aief verify`.
-- **Analysis Change** — created by `aief analyze` (`changes/<id>-analyze-current-architecture/` by
-  default). Captures the existing repository's architecture, stack, standards gaps, and risks,
-  seeded with the same signals `doctor` detects. It produces a roadmap, not code — it's the input
-  for planning the first real Changes.
-- **Delivery Change** — every Change created by `aief new-change` or `aief enrich`: a feature, fix,
-  refactor, or other real unit of work, with its own `spec.md`, `tasks.md`, and implementation
-  evidence. This is what `aief prompt` composes a context-complete prompt for.
+- **Analysis Change** — created by `aief analyze` when the repository has real application source
+  (`changes/<id>-analyze-current-architecture/` by default). Captures the existing repository's
+  architecture, stack, standards gaps, and risks, seeded with the same signals `doctor` detects. It
+  produces a roadmap, not code — it's the input for planning the first real Changes.
+- **Definition Change** — created by `aief new-change --type definition`, or by `aief analyze` when
+  the repository looks pre-implementation: real requirements/context (a README/PRD/business
+  requirements document with real content) but no application source yet (Change 0079/0080). It
+  answers *what should be built*, not *what already exists*: Context, Known Requirements, Open
+  Questions, Decisions Required, a `Decision (human)` recorded only after explicit human approval,
+  and Implementation Prerequisites/Follow-up Changes — never application code as a side effect. See
+  [Getting Started — Starting from a PRD](getting-started.md#starting-from-a-prd-no-code-yet) for
+  the full flow, and [Project Maturity](#project-maturity) below for how `analyze` decides.
+- **Delivery Change** — every Change created by `aief new-change` (default) or `aief enrich`: a
+  feature, fix, refactor, or other real unit of work, with its own `spec.md`, `tasks.md`, and
+  implementation evidence. This is what `aief prompt` composes a context-complete prompt for.
+
+## Project Maturity
+
+`aief analyze` classifies a repository, deterministically and from file evidence only (Change
+0080), before deciding which kind of Change to create:
+
+- **Implemented** — at least one real, non-trivial source file exists under a recognized source
+  directory (`src`, `lib`, `app`, `cli`, `server`, `api`, `pkg`, `cmd`, `internal`). Routes to an
+  Analysis Change, exactly as before this feature existed.
+- **Definition** — no application source found, but a README/PRD/requirements-style document at
+  the repository root carries real content (≥ 30 words). Routes to a Definition Change instead.
+- **Ambiguous** — neither signal clears its bar (a near-empty repository). `aief analyze` keeps its
+  original default (an Analysis Change) rather than refusing to act — the smallest,
+  backward-compatible choice — but always says so explicitly, with the option to override via
+  `aief analyze --maturity definition` or `aief new-change --type definition`.
+
+Real source always wins over documentation richness: a well-documented, already-implemented
+project is still classified Implemented, never Definition.
 
 ## Change Manifest
 

@@ -28,6 +28,8 @@ import { selectNextChange } from "./core/services/next-change-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 import { parseJUnitReport, renderCapturedVerification } from "./core/domain/junit-report.js";
+import { classifyMaturity } from "./core/domain/project-maturity.js";
+import { analyzeDefinitionSections, DEFINITION_SECTIONS } from "./core/domain/definition-enrichment.js";
 import { replaceOrAppendEvidenceSection } from "./core/domain/evidence-sections.js";
 
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "standards");
@@ -221,7 +223,11 @@ function parseCommandArgs(command, args, optionsSchema = {}) {
 const KNOWN_FLAGS = {
   "new-change": { type: { type: "string" } },
   enrich: { file: { type: "string" } },
-  analyze: {},
+  // --maturity (Change 0080): explicit override for classifyMaturity()'s
+  // routing — lets a human force "definition"/"implemented" instead of
+  // accepting the detected value, the same "explicit over implicit" escape
+  // hatch --type already gives new-change. Never required for normal use.
+  analyze: { maturity: { type: "string" } },
   propose: { change: { type: "string" } },
   prompt: {
     assistant: { type: "string" },
@@ -234,7 +240,10 @@ const KNOWN_FLAGS = {
     "clear-assistant": { type: "boolean" }
   },
   close: { yes: { type: "boolean" }, change: { type: "string" }, "evidence-from": { type: "string" } },
-  verify: { change: { type: "string" }, requirements: { type: "boolean" } },
+  // --strict (Change 0083): opt-in objective-completeness checking on top of
+  // default verify's structural rules — never on by default (backward
+  // compatible), never a quality score (checkStrictCompleteness()).
+  verify: { change: { type: "string" }, requirements: { type: "boolean" }, strict: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
@@ -436,11 +445,11 @@ const COMMAND_HELP = {
     next: "aief prompt --profile architect."
   },
   "new-change": {
-    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md).",
-    when: "Whenever you start a meaningful unit of work.",
+    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton.",
+    when: "Whenever you start a meaningful unit of work. Use --type definition before application code exists, when what's unresolved is requirements/architecture/product decisions rather than implementation.",
     reads: "changes/ to compute the next ID.",
     writes: "changes/<next-id>-<name>/.",
-    example: "aief new-change add-login",
+    example: "aief new-change add-login   (or: aief new-change \"define project architecture\" --type definition)",
     next: "Fill change.md and spec.md, then aief prompt."
   },
   enrich: {
@@ -468,11 +477,11 @@ const COMMAND_HELP = {
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
-    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change.",
-    when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified.",
+    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change. --strict adds optional, objective completeness checks (unresolved TODO/TBD, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a Definition decision with no recorded outcome, an unresolved required human decision) on top of the default structural checks — default verify is unchanged either way.",
+    when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified. Add --strict when you want to catch objectively incomplete work, not just structurally broken Changes.",
     reads: "README.md, AGENTS.md, changes/, knowledge/.",
     writes: "Nothing.",
-    example: "aief verify   (or: aief verify --change 0002-add-login)",
+    example: "aief verify   (or: aief verify --change 0002-add-login --strict)",
     next: "Fix reported gaps, then aief close."
   },
   close: {
@@ -573,6 +582,20 @@ function analysisChangeFiles(id, slug, context) {
     "evidence.md": evidenceTemplate()
   };
 }
+// Definition Changes (Change 0079, ADR-013/ADR-031 pattern): pre-implementation
+// work — resolving what should be built, not analyzing what already exists.
+// Reuses the existing `## Type` surface (already General/Analysis/Enrichment)
+// with one more accepted value and the existing `(human)` task-marker gate —
+// no new command, no second approval mechanism. See change.md's own
+// "Inventory of what already exists" for the ADR-013 accounting.
+function definitionChangeFiles(id, slug, title = "") {
+  return {
+    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nDefinition\n\n## Objective\n\nDefine ${title || slug} before implementation begins: resolve open questions, evaluate options, and turn approved decisions into durable knowledge and implementation prerequisites.\n\n## Scope\n\n### In scope\n\n- Capture business/product context, known requirements and assumptions.\n- Raise open questions and identify decisions that require a human.\n- Evaluate options and trade-offs; recommend only where evidence supports it.\n- Record approved decisions in knowledge/decisions.md.\n- Produce implementation prerequisites and follow-up Changes.\n\n### Out of scope\n\n- Implementing application code.\n- Refactoring or scaffolding a codebase.\n- Modifying infrastructure.\n- Auto-approving architecture or product decisions — every decision below requires explicit (human) approval.\n\n## Context\n\n-\n\n## Business / Product Constraints\n\n-\n\n## Known Requirements\n\n-\n\n## Assumptions\n\n-\n\n## Open Questions\n\n-\n\n## Decisions Required\n\n-\n\n## Options Considered\n\n-\n\n## Recommendation\n\n-\n\n## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.\n\n## Rationale\n\n-\n\n## Consequences\n\n-\n\n## Non-Functional Requirements\n\n-\n\n## Security & Compliance\n\n-\n\n## Data & Domain\n\n-\n\n## Integrations\n\n-\n\n## Deployment & Operations\n\n-\n\n## Implementation Prerequisites\n\n-\n\n## Follow-up Changes\n\n-\n\n## Success Criteria\n\n- Open Questions are resolved or explicitly deferred.\n- Every entry in Decisions Required has a human-approved Decision recorded here and in knowledge/decisions.md.\n- Implementation Prerequisites and Follow-up Changes are identified.\n`,
+    "spec.md": `# Specification\n\n## Goal\n\nTurn ${title || slug} into durable, human-approved decisions and implementation-ready prerequisites — without writing application code.\n\n## Requirements\n\n-\n\n## Acceptance Criteria\n\n- [ ] Context, Business/Product Constraints and Known Requirements are captured.\n- [ ] Open Questions are answered or explicitly deferred.\n- [ ] Every Decision Required has a Recommendation and an explicit human Decision.\n- [ ] Approved decisions are recorded in knowledge/decisions.md.\n- [ ] Implementation Prerequisites and Follow-up Changes are listed.\n- [ ] Evidence updated.\n`,
+    "tasks.md": `# Tasks\n\n## Definition\n\n- [ ] Capture Context, Business/Product Constraints and Known Requirements.\n- [ ] List Assumptions and Open Questions.\n- [ ] Identify Decisions Required and evaluate Options Considered.\n- [ ] Write a Recommendation for each decision, only where evidence supports one.\n\n## Human Approval\n\n- [ ] (human) Review and approve, amend or reject each Recommendation in change.md.\n- [ ] (human) Record the final Decision and Rationale for each approved item.\n\n## Durable Knowledge\n\n- [ ] Record approved decisions in knowledge/decisions.md.\n- [ ] List Implementation Prerequisites and Follow-up Changes.\n\n## Evidence\n\n- [ ] Update evidence.md.\n`,
+    "evidence.md": evidenceTemplate()
+  };
+}
 function genericChangeFiles(id, slug, title = "") {
   return {
     "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nGeneral\n\n## Objective\n\n${title || slug}\n\n## Scope\n\n### In scope\n\n-\n\n### Out of scope\n\n-\n\n## Success Criteria\n\n-\n`,
@@ -584,7 +607,9 @@ function genericChangeFiles(id, slug, title = "") {
 function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error("Change name is required."); process.exitCode = 1; return null; }
   const id = nextChangeId(); const changeDir = cwd("changes", `${id}-${slug}`);
-  const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context) : genericChangeFiles(id, slug, name);
+  const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
+    : options.type === "definition" ? definitionChangeFiles(id, slug, name)
+      : genericChangeFiles(id, slug, name);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
@@ -796,14 +821,59 @@ function runAdoption() {
   } else console.log("✓ Adoption Change already exists");
   return artifacts;
 }
+const KNOWN_MATURITY_VALUES = new Set(["definition", "implemented", "ambiguous"]);
+
+// Change 0080: `aief analyze` used to unconditionally create an Analysis
+// Change — correct once application code exists, wrong for a repository
+// still in Definition (README/PRD/business requirements, no source yet):
+// that repository would get "review package configuration", "inspect source
+// modules" tasks for things that do not exist.
+//
+// Routing, in priority order:
+// - maturity "implemented" -> today's exact behavior, byte-identical
+//   (Analysis Change). Never regressed.
+// - maturity "definition"  -> a Definition Change instead (Change 0079),
+//   seeded with the same Objective text, explaining why.
+// - maturity "ambiguous"   -> falls back to today's exact behavior (Analysis
+//   Change), the smallest, safest, backward-compatible choice for a
+//   near-empty repository — but the ambiguity itself is reported explicitly,
+//   never silently swallowed. A bare/near-empty directory is exactly what
+//   every pre-existing `aief analyze` caller and test already expects to
+//   produce an Analysis Change; refusing to act here would be a real,
+//   observable regression, not a safety improvement. `--maturity` lets a
+//   human override the detected value either way.
 function analyze(args) {
   const parsed = parseArgs("analyze", args);
   if (!parsed) return;
+  let maturityOverride = null;
+  if (typeof parsed.maturity === "string") {
+    maturityOverride = parsed.maturity.toLowerCase();
+    if (!KNOWN_MATURITY_VALUES.has(maturityOverride)) {
+      console.error(`Unknown --maturity "${parsed.maturity}". Use one of: ${[...KNOWN_MATURITY_VALUES].join(", ")}.`);
+      process.exitCode = 1;
+      return;
+    }
+  }
   section("AIEF Analyze");
+  const detected = classifyMaturity(cwd());
+  const maturity = maturityOverride || detected.maturity;
+  const name = parsed._.join(" ") || "analyze-current-architecture";
+
+  if (maturity === "definition") {
+    console.log("Purpose: create a Definition Change — this repository looks pre-implementation (requirements/context present, no application source found).\nWrites only under changes/<id>-<name>/.\n");
+    console.log(`Detected maturity: Definition${maturityOverride ? " (forced via --maturity)" : ""}.\n${detected.reasons.map((r) => `- ${r}`).join("\n")}\n`);
+    const dir = createChange(name, { type: "definition" });
+    printNext(dir ? `aief prompt --change ${path.basename(dir)}` : "aief prompt", "See docs/getting-started.md for the pre-implementation Definition workflow.");
+    return;
+  }
+
   console.log("Purpose: create an Analysis Change seeded with the project context doctor already detects.\nWrites only under changes/<id>-<name>/.\n");
+  if (maturity === "ambiguous" && !maturityOverride) {
+    console.log(`Project maturity is ambiguous — defaulting to Analysis.\n${detected.reasons.map((r) => `- ${r}`).join("\n")}\nRun \`aief new-change <name> --type definition\` instead if this is actually pre-implementation work, or \`aief analyze --maturity definition\` to force this classification.\n`);
+  }
   const project = detectProject();
   const context = { project, skills: recommendSkills(project), standards: listStandards(), skillsDocPresent: exists("knowledge/skills.md") };
-  const dir = createChange(parsed._.join(" ") || "analyze-current-architecture", { type: "analysis", context });
+  const dir = createChange(name, { type: "analysis", context });
   if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
   // Explicit selection in the hint: after adoption there are typically two
   // open Changes (adopt-aief + this Analysis), so the suggested command must
@@ -965,6 +1035,7 @@ function prompt(args) {
   const type = changeType(changeDir);
   const isAnalysis = type === "analysis";
   const isEnrichment = type === "enrichment";
+  const isDefinition = type === "definition";
   const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
   const project = detectProject();
   // Change 0069: mirrors standardItems above — an ai-specs/skills/ addition
@@ -1035,7 +1106,7 @@ function prompt(args) {
   const hookBlock = formatHookResultsBlock(activeHookResults);
   if (harnessConfig.log) appendHookLog(changeDir, { operation: "prompt", event: hookOutcome.event, entries: activeHookResults });
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : isDefinition ? `This is a Definition Change (pre-implementation).\n\nDo not implement application code.\nResolve project-definition questions in change.md: Context, Business/Product Constraints, Known Requirements, Assumptions, Open Questions, Decisions Required.\nExplain options and trade-offs in Options Considered; write a Recommendation only when evidence supports one.\nEvery architecture or product Decision requires explicit human approval — never fill in the Decision (human) section yourself, and never mark a task under "Human Approval" done yourself.\nOnce a decision is approved, record it in knowledge/decisions.md and update Implementation Prerequisites / Follow-up Changes.\n\nWhen an item in a bullet list is not simply known or missing, mark it explicitly at the end of the line — never leave the reader to infer this from prose:\n\n- "(decision required)" — a real choice exists and needs a Recommendation.\n- "(ambiguous)" — the requirement/answer is genuinely unclear, not just undecided.\n- "(deferred)" — intentionally left for the implementation Change, not for this one.\n- "(human)" — needs explicit human approval before it counts as decided (same convention as tasks.md).\n\n\`aief status --change ${changeName}\` reports Definition readiness (known/missing sections, and every marked item) derived only from these markers — it never invents a category from prose.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 // Renders one Skill's result as a clearly-labeled, additive prompt section
 // (Entrega 5, design.md §9) — the ONLY place this framing text is written,
@@ -1260,7 +1331,7 @@ function verify(args = []) {
   if (typeof parsed.change === "string") {
     const changeDir = resolveExplicitChange(parsed.change);
     if (!changeDir) { printNext("aief status (list open Changes)"); return; }
-    const report = verifyChange(loadChange(changeDir), process.cwd());
+    const report = verifyChange(loadChange(changeDir), process.cwd(), Boolean(parsed.strict));
     renderReport(report);
     // Computed exactly once per invocation, shared by the Hook and (if
     // requested) Requirement Verification — never a second explain() call
@@ -1279,7 +1350,8 @@ function verify(args = []) {
     hasChangesDir: exists("changes"),
     hasKnowledge: exists("knowledge"),
     changes,
-    cwd: process.cwd()
+    cwd: process.cwd(),
+    strict: Boolean(parsed.strict)
   });
   renderReport(report);
   runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });
@@ -1553,6 +1625,7 @@ function statusSingleChange(parsed) {
     console.log(`\nSDD provider: ${sdd.error}`);
   }
   printHarnessStatus(changeDir, change);
+  printDefinitionReadiness(change);
   console.log(`\nNext:`);
   console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
   if (action.status === "invalid") process.exitCode = 1;
@@ -1580,6 +1653,23 @@ function printHarnessStatus(changeDir, change) {
     for (const u of config.unknownHookIds) console.log(`    - "${u.id}" (${u.event})`);
   }
   if (config.log && fs.existsSync(path.join(changeDir, "hooks.md"))) console.log(`  Execution log: ${path.relative(process.cwd(), path.join(changeDir, "hooks.md"))}`);
+}
+// aief status --change <id> on a Definition Change (Change 0081): a
+// deterministic, transparent breakdown of its own change.md — never a fake
+// percentage-complete score (§9 of the commissioning brief), only literal
+// section counts and explicitly author-marked items. Present only for
+// `## Type: Definition` Changes, the same "additive, absent otherwise"
+// discipline printHarnessStatus already uses above.
+function printDefinitionReadiness(change) {
+  if (change.type !== "definition") return;
+  const changeMd = change.files ? change.files["change.md"] : "";
+  const { known, missing, deferred, ambiguous, decisionRequired, humanApprovalRequired } = analyzeDefinitionSections(changeMd || "");
+  console.log(`\nDefinition readiness: ${known.length}/${DEFINITION_SECTIONS.length} sections filled in`);
+  if (missing.length) console.log(`  Missing: ${missing.join(", ")}`);
+  if (decisionRequired.length) console.log(`  Decision required: ${decisionRequired.length} item(s) — ${decisionRequired.join("; ")}`);
+  if (ambiguous.length) console.log(`  Ambiguous: ${ambiguous.length} item(s) — ${ambiguous.join("; ")}`);
+  if (humanApprovalRequired.length) console.log(`  Human approval required: ${humanApprovalRequired.length} item(s) — ${humanApprovalRequired.join("; ")}`);
+  if (deferred.length) console.log(`  Deferred until implementation: ${deferred.length} item(s) — ${deferred.join("; ")}`);
 }
 // aief status --graph (Change 0058/ADR-028) — the full dependency graph:
 // every Change is a node, whether or not it declares dependencies (the

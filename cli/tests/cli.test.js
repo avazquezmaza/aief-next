@@ -154,6 +154,42 @@ test("bootstrap on an unknown stack creates only the base standards", () => {
   assert.deepEqual(files, ["base-standards.md", "documentation-standards.md", "security-standards.md", "testing-standards.md"]);
 });
 
+// --- Change 0082: maturity-aware standards ("Applies now" / "Applies once implementation starts") ---
+
+test("base/testing/security standards are maturity-aware: both sections present, Definition-stage content before Implementation-stage content", () => {
+  const dir = makeProject({ "README.md": "A plain library." });
+  aief(dir, ["bootstrap"]);
+  for (const file of ["base-standards.md", "testing-standards.md", "security-standards.md"]) {
+    const content = fs.readFileSync(path.join(dir, "knowledge", "standards", file), "utf8");
+    assert.match(content, /## Applies now/, `${file} must have an "Applies now" section`);
+    assert.match(content, /## Applies once implementation starts/, `${file} must have an "Applies once implementation starts" section`);
+    assert.ok(
+      content.indexOf("## Applies now") < content.indexOf("## Applies once implementation starts"),
+      `${file}: "Applies now" must come before "Applies once implementation starts"`
+    );
+  }
+});
+
+test("documentation/frontend/backend standards are unaffected by the maturity-aware restructuring", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { react: "18.0.0" } }) });
+  aief(dir, ["bootstrap"]);
+  const doc = fs.readFileSync(path.join(dir, "knowledge", "standards", "documentation-standards.md"), "utf8");
+  assert.doesNotMatch(doc, /## Applies now/);
+  const frontend = fs.readFileSync(path.join(dir, "knowledge", "standards", "frontend-standards.md"), "utf8");
+  assert.doesNotMatch(frontend, /## Applies now/);
+});
+
+test("an already-adopted project's own standards are never rewritten by the maturity-aware templates", () => {
+  const dir = makeProject({
+    "README.md": "x",
+    "knowledge/standards/base-standards.md": "MY HISTORICAL RULES, no maturity sections here",
+    "knowledge/standards/security-standards.md": "MY HISTORICAL SECURITY RULES"
+  });
+  aief(dir, ["bootstrap"]);
+  assert.equal(fs.readFileSync(path.join(dir, "knowledge", "standards", "base-standards.md"), "utf8"), "MY HISTORICAL RULES, no maturity sections here");
+  assert.equal(fs.readFileSync(path.join(dir, "knowledge", "standards", "security-standards.md"), "utf8"), "MY HISTORICAL SECURITY RULES");
+});
+
 test("bootstrap documents its own adoption Change automatically (no placeholder evidence)", () => {
   const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
   const { out } = aief(dir, ["bootstrap"]);
@@ -678,6 +714,83 @@ test("analyze creates an Analysis Change with the standard evidence structure", 
   for (const sectionName of ["Summary", "Activities Performed", "Verification", "Findings", "Risks", "Recommendations", "Artifacts Produced", "Lessons Learned", "Next Change"]) {
     assert.match(evidence, new RegExp(`## ${sectionName}`), `evidence.md must contain ${sectionName}`);
   }
+});
+
+// --- Change 0080: project maturity detection routes `aief analyze` ---
+
+const PRD_ONLY_README = `# Product Requirements
+
+## Context
+
+This project will let internal support agents look up a customer's account
+history across three legacy systems from a single screen, replacing the
+current process of opening each legacy system separately for every ticket.
+
+## Constraints
+
+Must integrate with the existing SSO provider. Must retain audit logs for
+seven years. No new legacy system integrations may be added without
+Compliance sign-off.
+
+## Open Questions
+
+Which legacy systems are in scope for the first release? What is the
+expected concurrent user count?
+`;
+
+test("analyze on a PRD-only repository (no application source) creates a Definition Change instead of Analysis", () => {
+  const dir = makeProject({ "README.md": PRD_ONLY_README });
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.match(out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nDefinition/);
+});
+
+test("analyze on a real Node app (src/ present) is unaffected — still creates an Analysis Change", () => {
+  const dir = makeProject({
+    "README.md": PRD_ONLY_README,
+    "package.json": JSON.stringify({ name: "app", dependencies: { express: "^4.0.0" } }),
+    "src/index.js": "import express from \"express\";\nconst app = express();\napp.listen(3000);\n"
+  });
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze on a sparse/ambiguous repository falls back to an Analysis Change, with an explicit (non-silent) note", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.match(out, /Project maturity is ambiguous — defaulting to Analysis/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze --maturity definition forces Definition routing regardless of detection", () => {
+  const dir = makeProject();
+  const { status } = aief(dir, ["analyze", "--maturity", "definition"]);
+  assert.equal(status, 0);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nDefinition/);
+});
+
+test("analyze --maturity implemented forces Analysis routing on an otherwise Definition-looking repo", () => {
+  const dir = makeProject({ "README.md": PRD_ONLY_README });
+  const { status } = aief(dir, ["analyze", "--maturity", "implemented"]);
+  assert.equal(status, 0);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze --maturity bogus is rejected explicitly, no Change is created", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["analyze", "--maturity", "bogus"]);
+  assert.equal(status, 1);
+  assert.match(out, /Unknown --maturity/);
+  assert.ok(!fs.existsSync(path.join(dir, "changes")), "no changes/ directory should be created on a rejected --maturity value");
 });
 
 test("prompt recognizes an Analysis Change even with CRLF line endings", () => {
@@ -1367,6 +1480,154 @@ test("prompt on an Enrichment Change tells the assistant not to implement and to
   assert.match(out, /Do not implement application code/);
   assert.match(out, /Do not modify the external requirement source/);
   assert.match(out, /never marking Human Review tasks done yourself/);
+});
+
+test("new-change --type definition creates the Definition scaffold", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created Change/);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  const changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  assert.match(changeMd, /## Type\n\nDefinition/);
+  for (const heading of [
+    "## Context", "## Business / Product Constraints", "## Known Requirements",
+    "## Assumptions", "## Open Questions", "## Decisions Required", "## Options Considered",
+    "## Recommendation", "## Decision (human)", "## Rationale", "## Consequences",
+    "## Non-Functional Requirements", "## Security & Compliance", "## Data & Domain",
+    "## Integrations", "## Deployment & Operations", "## Implementation Prerequisites",
+    "## Follow-up Changes"
+  ]) {
+    assert.ok(changeMd.includes(heading), `change.md should include ${heading}`);
+  }
+  assert.match(changeMd, /Pending human approval/);
+  const tasksMd = fs.readFileSync(path.join(changeDir, "tasks.md"), "utf8");
+  assert.match(tasksMd, /- \[ \] \(human\)/);
+});
+
+test("prompt on a Definition Change tells the assistant not to implement and not to self-approve human decisions", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /This is a Definition Change/);
+  assert.match(out, /Do not implement application code/);
+  assert.match(out, /requires explicit human approval/);
+  assert.match(out, /never fill in the Decision \(human\) section yourself/);
+});
+
+test("close refuses a fresh Definition Change until its (human) Human Approval tasks are checked off", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\nReal evidence recorded here for this Definition Change, describing what was actually done in enough detail to count as substantive.\n");
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unchecked task/);
+});
+
+// Change 0086 — governance bypass found by a focused pre-merge review: checking
+// the (human) approval TASK is not the same fact as `## Decision (human)`
+// actually recording an outcome. close must refuse both independently.
+test("close refuses a Definition Change even when every (human) task is checked, while Decision (human) still holds the untouched pending placeholder", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd
+    .replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy isolation model. (decision required)")
+    .replace("## Recommendation\n\n-", "## Recommendation\n\n- Shared schema with row-level security. (human)");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  // Simulate checking off every task WITHOUT actually editing Decision (human).
+  let tasksMd = fs.readFileSync(path.join(changeDir, "tasks.md"), "utf8");
+  tasksMd = tasksMd.replace(/- \[ \] /g, "- [x] ");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), tasksMd, "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nMulti-tenancy decided.\n", "utf8");
+
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1, "close must refuse — Decision (human) was never actually recorded");
+  assert.match(out, /Decisions Required has content but Decision \(human\) records no outcome yet/);
+
+  // Once Decision (human) is genuinely filled in, close succeeds.
+  changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace(
+    "## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.",
+    "## Decision (human)\n\nApproved: shared schema with row-level security."
+  );
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const retry = aief(dir, ["close", "--yes"]);
+  assert.equal(retry.status, 0);
+});
+
+test("close on a Definition Change with an approved Decision (human) but an unchecked (human) task is still refused (Case 3 of the human-decision matrix)", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd
+    .replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy isolation model. (decision required)")
+    .replace(
+      "## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.",
+      "## Decision (human)\n\nApproved: shared schema with row-level security."
+    );
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unchecked task/);
+});
+
+test("verify treats a Definition Change like any other typed Change (no special-casing)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0);
+  assert.match(out, /define-project-architecture/);
+});
+
+// --- Change 0081: Definition enrichment (Known/Missing/Ambiguous/Decision required/Human approval/Deferred) ---
+
+test("status --change on a fresh Definition Change reports every section as missing", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["status", "--change", "0001-define-project-architecture"]);
+  assert.equal(status, 0);
+  assert.match(out, /Definition readiness: 0\/18 sections filled in/);
+  assert.match(out, /Missing: Context, /);
+});
+
+test("status --change on a Definition Change reflects Known sections and explicit markers, transparently derived", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("## Context\n\n-", "## Context\n\nReplaces three legacy lookup screens with one unified view.");
+  changeMd = changeMd.replace("## Open Questions\n\n-", "## Open Questions\n\n- Which caching layer? (deferred)\n- Expected concurrent users? (ambiguous)");
+  changeMd = changeMd.replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy model. (decision required)");
+  changeMd = changeMd.replace("## Recommendation\n\n-", "## Recommendation\n\n- Schema-per-tenant. (human)");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-define-project-architecture"]);
+  assert.equal(status, 0);
+  assert.match(out, /Definition readiness: 4\/18 sections filled in/);
+  assert.match(out, /Decision required: 1 item\(s\)/);
+  assert.match(out, /Ambiguous: 1 item\(s\)/);
+  assert.match(out, /Human approval required: 1 item\(s\)/);
+  assert.match(out, /Deferred until implementation: 1 item\(s\)/);
+});
+
+test("status --change on a non-Definition Change never prints a Definition readiness block", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const { out } = aief(dir, ["status", "--change", "0001-thing"]);
+  assert.doesNotMatch(out, /Definition readiness/);
+});
+
+test("prompt on a Definition Change explains the marker convention", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /\(decision required\)/);
+  assert.match(out, /\(ambiguous\)/);
+  assert.match(out, /\(deferred\)/);
+  assert.match(out, /never invents a category from prose/);
 });
 
 // AIEF Core 3.0, Entrega 1 (Change 0043) — status reads an optional
@@ -2695,6 +2956,77 @@ test("a genuinely unknown top-level flag on a flag-free command (analyze --bogus
   assert.match(out, /unknown option|Unknown option/i);
 });
 
+// --- Change 0083: aief verify --strict ---
+
+test("default aief verify is unaffected by an objectively incomplete Change (backward compatible)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0, "an untouched but structurally valid scaffold still passes default verify");
+  assert.doesNotMatch(out, /\[strict\]/);
+});
+
+test("aief verify --strict flags an untouched scaffold that default verify accepts", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] change.md Success Criteria is still the scaffold placeholder/);
+  assert.match(out, /\[strict\] spec.md Requirements is empty/);
+  assert.match(out, /\[strict\] spec.md Acceptance Criteria is empty/);
+  assert.match(out, /Result: FAIL/);
+});
+
+test("aief verify --strict --change <id> scopes strict checking to one Change", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify", "--change", "0001-untouched-thing", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\]/);
+});
+
+test("aief verify --strict passes once the placeholder content is filled in", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "filled thing"]);
+  const changeDir = path.join(dir, "changes", "0001-filled-thing");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("### In scope\n\n-", "### In scope\n\n- Real scope.").replace("### Out of scope\n\n-", "### Out of scope\n\n- Real exclusion.").replace("## Success Criteria\n\n-", "## Success Criteria\n\n- Real, verifiable outcome.");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  let specMd = fs.readFileSync(path.join(changeDir, "spec.md"), "utf8");
+  specMd = specMd.replace("## Requirements\n\n-", "## Requirements\n\n- Real requirement.").replace("## Acceptance Criteria\n\n- [ ]", "## Acceptance Criteria\n\n- [ ] Real, checkable criterion.");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), specMd, "utf8");
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /\[strict\]/);
+});
+
+test("aief verify --strict on a Definition Change flags a Decisions Required entry with no recorded Decision (human) outcome", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy model.");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] Decisions Required has content but Decision \(human\) records no outcome yet/);
+});
+
+test("aief verify --strict flags an unresolved required human decision", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] unresolved required human decision: Review and approve, amend or reject each Recommendation in change\.md\./);
+});
+
+test("aief verify --strict --change <id> on an unknown option is still rejected explicitly (Change 0077 regression)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["verify", "--strikt"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
 test("valid flags still work after the parser migration: verify --requirements, status --next --graph, close --yes, new-change --type", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   const nc = aief(dir, ["new-change", "--type", "analysis", "typed thing"]);
@@ -2771,4 +3103,105 @@ test("bootstrap <name> (new project elsewhere) is unaffected by the ancestor gua
   assert.equal(status, 0);
   assert.match(out, /Created AIEF project/);
   assert.ok(fs.existsSync(path.join(root, "new-elsewhere-project", "AGENTS.md")));
+});
+
+// --- Change 0084: end-to-end pre-implementation Definition flow ---
+
+const E2E_PRD_README = `# Fleet Maintenance Portal — Product Requirements
+
+## Context
+
+Regional trucking operators currently track vehicle maintenance across spreadsheets and paper
+logs. This project will let fleet managers schedule, record, and audit maintenance work for every
+vehicle in their fleet from a single web application.
+
+## Unresolved Concerns
+
+- Multi-tenancy isolation model is not yet decided.
+- Authentication (per-company SSO vs. our own login) is not yet decided.
+- RBAC permission matrix is not yet defined.
+- Data retention period and storage technology are not yet decided.
+- Deployment region/on-premise requirements are not yet decided.
+- Whether to integrate with existing fleet-telematics systems is unresolved.
+- Audit/regulatory reporting requirements are unresolved.
+- No SLA has been discussed with any customer yet.
+- Expected scale (tenants, vehicles, concurrent users) is unknown.
+`;
+
+test("end-to-end: a PRD-only repository flows through bootstrap -> analyze (Definition) -> enrichment -> human gate -> durable decision -> strict verify -> close, without ever creating an Analysis Change or application code", () => {
+  const dir = makeProject({ "README.md": E2E_PRD_README });
+
+  const bootstrap = aief(dir, ["bootstrap"]);
+  assert.equal(bootstrap.status, 0);
+
+  const analyze = aief(dir, ["analyze"]);
+  assert.equal(analyze.status, 0);
+  assert.match(analyze.out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0002-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nDefinition/);
+
+  // Enrichment: fill in a Decisions Required entry and its Recommendation, marked (human).
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd
+    .replace("## Context\n\n-", "## Context\n\nReplaces spreadsheets/paper logs with one multi-tenant web app.")
+    .replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy isolation model. (decision required)")
+    .replace("## Recommendation\n\n-", "## Recommendation\n\n- Shared schema with row-level security. (human)");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+
+  const midStatus = aief(dir, ["status", "--change", "0002-analyze-current-architecture"]);
+  assert.match(midStatus.out, /Decision required: 1 item\(s\)/);
+  assert.match(midStatus.out, /Human approval required: 1 item\(s\)/);
+
+  const midStrict = aief(dir, ["verify", "--strict", "--change", "0002-analyze-current-architecture"]);
+  assert.equal(midStrict.status, 1, "an approved-but-not-yet-recorded decision must still fail strict verification");
+  assert.match(midStrict.out, /\[strict\] Decisions Required has content but Decision \(human\) records no outcome yet/);
+  assert.match(midStrict.out, /\[strict\] unresolved required human decision/);
+
+  // Human gate: approve, record the durable decision, fill Requirements, check off tasks.
+  changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace(
+    "## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.",
+    "## Decision (human)\n\nApproved 2026-08-14 by the project owner: shared schema with row-level security."
+  );
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+
+  // bootstrap does not create knowledge/decisions.md itself (it is a project-authored ledger,
+  // not scaffolded structure) — recording a durable decision means creating or appending to it.
+  const decisionsPath = path.join(dir, "knowledge", "decisions.md");
+  const decisionsBefore = fs.existsSync(decisionsPath) ? fs.readFileSync(decisionsPath, "utf8") : "# Decisions\n";
+  fs.writeFileSync(decisionsPath, `${decisionsBefore}\n\n## ADR-001: Multi-tenancy — shared schema with row-level security\n\nApproved 2026-08-14. See changes/0002-analyze-current-architecture.\n`, "utf8");
+
+  let specMd = fs.readFileSync(path.join(changeDir, "spec.md"), "utf8");
+  specMd = specMd.replace("## Requirements\n\n-", "## Requirements\n\n- Multi-tenant shared-schema data model with row-level tenant isolation.");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), specMd, "utf8");
+
+  let tasksMd = fs.readFileSync(path.join(changeDir, "tasks.md"), "utf8");
+  tasksMd = tasksMd.replace(/- \[ \] /g, "- [x] ");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), tasksMd, "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nMulti-tenancy isolation decided and recorded. Real work performed and verified end-to-end.\n", "utf8");
+
+  const finalStrict = aief(dir, ["verify", "--strict", "--change", "0002-analyze-current-architecture"]);
+  assert.equal(finalStrict.status, 0, "once approved, recorded, and completed, strict verification must pass");
+
+  const close = aief(dir, ["close", "--yes", "--change", "0002-analyze-current-architecture"]);
+  assert.equal(close.status, 0);
+
+  // Never an Analysis Change, never application code.
+  assert.ok(!fs.existsSync(path.join(dir, "src")), "a Definition flow must never create application source as a side effect");
+  const finalChangeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  assert.doesNotMatch(finalChangeMd, /## Type\n\nAnalysis/);
+});
+
+test("end-to-end regression: a real implemented Node app is unaffected by the maturity-routing addition (still routes to Analysis, no Definition note)", () => {
+  const dir = makeProject({
+    "README.md": E2E_PRD_README,
+    "package.json": JSON.stringify({ name: "fleet-portal", dependencies: { express: "^4.0.0" } }),
+    "src/index.js": "import express from \"express\";\nconst app = express();\napp.listen(3000);\n"
+  });
+  aief(dir, ["bootstrap"]);
+  const analyze = aief(dir, ["analyze"]);
+  assert.equal(analyze.status, 0);
+  assert.doesNotMatch(analyze.out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0002-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
 });

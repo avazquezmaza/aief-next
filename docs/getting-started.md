@@ -216,6 +216,75 @@ aief enrich manual TEST-001
 Creates a Change requiring human review before implementation — see
 [Workflow — Starting from a Requirement Source](workflow.md#starting-from-a-requirement-source).
 
+## Starting from a PRD (no code yet)
+
+A repository can legitimately have real requirements — a README, a PRD, business/stakeholder
+constraints — before any application code exists. `aief analyze` recognizes this (Change 0080) and
+creates a **Definition Change** instead of an Analysis Change, so you get "resolve these open
+questions and decisions" instead of "review package configuration" for code that doesn't exist yet.
+
+```bash
+aief bootstrap                            # 1. adopt AIEF (works the same either way)
+aief analyze                              # 2. detects no application source + real PRD content
+                                           #    -> creates a Definition Change, not an Analysis one
+```
+
+`aief analyze` classifies the repository from file evidence alone — see
+[Concepts — Project Maturity](concepts.md#project-maturity) — and tells you which way it went:
+
+```text
+Detected maturity: Definition.
+- no application source found under src/lib/app/cli/server/api/pkg/cmd/internal
+- 1 definition document(s) found (README.md, ~354 words)
+```
+
+The Definition Change's `change.md` has sections for Context, Known Requirements, Open Questions,
+Decisions Required, Options Considered, and a `Decision (human)` — filled in by you or your
+assistant (`aief prompt` explains exactly what not to do: never implement application code, never
+fill in `Decision (human)` yourself). Mark items explicitly as you go, instead of leaving ambiguity
+implicit:
+
+```text
+- Multi-tenancy isolation model: shared schema vs. schema-per-tenant. (decision required)
+- Expected concurrent users? (ambiguous)
+- Fleet-telematics integration? (deferred)
+- Shared schema with row-level security. (human)
+```
+
+Check progress any time — this reads only the markers you wrote, never guesses from prose:
+
+```bash
+aief status --change <id>
+```
+
+```text
+Definition readiness: 8/18 sections filled in
+  Decision required: 1 item(s) — Multi-tenancy isolation model...
+  Human approval required: 1 item(s) — Shared schema with row-level security...
+```
+
+A `(decision required)`/`(human)` item stays open until an actual human approves it — an assistant
+working the Change is explicitly told never to write into `Decision (human)` or check off a
+`Human Approval` task itself. Once approved, record the decision durably (`knowledge/decisions.md`,
+the same ledger every other architectural decision in this project lives in), fill in
+`Implementation Prerequisites`/`Follow-up Changes`, and verify:
+
+```bash
+aief verify --strict --change <id>   # objective completeness: every Decisions Required item has
+                                      # a recorded Decision (human), no unresolved (human) task
+aief close --yes --change <id>
+```
+
+`aief verify` (no `--strict`) stays purely structural throughout — a Definition Change mid-flight
+correctly shows `PASS`, because "not finished yet" isn't a structural problem. `--strict` is what
+tells you whether the content itself is objectively complete, and it will not pass while a
+`Decisions Required` entry has no recorded `Decision (human)`, or a `(human)` task is still
+unchecked.
+
+Nothing in this flow generates application code. What you get at the end is a closed Definition
+Change with durable, human-approved decisions and a `Follow-up Changes` list — the handoff point
+for the first real `aief new-change`/`aief enrich` work.
+
 ## Multiple open Changes
 
 It's normal to have several open Changes at once — most commonly the Adoption Change and the
