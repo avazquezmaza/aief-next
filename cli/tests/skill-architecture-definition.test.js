@@ -100,6 +100,21 @@ test("appliesTo: a manifest-carrying Change (type is always \"\") is never appli
   assert.equal(appliesTo(context).applicable, false);
 });
 
+// Change 0092 (Scenario B) regression: a real architecture contradiction —
+// "each customer must have completely isolated data" vs. "all customers
+// share one schema" — previously matched none of the keywords and produced
+// a false negative on the mission's own paradigm case. Locked in here.
+test("appliesTo: a data-isolation vs. shared-schema contradiction is applicable (Change 0092 Scenario B fix)", () => {
+  const dir = makeChangeDir({
+    ...OTHER_FILES,
+    "change.md": definitionScaffold({
+      "Known Requirements": "- Each customer must have completely isolated data.\n- All customers must share one database schema for operational simplicity."
+    })
+  });
+  const context = buildSkillContext(dir, dir);
+  assert.deepEqual(appliesTo(context), { applicable: true });
+});
+
 // --- buildInstructions() / definitionEnrichment consumption ---
 
 test("buildInstructions: quotes already-known/missing sections and already-marked items from definitionEnrichment", () => {
@@ -121,6 +136,34 @@ test("buildInstructions: governance prohibitions are explicit and present", () =
   assert.match(text, /DO NOT silently choose/);
   assert.match(text, /DO NOT create a second approval mechanism, a second decision ledger/);
   assert.match(text, /knowledge\/decisions\.md/);
+});
+
+// Change 0092 (Scenarios C/E/H) regression: buildInstructions() previously never
+// told the assistant to consult knowledge/decisions.md before recommending —
+// a real risk of recommending against, duplicating, or contradicting an
+// already-approved decision. Locked in here.
+test("buildInstructions: instructs the assistant to check knowledge/decisions.md before recommending, and to treat an approved decision as authoritative (Change 0092 fix)", () => {
+  const dir = makeChangeDir({ ...OTHER_FILES, "change.md": ARCHITECTURE_RELEVANT });
+  const context = buildSkillContext(dir, dir);
+  const text = buildInstructions(context);
+  assert.match(text, /check knowledge\/decisions\.md \(if it exists\)/);
+  assert.match(text, /An approved decision there\s*\nis authoritative/);
+  assert.match(text, /do not duplicate it\s*\nas a new Decisions Required entry/);
+});
+
+test("buildInstructions: cautions against overfitting to an unrelated historical decision (Change 0092 Scenario H)", () => {
+  const dir = makeChangeDir({ ...OTHER_FILES, "change.md": ARCHITECTURE_RELEVANT });
+  const context = buildSkillContext(dir, dir);
+  const text = buildInstructions(context);
+  assert.match(text, /unrelated historical decision.*is not\s*\narchitecture context for this Change/);
+});
+
+test("buildInstructions: instructs surfacing a conflict with an approved decision for human reconsideration, never silent override", () => {
+  const dir = makeChangeDir({ ...OTHER_FILES, "change.md": ARCHITECTURE_RELEVANT });
+  const context = buildSkillContext(dir, dir);
+  const text = buildInstructions(context);
+  assert.match(text, /surface that conflict explicitly/);
+  assert.match(text, /never.*\nsilently override, replace, or re-decide it yourself/);
 });
 
 test("buildInstructions: Recommendation and Decision (human) are shown as distinct, never merged", () => {
@@ -186,4 +229,53 @@ test("architecture-definition: runSkill performs zero writes", () => {
   const context = buildSkillContext(dir, dir);
   runSkill("architecture-definition", context);
   for (const f of fs.readdirSync(dir)) assert.equal(fs.readFileSync(path.join(dir, f), "utf8"), before[f], `${f} was modified`);
+});
+
+// --- Change 0092 — applicability adversarial-review regressions ---
+// Each locks in a specific, deliberately accepted behavior of the fixed
+// keyword mechanism found during realistic-usage validation. Not every case
+// here is a "correct" outcome in a semantic sense — some are documented,
+// accepted false positives/negatives (see evidence.md's "Applicability
+// Findings"); the point of these tests is that the *behavior itself* stays
+// stable across future edits, not that it is semantically perfect.
+
+test("appliesTo: business-only language with no architecture signal stays not_applicable", () => {
+  const dir = makeChangeDir({
+    ...OTHER_FILES,
+    "change.md": definitionScaffold({
+      "Known Requirements": "- Users can create work orders.\n- Managers approve work orders.\n- Reports can be exported."
+    })
+  });
+  assert.equal(appliesTo(buildSkillContext(dir, dir)).applicable, false);
+});
+
+test("appliesTo: a generic word alone ('system', 'data') never false-positives", () => {
+  const dir1 = makeChangeDir({ ...OTHER_FILES, "change.md": definitionScaffold({ "Known Requirements": "- The system helps users track tasks." }) });
+  const dir2 = makeChangeDir({ ...OTHER_FILES, "change.md": definitionScaffold({ "Known Requirements": "- Users enter data about their day." }) });
+  assert.equal(appliesTo(buildSkillContext(dir1, dir1)).applicable, false);
+  assert.equal(appliesTo(buildSkillContext(dir2, dir2)).applicable, false);
+});
+
+test("appliesTo: a deferred (deferred)-marked item's own content can still make the Change applicable", () => {
+  const dir = makeChangeDir({
+    ...OTHER_FILES,
+    "change.md": definitionScaffold({
+      "Known Requirements": "- Enterprise authentication required. External ERP integration.",
+      "Open Questions": "- ERP synchronization design will be decided during Delivery. (deferred)"
+    })
+  });
+  assert.equal(appliesTo(buildSkillContext(dir, dir)).applicable, true);
+});
+
+test("buildInstructions: the generic 'do not re-raise or duplicate' guidance covers deferred items too — no separate deferred-specific carve-out exists or is needed", () => {
+  const dir = makeChangeDir({
+    ...OTHER_FILES,
+    "change.md": definitionScaffold({
+      "Known Requirements": "- Enterprise authentication required. External ERP integration.",
+      "Open Questions": "- ERP synchronization design will be decided during Delivery. (deferred)"
+    })
+  });
+  const text = buildInstructions(buildSkillContext(dir, dir));
+  assert.match(text, /Deferred: ```\nERP synchronization design will be decided during Delivery\./);
+  assert.match(text, /do not re-raise or duplicate these, build on them instead/);
 });

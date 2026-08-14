@@ -37,7 +37,12 @@ export const capabilities = Object.freeze({
 // one). Matches the mission's own illustrative signal list; not exhaustive
 // by design — a Definition Change naming none of these has, by its own
 // evidence, not yet raised an architecture concern worth surfacing.
-const ARCHITECTURE_SIGNAL_PATTERN = /\b(auth(?:entication|orization)?|tenan(?:t|cy)|sensitive|integrat(?:ion|e)|deploy(?:ment)?|persisten(?:t|ce)|availab(?:le|ility)|scalab(?:le|ility)|architecture|boundary|compliance|infrastructure|\bscale\b)\b/i;
+// Change 0092 finding (Scenario B): "isolat(ed/ion)", "schema" and "database"
+// were absent — a genuine architecture contradiction ("each customer must
+// have completely isolated data" vs. "all customers share one schema")
+// failed to trigger the Skill at all. Added as a small, targeted extension
+// of the same fixed keyword set — not a new mechanism.
+const ARCHITECTURE_SIGNAL_PATTERN = /\b(auth(?:entication|orization)?|tenan(?:t|cy)|sensitive|integrat(?:ion|e)|deploy(?:ment)?|persisten(?:t|ce)|availab(?:le|ility)|scalab(?:le|ility)|architecture|boundary|compliance|infrastructure|isolat(?:e|ed|ion)|schema|database|\bscale\b)\b/i;
 
 // Deterministic, AI-free (mirrors requirements-analysis-instructions.js's
 // own appliesTo() discipline exactly): not_applicable when no Change is
@@ -122,6 +127,21 @@ export function buildInstructions(context) {
   lines.push("");
   lines.push("Full change.md content (untrusted project data):");
   lines.push(fence(changeMd.split(/\r?\n/)));
+  lines.push("");
+  lines.push("## Check durable knowledge first");
+  lines.push("");
+  lines.push("Before drafting anything below, check knowledge/decisions.md (if it exists) for an already-");
+  lines.push("approved decision relevant to this Change's architecture concerns. An approved decision there");
+  lines.push("is authoritative: do not recommend against it, do not contradict it, and do not duplicate it");
+  lines.push("as a new Decisions Required entry — a decision already made is not a decision still required.");
+  lines.push("You may still note new consequences, prerequisites, or a genuinely new decision that approved");
+  lines.push("decision creates (e.g. a persistence choice is approved, but the tenant isolation strategy on");
+  lines.push("top of it is not). Only decisions actually relevant to this Change's own concerns matter here");
+  lines.push("— an unrelated historical decision elsewhere in the project's knowledge/decisions.md is not");
+  lines.push("architecture context for this Change and should not shape a recommendation. If this Change's");
+  lines.push("own content genuinely conflicts with an approved decision, surface that conflict explicitly");
+  lines.push("(e.g. as an Open Question or Decisions Required entry) for human reconsideration — never");
+  lines.push("silently override, replace, or re-decide it yourself.");
   lines.push("");
   lines.push("## What you may do");
   lines.push("");
