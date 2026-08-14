@@ -5,6 +5,7 @@
 // — `close` does not carry a second, diverging copy of "is this ready".
 import path from "node:path";
 import { createVerificationReport, addLine, setNext } from "../domain/verification-report.js";
+import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
@@ -18,6 +19,79 @@ function checkEnrichmentChange(change) {
   if (!/read-only/i.test(changeMd)) problems.push("change.md does not mark the source as read-only");
   if (!/^##\s*open\s*questions/im.test(specMd)) problems.push("spec.md missing an Open Questions section");
   if (!/requires\s*human\s*review/im.test(changeMd)) problems.push("change.md missing the Requires Human Review status");
+  return problems;
+}
+
+// Change 0083 — `aief verify --strict`: objective, deterministic completeness
+// checks, opt-in only. Every check here answers a yes/no question a machine
+// can actually verify from the file — never a quality judgment. Default
+// `aief verify` never calls this; see verify()/verifyProject()/verifyChange()
+// below, all gated on an explicit `strict` parameter that defaults to false.
+const TODO_TBD = /\b(TODO|TBD)\b/;
+// Strips inline code spans (`...`, including ones a Markdown line-wrap
+// carries across a newline) before TODO/TBD scanning — a token like
+// `ACTIVE/TODO` documented as part of a recognized-vocabulary list is not an
+// unresolved marker, and treating it as one would be a false positive no
+// human actually needs reported.
+function stripInlineCode(text) {
+  return String(text || "").replace(/`[^`]*`/gs, "");
+}
+
+// Extracts the raw content of one `## Heading` (or `### Heading`) section —
+// everything up to the next heading of the same or a higher level. Returns
+// null when the heading is absent (so a caller can distinguish "no such
+// section in this scaffold" from "section present but empty" — Enrichment's
+// spec.md has no `## Requirements` heading at all, and must never be flagged
+// for lacking one).
+function extractSection(md, headingText) {
+  const escaped = headingText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = String(md || "").match(new RegExp(`^(#{2,3})\\s+${escaped}\\s*\\r?\\n([\\s\\S]*?)(?=\\r?\\n#{2,3}\\s|$)`, "im"));
+  return match ? match[2].trim() : null;
+}
+
+function isPlaceholderContent(content) {
+  return content === "" || content === "-";
+}
+
+// checkStrictCompleteness(change) -> string[] — one problem string per
+// objective gap found. Never subjective: every rule below is "this exact,
+// literal condition is true", never a heuristic score.
+export function checkStrictCompleteness(change) {
+  const problems = [];
+  const changeMd = change.files?.["change.md"] || "";
+  const specMd = change.files?.["spec.md"] || "";
+  const tasksMd = change.files?.["tasks.md"] || "";
+
+  for (const [label, content] of [["change.md", changeMd], ["spec.md", specMd], ["tasks.md", tasksMd]]) {
+    if (TODO_TBD.test(stripInlineCode(content))) problems.push(`${label} contains an unresolved TODO/TBD`);
+  }
+
+  const successCriteria = extractSection(changeMd, "Success Criteria");
+  if (successCriteria !== null && isPlaceholderContent(successCriteria)) problems.push("change.md Success Criteria is still the scaffold placeholder");
+
+  const inScope = extractSection(changeMd, "In scope");
+  if (inScope !== null && isPlaceholderContent(inScope)) problems.push("change.md Scope › In scope is still the scaffold placeholder");
+  const outScope = extractSection(changeMd, "Out of scope");
+  if (outScope !== null && isPlaceholderContent(outScope)) problems.push("change.md Scope › Out of scope is still the scaffold placeholder");
+
+  const requirements = extractSection(specMd, "Requirements");
+  if (requirements !== null && isPlaceholderContent(requirements)) problems.push("spec.md Requirements is empty");
+
+  const acceptanceCriteria = extractSection(specMd, "Acceptance Criteria");
+  if (acceptanceCriteria !== null && (isPlaceholderContent(acceptanceCriteria) || acceptanceCriteria === "- [ ]")) problems.push("spec.md Acceptance Criteria is empty");
+
+  if (change.type === "definition") {
+    const { missing } = analyzeDefinitionSections(changeMd);
+    const decisionsRequiredIsKnown = !missing.includes("Decisions Required");
+    const decisionHasNoOutcome = missing.includes("Decision (human)");
+    if (decisionsRequiredIsKnown && decisionHasNoOutcome) problems.push("Decisions Required has content but Decision (human) records no outcome yet");
+  }
+
+  for (const line of tasksMd.split(/\r?\n/)) {
+    const match = line.match(/^\s*-\s*\[\s\]\s*\(human\)\s*(.+)$/i);
+    if (match) problems.push(`unresolved required human decision: ${match[1].trim()}`);
+  }
+
   return problems;
 }
 
@@ -56,7 +130,7 @@ export function checkChangeReadiness(change) {
 // Full `aief verify` report: required top-level files, then every Change
 // directory, then the "Next:" hint — in the same order and with the same
 // text as the CLI has always produced.
-export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledge, changes, cwd }) {
+export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledge, changes, cwd, strict = false }) {
   const report = createVerificationReport();
   const discoveryOnly = changes.length > 0 && changes.every((c) => c.type === "enrichment" || c.basename.includes("adopt-aief"));
 
@@ -74,7 +148,7 @@ export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledg
   else addLine(report, "warn", "! Recommended but missing: knowledge/");
 
   for (const change of changes) {
-    addChangeLines(report, change, cwd);
+    addChangeLines(report, change, cwd, strict);
   }
 
   if (!report.passed) {
@@ -101,7 +175,7 @@ export function verifyProject({ hasReadme, hasAgents, hasChangesDir, hasKnowledg
 // One Change's report lines — shared verbatim between the whole-project mode
 // and the single-Change mode (`aief verify --change <id>`), so both print the
 // same judgment for the same Change.
-function addChangeLines(report, change, cwd) {
+function addChangeLines(report, change, cwd, strict = false) {
   const name = path.relative(cwd, change.dir);
   if (!change.missing.length && !change.empty.length) {
     const enrichmentProblems = change.type === "enrichment" ? checkEnrichmentChange(change) : [];
@@ -122,6 +196,13 @@ function addChangeLines(report, change, cwd) {
     } else {
       addLine(report, "info", `○ ${name} — in progress (evidence not completed yet; expected until the Change is closed)`);
     }
+    // Change 0083: strict completeness runs in addition to the judgment
+    // above, never instead of it — the informational/ok/warn line above
+    // still says what it always said; --strict only adds objective-gap
+    // errors on top, opt-in, defaulting to none of this ever running.
+    if (strict) {
+      for (const p of checkStrictCompleteness(change)) addLine(report, "error", `✗ ${name}: [strict] ${p}`);
+    }
   } else {
     for (const f of change.missing) addLine(report, "error", `✗ ${name}/${f} missing`);
     for (const f of change.empty) addLine(report, "error", `✗ ${name}/${f} empty`);
@@ -131,10 +212,10 @@ function addChangeLines(report, change, cwd) {
 // Single-Change verification (`aief verify --change <id>`): judges exactly one
 // Change with the same rules as verifyProject and names it explicitly, so the
 // output always states which Change was verified.
-export function verifyChange(change, cwd) {
+export function verifyChange(change, cwd, strict = false) {
   const report = createVerificationReport();
   addLine(report, "info", `Verified Change: ${path.relative(cwd, change.dir)}`);
-  addChangeLines(report, change, cwd);
+  addChangeLines(report, change, cwd, strict);
   if (!report.passed) setNext(report, "fix the issues above, then run aief verify again");
   else if (change.closed) setNext(report, "aief status");
   else if (change.evidenceState !== "complete") setNext(report, `aief prompt --change ${change.basename}, then aief close --change ${change.basename}`);

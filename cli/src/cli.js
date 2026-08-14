@@ -240,7 +240,10 @@ const KNOWN_FLAGS = {
     "clear-assistant": { type: "boolean" }
   },
   close: { yes: { type: "boolean" }, change: { type: "string" }, "evidence-from": { type: "string" } },
-  verify: { change: { type: "string" }, requirements: { type: "boolean" } },
+  // --strict (Change 0083): opt-in objective-completeness checking on top of
+  // default verify's structural rules — never on by default (backward
+  // compatible), never a quality score (checkStrictCompleteness()).
+  verify: { change: { type: "string" }, requirements: { type: "boolean" }, strict: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
@@ -474,11 +477,11 @@ const COMMAND_HELP = {
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
-    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change.",
-    when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified.",
+    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change. --strict adds optional, objective completeness checks (unresolved TODO/TBD, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a Definition decision with no recorded outcome, an unresolved required human decision) on top of the default structural checks — default verify is unchanged either way.",
+    when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified. Add --strict when you want to catch objectively incomplete work, not just structurally broken Changes.",
     reads: "README.md, AGENTS.md, changes/, knowledge/.",
     writes: "Nothing.",
-    example: "aief verify   (or: aief verify --change 0002-add-login)",
+    example: "aief verify   (or: aief verify --change 0002-add-login --strict)",
     next: "Fix reported gaps, then aief close."
   },
   close: {
@@ -1328,7 +1331,7 @@ function verify(args = []) {
   if (typeof parsed.change === "string") {
     const changeDir = resolveExplicitChange(parsed.change);
     if (!changeDir) { printNext("aief status (list open Changes)"); return; }
-    const report = verifyChange(loadChange(changeDir), process.cwd());
+    const report = verifyChange(loadChange(changeDir), process.cwd(), Boolean(parsed.strict));
     renderReport(report);
     // Computed exactly once per invocation, shared by the Hook and (if
     // requested) Requirement Verification — never a second explain() call
@@ -1347,7 +1350,8 @@ function verify(args = []) {
     hasChangesDir: exists("changes"),
     hasKnowledge: exists("knowledge"),
     changes,
-    cwd: process.cwd()
+    cwd: process.cwd(),
+    strict: Boolean(parsed.strict)
   });
   renderReport(report);
   runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });

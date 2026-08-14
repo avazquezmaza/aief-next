@@ -2906,6 +2906,77 @@ test("a genuinely unknown top-level flag on a flag-free command (analyze --bogus
   assert.match(out, /unknown option|Unknown option/i);
 });
 
+// --- Change 0083: aief verify --strict ---
+
+test("default aief verify is unaffected by an objectively incomplete Change (backward compatible)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0, "an untouched but structurally valid scaffold still passes default verify");
+  assert.doesNotMatch(out, /\[strict\]/);
+});
+
+test("aief verify --strict flags an untouched scaffold that default verify accepts", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] change.md Success Criteria is still the scaffold placeholder/);
+  assert.match(out, /\[strict\] spec.md Requirements is empty/);
+  assert.match(out, /\[strict\] spec.md Acceptance Criteria is empty/);
+  assert.match(out, /Result: FAIL/);
+});
+
+test("aief verify --strict --change <id> scopes strict checking to one Change", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "untouched thing"]);
+  const { status, out } = aief(dir, ["verify", "--change", "0001-untouched-thing", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\]/);
+});
+
+test("aief verify --strict passes once the placeholder content is filled in", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "filled thing"]);
+  const changeDir = path.join(dir, "changes", "0001-filled-thing");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("### In scope\n\n-", "### In scope\n\n- Real scope.").replace("### Out of scope\n\n-", "### Out of scope\n\n- Real exclusion.").replace("## Success Criteria\n\n-", "## Success Criteria\n\n- Real, verifiable outcome.");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  let specMd = fs.readFileSync(path.join(changeDir, "spec.md"), "utf8");
+  specMd = specMd.replace("## Requirements\n\n-", "## Requirements\n\n- Real requirement.").replace("## Acceptance Criteria\n\n- [ ]", "## Acceptance Criteria\n\n- [ ] Real, checkable criterion.");
+  fs.writeFileSync(path.join(changeDir, "spec.md"), specMd, "utf8");
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /\[strict\]/);
+});
+
+test("aief verify --strict on a Definition Change flags a Decisions Required entry with no recorded Decision (human) outcome", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy model.");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] Decisions Required has content but Decision \(human\) records no outcome yet/);
+});
+
+test("aief verify --strict flags an unresolved required human decision", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["verify", "--strict"]);
+  assert.equal(status, 1);
+  assert.match(out, /\[strict\] unresolved required human decision: Review and approve, amend or reject each Recommendation in change\.md\./);
+});
+
+test("aief verify --strict --change <id> on an unknown option is still rejected explicitly (Change 0077 regression)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["verify", "--strikt"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
 test("valid flags still work after the parser migration: verify --requirements, status --next --graph, close --yes, new-change --type", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   const nc = aief(dir, ["new-change", "--type", "analysis", "typed thing"]);
