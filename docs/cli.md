@@ -60,6 +60,21 @@ both now print a one-line redirect and exit 1.
 | `aief close [--yes] [--change id]` | The selected Change | A `## Status` section in `change.md` — only with `--yes`, only when all readiness checks pass | Check (or, with `--yes`, mark) a Change Closed. |
 | `aief close --evidence-from <path> [--yes] [--change id]` | A JUnit XML test report at `<path>` (already produced by your own test runner/CI — AIEF never executes anything) | The Change's `evidence.md` `## Verification` section, filled in with the report's counts under a `### Captured Test Report` sub-block; existing content in that section is never overwritten, only appended to (or, on a repeat capture, replaced in place) | AIEF 3.1, Change 0071. Turns "manually copy test numbers into evidence.md" into one flag. A missing/unreadable path or a file with no `<testsuite>` element is a clear, exit-1 error — no write. Every other `evidence.md` section (Summary, Findings, Risks, ...) is left for a human/assistant to write. |
 
+`--evidence-from <path>` is deliberately not required to be project-local: CI systems commonly
+write test reports outside the checked-out project (a runner's own temp directory, an artifact
+mount), so `<path>` may point anywhere the invoking user or CI job can already read — you are
+supplying a path you trust, the same way you would to any other CLI flag that takes one. Only the
+report's numeric JUnit counts are ever extracted into `evidence.md`; no other file content crosses
+that boundary.
+
+`aief verify` and `aief close` can disagree on the same Change because they answer different
+questions: `verify` is **Structural Verification** — do the required files exist and are they
+non-empty, is the declared status interpretable — and can PASS on a Change that is still very much
+in progress. `aief close`'s readiness check adds the close-specific questions (are all tasks
+checked, is evidence more than a placeholder). A Change can legitimately show `verify: PASS` and
+`close: blocked` at the same time — that is not a contradiction, it is `verify` confirming the
+Change is structurally sound to keep working on, while `close` confirms it isn't finished yet.
+
 ## Other
 
 | Command | Reads | Writes | Purpose |

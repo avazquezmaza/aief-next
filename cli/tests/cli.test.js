@@ -2645,3 +2645,130 @@ test("verify --requirements does not affect close/propose/status/prompt/Skills/H
   const { out } = aief(dir, ["verify", "--change", "0001-vr-scope-thing", "--requirements"]);
   assert.doesNotMatch(out, /Skill Catalog|Skills Runtime|─── Skill:/);
 });
+
+// --- F7/H4: unknown CLI options are rejected explicitly (Change 0077) ----
+
+test("verify --verboes (unknown flag) fails explicitly instead of running as plain verify", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["verify", "--verboes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("doctor --verbos (unknown flag) fails explicitly instead of silently running non-verbose doctor", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["doctor", "--verbos"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("status --nex (unknown flag) fails explicitly instead of silently running plain status", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["status", "--nex"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("new-change --typ enrichment (unknown flag) fails explicitly, no Change is created", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["new-change", "--typ", "enrichment", "a thing"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+  assert.ok(!fs.existsSync(path.join(dir, "changes")), "no changes/ directory should be created on a rejected invocation");
+});
+
+test("close --yess (unknown flag) fails explicitly instead of silently behaving like a dry run", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "yess-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-yess-thing");
+  const before = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  const { status, out } = aief(dir, ["close", "--yess", "--change", "0001-yess-thing"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+  assert.equal(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), before, "close --yess must not mutate change.md");
+});
+
+test("a genuinely unknown top-level flag on a flag-free command (analyze --bogus) fails explicitly", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const { status, out } = aief(dir, ["analyze", "--bogus"]);
+  assert.equal(status, 1);
+  assert.match(out, /unknown option|Unknown option/i);
+});
+
+test("valid flags still work after the parser migration: verify --requirements, status --next --graph, close --yes, new-change --type", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  const nc = aief(dir, ["new-change", "--type", "analysis", "typed thing"]);
+  assert.equal(nc.status, 0);
+  assert.match(nc.out, /Created Change/);
+  assert.equal(aief(dir, ["status", "--next"]).status, 0);
+  assert.equal(aief(dir, ["status", "--graph"]).status, 0);
+  assert.equal(aief(dir, ["verify", "--change", "0001-typed-thing", "--requirements"]).status, 0);
+});
+
+test("--help / help / --version output is unaffected by the parser migration", () => {
+  const dir = makeProject();
+  const help1 = aief(dir, ["--help"]);
+  const help2 = aief(dir, ["help"]);
+  const version = aief(dir, ["--version"]);
+  assert.equal(help1.status, 0);
+  assert.equal(help1.out, help2.out);
+  assert.equal(version.status, 0);
+  assert.match(version.out, /^aief \d+\.\d+\.\d+/);
+});
+
+// --- Nested bootstrap protection (Change 0078) ---------------------------
+
+test("bootstrap from the actual project root is unchanged", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+});
+
+test("bootstrap from a fresh, unrelated directory with no AIEF ancestor anywhere is unchanged", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+});
+
+test("bootstrap from a subdirectory of an already-bootstrapped project refuses and creates nothing (Change 0078)", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const sub = path.join(root, "src");
+  fs.mkdirSync(sub, { recursive: true });
+  const { status, out } = aief(sub, ["bootstrap"]);
+  assert.equal(status, 1);
+  assert.match(out, /already exists at/i);
+  assert.ok(!fs.existsSync(path.join(sub, "AGENTS.md")), "no nested AGENTS.md should be created");
+  assert.ok(!fs.existsSync(path.join(sub, "changes")), "no nested changes/ should be created");
+});
+
+test("bootstrap --force in that same subdirectory proceeds, creating the nested structure explicitly (Change 0078)", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const sub = path.join(root, "src");
+  fs.mkdirSync(sub, { recursive: true });
+  const { status, out } = aief(sub, ["bootstrap", "--force"]);
+  assert.equal(status, 0);
+  assert.match(out, /Bootstrap complete/);
+  assert.ok(fs.existsSync(path.join(sub, "AGENTS.md")), "--force should still create the nested structure, explicitly opted into");
+});
+
+test("bootstrap re-run in an already-bootstrapped directory (idempotency) is unaffected by the ancestor guard", () => {
+  const dir = makeProject();
+  aief(dir, ["bootstrap"]);
+  const { status, out } = aief(dir, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.match(out, /already exists|already bootstrapped/i);
+});
+
+test("bootstrap <name> (new project elsewhere) is unaffected by the ancestor guard even from inside an already-bootstrapped project", () => {
+  const root = makeProject();
+  aief(root, ["bootstrap"]);
+  const { status, out } = aief(root, ["bootstrap", "new-elsewhere-project"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created AIEF project/);
+  assert.ok(fs.existsSync(path.join(root, "new-elsewhere-project", "AGENTS.md")));
+});
