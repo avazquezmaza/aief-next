@@ -436,11 +436,11 @@ const COMMAND_HELP = {
     next: "aief prompt --profile architect."
   },
   "new-change": {
-    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md).",
-    when: "Whenever you start a meaningful unit of work.",
+    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton.",
+    when: "Whenever you start a meaningful unit of work. Use --type definition before application code exists, when what's unresolved is requirements/architecture/product decisions rather than implementation.",
     reads: "changes/ to compute the next ID.",
     writes: "changes/<next-id>-<name>/.",
-    example: "aief new-change add-login",
+    example: "aief new-change add-login   (or: aief new-change \"define project architecture\" --type definition)",
     next: "Fill change.md and spec.md, then aief prompt."
   },
   enrich: {
@@ -573,6 +573,20 @@ function analysisChangeFiles(id, slug, context) {
     "evidence.md": evidenceTemplate()
   };
 }
+// Definition Changes (Change 0079, ADR-013/ADR-031 pattern): pre-implementation
+// work — resolving what should be built, not analyzing what already exists.
+// Reuses the existing `## Type` surface (already General/Analysis/Enrichment)
+// with one more accepted value and the existing `(human)` task-marker gate —
+// no new command, no second approval mechanism. See change.md's own
+// "Inventory of what already exists" for the ADR-013 accounting.
+function definitionChangeFiles(id, slug, title = "") {
+  return {
+    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nDefinition\n\n## Objective\n\nDefine ${title || slug} before implementation begins: resolve open questions, evaluate options, and turn approved decisions into durable knowledge and implementation prerequisites.\n\n## Scope\n\n### In scope\n\n- Capture business/product context, known requirements and assumptions.\n- Raise open questions and identify decisions that require a human.\n- Evaluate options and trade-offs; recommend only where evidence supports it.\n- Record approved decisions in knowledge/decisions.md.\n- Produce implementation prerequisites and follow-up Changes.\n\n### Out of scope\n\n- Implementing application code.\n- Refactoring or scaffolding a codebase.\n- Modifying infrastructure.\n- Auto-approving architecture or product decisions — every decision below requires explicit (human) approval.\n\n## Context\n\n-\n\n## Business / Product Constraints\n\n-\n\n## Known Requirements\n\n-\n\n## Assumptions\n\n-\n\n## Open Questions\n\n-\n\n## Decisions Required\n\n-\n\n## Options Considered\n\n-\n\n## Recommendation\n\n-\n\n## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.\n\n## Rationale\n\n-\n\n## Consequences\n\n-\n\n## Non-Functional Requirements\n\n-\n\n## Security & Compliance\n\n-\n\n## Data & Domain\n\n-\n\n## Integrations\n\n-\n\n## Deployment & Operations\n\n-\n\n## Implementation Prerequisites\n\n-\n\n## Follow-up Changes\n\n-\n\n## Success Criteria\n\n- Open Questions are resolved or explicitly deferred.\n- Every entry in Decisions Required has a human-approved Decision recorded here and in knowledge/decisions.md.\n- Implementation Prerequisites and Follow-up Changes are identified.\n`,
+    "spec.md": `# Specification\n\n## Goal\n\nTurn ${title || slug} into durable, human-approved decisions and implementation-ready prerequisites — without writing application code.\n\n## Requirements\n\n-\n\n## Acceptance Criteria\n\n- [ ] Context, Business/Product Constraints and Known Requirements are captured.\n- [ ] Open Questions are answered or explicitly deferred.\n- [ ] Every Decision Required has a Recommendation and an explicit human Decision.\n- [ ] Approved decisions are recorded in knowledge/decisions.md.\n- [ ] Implementation Prerequisites and Follow-up Changes are listed.\n- [ ] Evidence updated.\n`,
+    "tasks.md": `# Tasks\n\n## Definition\n\n- [ ] Capture Context, Business/Product Constraints and Known Requirements.\n- [ ] List Assumptions and Open Questions.\n- [ ] Identify Decisions Required and evaluate Options Considered.\n- [ ] Write a Recommendation for each decision, only where evidence supports one.\n\n## Human Approval\n\n- [ ] (human) Review and approve, amend or reject each Recommendation in change.md.\n- [ ] (human) Record the final Decision and Rationale for each approved item.\n\n## Durable Knowledge\n\n- [ ] Record approved decisions in knowledge/decisions.md.\n- [ ] List Implementation Prerequisites and Follow-up Changes.\n\n## Evidence\n\n- [ ] Update evidence.md.\n`,
+    "evidence.md": evidenceTemplate()
+  };
+}
 function genericChangeFiles(id, slug, title = "") {
   return {
     "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nGeneral\n\n## Objective\n\n${title || slug}\n\n## Scope\n\n### In scope\n\n-\n\n### Out of scope\n\n-\n\n## Success Criteria\n\n-\n`,
@@ -584,7 +598,9 @@ function genericChangeFiles(id, slug, title = "") {
 function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error("Change name is required."); process.exitCode = 1; return null; }
   const id = nextChangeId(); const changeDir = cwd("changes", `${id}-${slug}`);
-  const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context) : genericChangeFiles(id, slug, name);
+  const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
+    : options.type === "definition" ? definitionChangeFiles(id, slug, name)
+      : genericChangeFiles(id, slug, name);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
@@ -965,6 +981,7 @@ function prompt(args) {
   const type = changeType(changeDir);
   const isAnalysis = type === "analysis";
   const isEnrichment = type === "enrichment";
+  const isDefinition = type === "definition";
   const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
   const project = detectProject();
   // Change 0069: mirrors standardItems above — an ai-specs/skills/ addition
@@ -1035,7 +1052,7 @@ function prompt(args) {
   const hookBlock = formatHookResultsBlock(activeHookResults);
   if (harnessConfig.log) appendHookLog(changeDir, { operation: "prompt", event: hookOutcome.event, entries: activeHookResults });
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : isDefinition ? `This is a Definition Change (pre-implementation).\n\nDo not implement application code.\nResolve project-definition questions in change.md: Context, Business/Product Constraints, Known Requirements, Assumptions, Open Questions, Decisions Required.\nExplain options and trade-offs in Options Considered; write a Recommendation only when evidence supports one.\nEvery architecture or product Decision requires explicit human approval — never fill in the Decision (human) section yourself, and never mark a task under "Human Approval" done yourself.\nOnce a decision is approved, record it in knowledge/decisions.md and update Implementation Prerequisites / Follow-up Changes.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 // Renders one Skill's result as a clearly-labeled, additive prompt section
 // (Entrega 5, design.md §9) — the ONLY place this framing text is written,

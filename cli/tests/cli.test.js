@@ -1369,6 +1369,57 @@ test("prompt on an Enrichment Change tells the assistant not to implement and to
   assert.match(out, /never marking Human Review tasks done yourself/);
 });
 
+test("new-change --type definition creates the Definition scaffold", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  assert.equal(status, 0);
+  assert.match(out, /Created Change/);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  const changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  assert.match(changeMd, /## Type\n\nDefinition/);
+  for (const heading of [
+    "## Context", "## Business / Product Constraints", "## Known Requirements",
+    "## Assumptions", "## Open Questions", "## Decisions Required", "## Options Considered",
+    "## Recommendation", "## Decision (human)", "## Rationale", "## Consequences",
+    "## Non-Functional Requirements", "## Security & Compliance", "## Data & Domain",
+    "## Integrations", "## Deployment & Operations", "## Implementation Prerequisites",
+    "## Follow-up Changes"
+  ]) {
+    assert.ok(changeMd.includes(heading), `change.md should include ${heading}`);
+  }
+  assert.match(changeMd, /Pending human approval/);
+  const tasksMd = fs.readFileSync(path.join(changeDir, "tasks.md"), "utf8");
+  assert.match(tasksMd, /- \[ \] \(human\)/);
+});
+
+test("prompt on a Definition Change tells the assistant not to implement and not to self-approve human decisions", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /This is a Definition Change/);
+  assert.match(out, /Do not implement application code/);
+  assert.match(out, /requires explicit human approval/);
+  assert.match(out, /never fill in the Decision \(human\) section yourself/);
+});
+
+test("close refuses a fresh Definition Change until its (human) Human Approval tasks are checked off", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\nReal evidence recorded here for this Definition Change, describing what was actually done in enough detail to count as substantive.\n");
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unchecked task/);
+});
+
+test("verify treats a Definition Change like any other typed Change (no special-casing)", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["verify"]);
+  assert.equal(status, 0);
+  assert.match(out, /define-project-architecture/);
+});
+
 // AIEF Core 3.0, Entrega 1 (Change 0043) — status reads an optional
 // manifest.json when a Change has one. change.md carries no ## Status
 // section here on purpose: under legacy-only inference this Change would
