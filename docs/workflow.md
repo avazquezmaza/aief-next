@@ -96,6 +96,19 @@ Every shipped Skill is instructions-only: it hands the assistant guidance to fol
 writes a file, runs a command, or calls the network on its own — following the instructions is not
 by itself evidence the described work happened.
 
+Three Skills ship this release: `change-context`, `requirements-analysis-instructions`, and
+`architecture-definition` (Change 0091 — a pilot for one expert Definition domain). The third
+applies only to a Definition Change (`## Type: Definition`) whose own content carries an
+architecture-relevant signal (authentication, tenancy, integration, persistence, availability,
+scalability, ...); it reads `context.definitionEnrichment` (Change 0090) to avoid duplicating what
+the Change already records, and instructs the assistant to draft Architecture Concerns, Options
+Considered, Trade-offs and a Recommendation inside the Change's own existing sections — never
+filling `Decision (human)`, checking a `(human)` task, or writing application code itself. The
+human decision it leads to is recorded the same way any other Definition decision already is: in
+`knowledge/decisions.md`, gated by the same `(human)` markers and `verify --strict` completeness
+check every other Definition Change already uses. No new graph, state store, or approval mechanism
+was introduced for this — see [Concepts — Skill](concepts.md#skill).
+
 ## Harness — Hooks Runtime, visibility and configuration
 
 **AIEF's Harness** is the Hook Runtime plus the opt-in configuration and logging layer over it

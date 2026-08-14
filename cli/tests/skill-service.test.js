@@ -28,13 +28,14 @@ function manifestFor(overrides = {}) {
 
 // --- listSkills() ---
 
-test("listSkills: lists both registered Skills with their applicability, deterministic order", () => {
+test("listSkills: lists all registered Skills with their applicability, deterministic order", () => {
   const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const listed = listSkills(context);
-  assert.deepEqual(listed.map((s) => s.id), ["change-context", "requirements-analysis-instructions"]);
+  assert.deepEqual(listed.map((s) => s.id), ["change-context", "requirements-analysis-instructions", "architecture-definition"]);
   assert.equal(listed[0].applicable, true); // change-context applies to any resolved Change
   assert.equal(listed[1].applicable, false); // no sdd section
+  assert.equal(listed[2].applicable, false); // not a Definition Change
 });
 
 test("listSkills: never calls buildInstructions() — a listing does not perform a Skill's work", () => {

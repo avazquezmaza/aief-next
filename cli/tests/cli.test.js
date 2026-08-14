@@ -2190,13 +2190,15 @@ test("prompt never writes any file (evidence.md, tasks.md unchanged)", () => {
 
 // --- Entrega 5 (Change 0047, ADR-019) — Skills Runtime, `prompt` integration ---
 
-test("prompt --list-skills lists both registered Skills, deterministic order, with zero open Changes", () => {
+test("prompt --list-skills lists every registered Skill, deterministic order, with zero open Changes", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   const { out, status } = aief(dir, ["prompt", "--list-skills"]);
   assert.equal(status, 0);
   assert.match(out, /change-context \(v1\.0\.0\): Change Context/);
   assert.match(out, /requirements-analysis-instructions \(v1\.0\.0\): Requirements Analysis Instructions/);
+  assert.match(out, /architecture-definition \(v1\.0\.0\): Architecture Definition/);
   assert.ok(out.indexOf("change-context") < out.indexOf("requirements-analysis-instructions"));
+  assert.ok(out.indexOf("requirements-analysis-instructions") < out.indexOf("architecture-definition"));
 });
 
 test("prompt --list-skills performs zero writes and resolves no Change", () => {
