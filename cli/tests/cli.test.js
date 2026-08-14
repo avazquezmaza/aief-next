@@ -154,6 +154,42 @@ test("bootstrap on an unknown stack creates only the base standards", () => {
   assert.deepEqual(files, ["base-standards.md", "documentation-standards.md", "security-standards.md", "testing-standards.md"]);
 });
 
+// --- Change 0082: maturity-aware standards ("Applies now" / "Applies once implementation starts") ---
+
+test("base/testing/security standards are maturity-aware: both sections present, Definition-stage content before Implementation-stage content", () => {
+  const dir = makeProject({ "README.md": "A plain library." });
+  aief(dir, ["bootstrap"]);
+  for (const file of ["base-standards.md", "testing-standards.md", "security-standards.md"]) {
+    const content = fs.readFileSync(path.join(dir, "knowledge", "standards", file), "utf8");
+    assert.match(content, /## Applies now/, `${file} must have an "Applies now" section`);
+    assert.match(content, /## Applies once implementation starts/, `${file} must have an "Applies once implementation starts" section`);
+    assert.ok(
+      content.indexOf("## Applies now") < content.indexOf("## Applies once implementation starts"),
+      `${file}: "Applies now" must come before "Applies once implementation starts"`
+    );
+  }
+});
+
+test("documentation/frontend/backend standards are unaffected by the maturity-aware restructuring", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { react: "18.0.0" } }) });
+  aief(dir, ["bootstrap"]);
+  const doc = fs.readFileSync(path.join(dir, "knowledge", "standards", "documentation-standards.md"), "utf8");
+  assert.doesNotMatch(doc, /## Applies now/);
+  const frontend = fs.readFileSync(path.join(dir, "knowledge", "standards", "frontend-standards.md"), "utf8");
+  assert.doesNotMatch(frontend, /## Applies now/);
+});
+
+test("an already-adopted project's own standards are never rewritten by the maturity-aware templates", () => {
+  const dir = makeProject({
+    "README.md": "x",
+    "knowledge/standards/base-standards.md": "MY HISTORICAL RULES, no maturity sections here",
+    "knowledge/standards/security-standards.md": "MY HISTORICAL SECURITY RULES"
+  });
+  aief(dir, ["bootstrap"]);
+  assert.equal(fs.readFileSync(path.join(dir, "knowledge", "standards", "base-standards.md"), "utf8"), "MY HISTORICAL RULES, no maturity sections here");
+  assert.equal(fs.readFileSync(path.join(dir, "knowledge", "standards", "security-standards.md"), "utf8"), "MY HISTORICAL SECURITY RULES");
+});
+
 test("bootstrap documents its own adoption Change automatically (no placeholder evidence)", () => {
   const dir = makeProject({ "README.md": "Multi-tenant SaaS." });
   const { out } = aief(dir, ["bootstrap"]);
