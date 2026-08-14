@@ -116,6 +116,56 @@ test("classifyMaturity: tooling config files under src/ do not count as source",
   assert.equal(result.maturity, "ambiguous");
 });
 
+test("classifyMaturity: substantial PRD content under docs/ (short root README) -> definition (Change 0085)", () => {
+  const dir = makeProject({
+    "README.md": "Fleet Maintenance Portal. See docs for details.",
+    "docs/prd.md": PRD_TEXT,
+    "docs/security.md": "Authentication must integrate with per-tenant SSO. Authorization must be enforced server-side. ".repeat(5),
+    "docs/architecture-options.md": "Option A: shared schema with row-level security. Option B: schema-per-tenant. ".repeat(5)
+  });
+  const result = classifyMaturity(dir);
+  assert.equal(result.maturity, "definition");
+  assert.ok(result.definitionFiles.includes("docs/prd.md"));
+  assert.ok(result.definitionFiles.includes("docs/security.md"));
+});
+
+test("classifyMaturity: documentation/ (alternate directory name) is also scanned", () => {
+  const dir = makeProject({
+    "README.md": "short",
+    "documentation/prd.md": PRD_TEXT
+  });
+  const result = classifyMaturity(dir);
+  assert.equal(result.maturity, "definition");
+});
+
+test("classifyMaturity: docs/ scanning is one level only — a nested docs/adr/ subdirectory is not scanned", () => {
+  const dir = makeProject({
+    "README.md": "short",
+    "docs/adr/0001-something.md": PRD_TEXT
+  });
+  const result = classifyMaturity(dir);
+  assert.equal(result.maturity, "ambiguous");
+});
+
+test("classifyMaturity: non-.md/.txt files under docs/ (e.g. an image) do not count", () => {
+  const dir = makeProject({
+    "README.md": "short",
+    "docs/diagram.svg": "<svg>" + "x".repeat(200) + "</svg>"
+  });
+  const result = classifyMaturity(dir);
+  assert.equal(result.maturity, "ambiguous");
+});
+
+test("classifyMaturity: docs/ content never overrides real source (implemented still wins)", () => {
+  const dir = makeProject({
+    "README.md": "short",
+    "docs/prd.md": PRD_TEXT,
+    "src/index.js": "export function main() {\n  return 42;\n}\n\nmain();\n"
+  });
+  const result = classifyMaturity(dir);
+  assert.equal(result.maturity, "implemented");
+});
+
 test("classifyMaturity: node_modules is never scanned for source signal", () => {
   const dir = makeProject({
     "README.md": "short",

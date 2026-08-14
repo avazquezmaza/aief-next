@@ -50,6 +50,18 @@ const MIN_SOURCE_BYTES = 20;
 // case-insensitively, extension-agnostic content check.
 const DEFINITION_FILENAME = /^(readme|prd|product[-_ ]?requirements?|requirements?|business[-_ ]?requirements?|brief)(\..+)?$/i;
 
+// Change 0085: a project's PRD/requirements/architecture notes conventionally
+// live under a docs/ directory, not only as a specially-named file at the
+// repository root — this project's own docs/ (getting-started.md,
+// concepts.md, ...) is itself an instance of that convention. Every plain
+// document (.md/.txt) directly inside one of these directories counts toward
+// the definition signal — no filename match required there, since the
+// directory itself is the signal. Deliberately one level deep, not
+// recursive: docs/adr/, docs/images/ etc. are common subdirectories this
+// must not silently vacuum up as "definition content".
+const DOC_DIRS = ["docs", "documentation"];
+const DOC_EXTENSIONS = new Set([".md", ".txt"]);
+
 // Word-count floor for "this document carries real requirements content",
 // not just a placeholder title. Deliberately low — this is a coarse floor
 // against one-line stubs ("# TODO"), not a quality bar.
@@ -98,30 +110,52 @@ function findSourceFiles(rootDir) {
   return found;
 }
 
-// Requirements/context documents at the repository root, with a combined
-// word count — the "does this repository explain what should be built"
-// signal.
-function findDefinitionDocuments(rootDir) {
-  let entries;
+function wordCountOf(filePath) {
+  let text = "";
   try {
-    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+    text = fs.readFileSync(filePath, "utf8");
   } catch {
-    return { files: [], words: 0 };
+    return 0;
   }
+  return (text.match(/\S+/g) || []).length;
+}
+
+// Requirements/context documents at the repository root (specifically named
+// — README/PRD/requirements/...) plus every plain document one level inside
+// docs/ or documentation/ (any filename — the directory is the signal), with
+// a combined word count: the "does this repository explain what should be
+// built" signal.
+function findDefinitionDocuments(rootDir) {
   const files = [];
   let words = 0;
-  for (const entry of entries) {
+
+  let rootEntries;
+  try {
+    rootEntries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    rootEntries = [];
+  }
+  for (const entry of rootEntries) {
     if (!entry.isFile() || !DEFINITION_FILENAME.test(entry.name)) continue;
-    let text = "";
+    files.push(entry.name);
+    words += wordCountOf(path.join(rootDir, entry.name));
+  }
+
+  for (const dirName of DOC_DIRS) {
+    const dirPath = path.join(rootDir, dirName);
+    let docEntries;
     try {
-      text = fs.readFileSync(path.join(rootDir, entry.name), "utf8");
+      docEntries = fs.readdirSync(dirPath, { withFileTypes: true });
     } catch {
       continue;
     }
-    const wordCount = (text.match(/\S+/g) || []).length;
-    files.push(entry.name);
-    words += wordCount;
+    for (const entry of docEntries) {
+      if (!entry.isFile() || !DOC_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) continue;
+      files.push(`${dirName}/${entry.name}`);
+      words += wordCountOf(path.join(dirPath, entry.name));
+    }
   }
+
   return { files, words };
 }
 
