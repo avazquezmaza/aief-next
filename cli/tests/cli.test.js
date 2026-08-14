@@ -680,6 +680,83 @@ test("analyze creates an Analysis Change with the standard evidence structure", 
   }
 });
 
+// --- Change 0080: project maturity detection routes `aief analyze` ---
+
+const PRD_ONLY_README = `# Product Requirements
+
+## Context
+
+This project will let internal support agents look up a customer's account
+history across three legacy systems from a single screen, replacing the
+current process of opening each legacy system separately for every ticket.
+
+## Constraints
+
+Must integrate with the existing SSO provider. Must retain audit logs for
+seven years. No new legacy system integrations may be added without
+Compliance sign-off.
+
+## Open Questions
+
+Which legacy systems are in scope for the first release? What is the
+expected concurrent user count?
+`;
+
+test("analyze on a PRD-only repository (no application source) creates a Definition Change instead of Analysis", () => {
+  const dir = makeProject({ "README.md": PRD_ONLY_README });
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.match(out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nDefinition/);
+});
+
+test("analyze on a real Node app (src/ present) is unaffected — still creates an Analysis Change", () => {
+  const dir = makeProject({
+    "README.md": PRD_ONLY_README,
+    "package.json": JSON.stringify({ name: "app", dependencies: { express: "^4.0.0" } }),
+    "src/index.js": "import express from \"express\";\nconst app = express();\napp.listen(3000);\n"
+  });
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /Detected maturity: Definition/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze on a sparse/ambiguous repository falls back to an Analysis Change, with an explicit (non-silent) note", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["analyze"]);
+  assert.equal(status, 0);
+  assert.match(out, /Project maturity is ambiguous — defaulting to Analysis/);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze --maturity definition forces Definition routing regardless of detection", () => {
+  const dir = makeProject();
+  const { status } = aief(dir, ["analyze", "--maturity", "definition"]);
+  assert.equal(status, 0);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nDefinition/);
+});
+
+test("analyze --maturity implemented forces Analysis routing on an otherwise Definition-looking repo", () => {
+  const dir = makeProject({ "README.md": PRD_ONLY_README });
+  const { status } = aief(dir, ["analyze", "--maturity", "implemented"]);
+  assert.equal(status, 0);
+  const changeDir = path.join(dir, "changes", "0001-analyze-current-architecture");
+  assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /## Type\n\nAnalysis/);
+});
+
+test("analyze --maturity bogus is rejected explicitly, no Change is created", () => {
+  const dir = makeProject();
+  const { status, out } = aief(dir, ["analyze", "--maturity", "bogus"]);
+  assert.equal(status, 1);
+  assert.match(out, /Unknown --maturity/);
+  assert.ok(!fs.existsSync(path.join(dir, "changes")), "no changes/ directory should be created on a rejected --maturity value");
+});
+
 test("prompt recognizes an Analysis Change even with CRLF line endings", () => {
   const dir = makeProject();
   aief(dir, ["analyze"]);
