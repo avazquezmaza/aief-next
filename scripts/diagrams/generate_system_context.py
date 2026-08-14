@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/system-context.svg (AIEF Core 3.1, docs/architecture.md).
+"""Canonical source for docs/images/system-context.svg (AIEF, docs/architecture.md).
 
 Answers: Where does AIEF sit in the engineering system? Regenerate with
 `python3 scripts/diagrams/generate_system_context.py` — never hand-edit the SVG.
@@ -46,7 +46,7 @@ def zone(x, title, subtitle, items, color):
 
 def build():
     body = []
-    body.append(heading(40, 38, "AIEF Core 3.1 — System Context", "Where AIEF sits among humans, tools, and the repository"))
+    body.append(heading(40, 38, "AIEF — System Context", "Where AIEF sits among humans, tools, and the repository"))
 
     x1 = 40
     ext_body, x1_end = zone(

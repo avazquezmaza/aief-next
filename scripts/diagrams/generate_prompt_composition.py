@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/prompt-composition.svg (AIEF Core 3.1, docs/architecture.md).
+"""Canonical source for docs/images/prompt-composition.svg (AIEF, docs/architecture.md).
 
 Answers: What goes into an AIEF prompt? Regenerate with
 `python3 scripts/diagrams/generate_prompt_composition.py` — never hand-edit the SVG.
@@ -44,7 +44,7 @@ def item_line(x, y, w, text, color):
 
 def build():
     body = []
-    body.append(heading(40, 38, "AIEF Core 3.1 — Prompt Composition", "What goes into an AIEF prompt — three groups feed one composer"))
+    body.append(heading(40, 38, "AIEF — Prompt Composition", "What goes into an AIEF prompt — three groups feed one composer"))
 
     top_y = 76
     group_gap = 22

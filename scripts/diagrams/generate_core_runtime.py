@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/core-runtime.svg (AIEF Core 3.1, docs/architecture.md).
+"""Canonical source for docs/images/core-runtime.svg (AIEF, docs/architecture.md).
 
 Answers: How is AIEF implemented internally? Regenerate with
 `python3 scripts/diagrams/generate_core_runtime.py` — never hand-edit the SVG.
@@ -71,7 +71,7 @@ def band(y, title, color, items):
 
 def build():
     body = []
-    body.append(heading(40, 38, "AIEF Core 3.1 — Core Runtime Architecture", "Every subsystem follows the same four-layer split, top to bottom"))
+    body.append(heading(40, 38, "AIEF — Core Runtime Architecture", "Every subsystem follows the same four-layer split, top to bottom"))
 
     y = 76
     ys = []

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/adoption-workflow.svg (AIEF Core 3.1, docs/getting-started.md).
+"""Canonical source for docs/images/adoption-workflow.svg (AIEF, docs/getting-started.md).
 
 Answers: How is AIEF adopted into an existing repository? Regenerate with
 `python3 scripts/diagrams/generate_adoption_workflow.py` — never hand-edit the SVG.
@@ -69,7 +69,7 @@ def build():
         heading(
             40,
             38,
-            "AIEF Core 3.1 — Adopting AIEF into an existing repository",
+            "AIEF — Adopting AIEF into an existing repository",
             "doctor inspects, bootstrap adds visible structure, verify validates, analyze records understanding",
         )
     )

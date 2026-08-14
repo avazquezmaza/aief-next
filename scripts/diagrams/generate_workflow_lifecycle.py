@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/workflow-lifecycle.svg (AIEF Core 3.1, docs/workflow.md).
+"""Canonical source for docs/images/workflow-lifecycle.svg (AIEF, docs/workflow.md).
 
 Answers: What is the detailed lifecycle of an AIEF Change? Regenerate with
 `python3 scripts/diagrams/generate_workflow_lifecycle.py` — never hand-edit the SVG. This is also
@@ -56,7 +56,7 @@ LEVELS = [
 def build():
     body = []
     body.append(
-        heading(40, 38, "AIEF Core 3.1 — Workflow Lifecycle", "The detailed path of a single Change, level by level")
+        heading(40, 38, "AIEF — Workflow Lifecycle", "The detailed path of a single Change, level by level")
     )
 
     xs = [40, 40 + COL_W + COL_GAP, 40 + 2 * (COL_W + COL_GAP)]

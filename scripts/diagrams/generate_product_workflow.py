@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/product-workflow.svg (AIEF Core 3.1, README).
+"""Canonical source for docs/images/product-workflow.svg (AIEF, README).
 
 Answers: How does AIEF work? Regenerate with
 `python3 scripts/diagrams/generate_product_workflow.py` — never hand-edit the SVG.
@@ -20,7 +20,7 @@ CARD_W, CARD_H = 272, 108
 def build():
     body = []
     body.append(
-        heading(40, 38, "AIEF Core 3.1 — Product Workflow", "How a requirement becomes a closed, verified Change")
+        heading(40, 38, "AIEF — Product Workflow", "How a requirement becomes a closed, verified Change")
     )
 
     row1_y = 76
@@ -98,7 +98,7 @@ def main():
         WIDTH,
         HEIGHT,
         "pw-title",
-        "AIEF Core 3.1 product workflow",
+        "AIEF product workflow",
         "pw-desc",
         "A requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI "
         "assistant implements it, evidence and verification follow, the Change is closed, and "

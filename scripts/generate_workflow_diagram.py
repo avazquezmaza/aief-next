@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility wrapper for docs/images/workflow.svg (AIEF Core 3.1).
+"""Compatibility wrapper for docs/images/workflow.svg (AIEF).
 
 This is the same "Workflow Lifecycle" diagram as docs/images/workflow-lifecycle.svg — kept as a
 standalone illustrated export (decks, blog posts, non-GitHub contexts) under its original,

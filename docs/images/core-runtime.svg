@@ -28,7 +28,7 @@
     </marker>
   </defs>
   <rect width="1300" height="730" fill="#ffffff"/>
-  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Core Runtime Architecture</text>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF — Core Runtime Architecture</text>
   <text x="40" y="58" font-size="12" fill="#64748b">Every subsystem follows the same four-layer split, top to bottom</text>
   <g transform="translate(40,76)">
     <rect width="1220" height="90" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>

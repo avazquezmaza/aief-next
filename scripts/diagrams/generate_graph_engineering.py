@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical source for docs/images/graph-engineering.svg (AIEF Core 3.1, docs/architecture.md).
+"""Canonical source for docs/images/graph-engineering.svg (AIEF, docs/architecture.md).
 
 Answers: How does Graph Engineering affect work selection? Regenerate with
 `python3 scripts/diagrams/generate_graph_engineering.py` — never hand-edit the SVG.
@@ -52,7 +52,7 @@ def pipe_card(x, title, color):
 def build():
     body = []
     body.append(
-        heading(40, 38, "AIEF Core 3.1 — Graph Engineering", "How declared dependsOn edges shape eligibility and the next-Change recommendation")
+        heading(40, 38, "AIEF — Graph Engineering", "How declared dependsOn edges shape eligibility and the next-Change recommendation")
     )
 
     total_w = len(PIPELINE) * CARD_W + (len(PIPELINE) - 1) * GAP

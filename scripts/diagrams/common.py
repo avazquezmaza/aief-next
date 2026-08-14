@@ -1,4 +1,4 @@
-"""Shared rendering helpers for AIEF Core 3.1 diagram generators.
+"""Shared rendering helpers for AIEF diagram generators.
 
 Every diagram under scripts/diagrams/ is Python data (cards, groups, arrows) fed through the
 helpers here so the six diagrams read as one visual family. Never hand-edit an SVG under

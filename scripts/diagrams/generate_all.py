@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical entry point: regenerates every AIEF Core 3.1 diagram SVG and its PNG.
+"""Canonical entry point: regenerates every AIEF diagram SVG and its PNG.
 
     python3 scripts/diagrams/generate_all.py
 

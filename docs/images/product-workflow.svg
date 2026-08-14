@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 560" width="1300" height="560" role="img" aria-labelledby="pw-title pw-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
-  <title id="pw-title">AIEF Core 3.1 product workflow</title>
+  <title id="pw-title">AIEF product workflow</title>
   <desc id="pw-desc">A requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it. Opt-in capabilities such as LIDR, Skills, Standards, Workflow tracks, Harness/Hooks, Loop, and the Change Graph attach without changing this shape.</desc>
   <defs>
     <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
@@ -28,7 +28,7 @@
     </marker>
   </defs>
   <rect width="1300" height="560" fill="#ffffff"/>
-  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Product Workflow</text>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF — Product Workflow</text>
   <text x="40" y="58" font-size="12" fill="#64748b">How a requirement becomes a closed, verified Change</text>
   <g transform="translate(40,76)">
     <rect width="272" height="108" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>

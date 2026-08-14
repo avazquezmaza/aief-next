@@ -26,7 +26,7 @@ daemon, no database, no hidden state.
 Every meaningful unit of work is a **Change**: a plain directory of Markdown files with a
 specification, a task checklist, and evidence of what actually happened.
 
-![AIEF Core 3.1 product workflow: a requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it](docs/images/product-workflow.svg)
+![AIEF product workflow: a requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it](docs/images/product-workflow.svg)
 
 AIEF composes the prompt, your assistant implements, and humans decide what's next. The opt-in band
 above — LIDR project intelligence, Skills, Standards, staged Workflow tracks, Harness/Hooks
@@ -188,11 +188,13 @@ an issue before major changes ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Status
 
-AIEF Core 3.1 is implemented and validated on real projects: Change management, prompt composition,
+AIEF 3.2 is implemented and validated on real projects: Change management, prompt composition,
 structural and requirement verification, staged Workflow tracks, opt-in Harness/Hooks visibility,
-Loop retry tracking, the Change dependency Graph, and Smart Workflow's `status --next` all work
-together as one coherent release. Progress is tracked as Changes in [changes/](changes/) — that
-history **is** the project's roadmap; each closed Change records what it delivered.
+Loop retry tracking, the Change dependency Graph, Smart Workflow's `status --next`, and
+pre-implementation Definition governance (project maturity detection, Definition Changes, human
+decision gating, `verify --strict`) all work together as one coherent release. Progress is tracked
+as Changes in [changes/](changes/) — that history **is** the project's roadmap; each closed Change
+records what it delivered.
 
 ## License
 

@@ -28,7 +28,7 @@
     </marker>
   </defs>
   <rect width="1300" height="784" fill="#ffffff"/>
-  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF Core 3.1 — Workflow Lifecycle</text>
+  <text x="40" y="38" font-size="19" font-weight="800" fill="#0f172a" letter-spacing="-0.3px">AIEF — Workflow Lifecycle</text>
   <text x="40" y="58" font-size="12" fill="#64748b">The detailed path of a single Change, level by level</text>
   <g transform="translate(40,140)">
     <rect width="380" height="448" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" stroke-dasharray="0"/>
