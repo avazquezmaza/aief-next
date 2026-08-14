@@ -1497,6 +1497,53 @@ test("verify treats a Definition Change like any other typed Change (no special-
   assert.match(out, /define-project-architecture/);
 });
 
+// --- Change 0081: Definition enrichment (Known/Missing/Ambiguous/Decision required/Human approval/Deferred) ---
+
+test("status --change on a fresh Definition Change reports every section as missing", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { status, out } = aief(dir, ["status", "--change", "0001-define-project-architecture"]);
+  assert.equal(status, 0);
+  assert.match(out, /Definition readiness: 0\/18 sections filled in/);
+  assert.match(out, /Missing: Context, /);
+});
+
+test("status --change on a Definition Change reflects Known sections and explicit markers, transparently derived", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-project-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace("## Context\n\n-", "## Context\n\nReplaces three legacy lookup screens with one unified view.");
+  changeMd = changeMd.replace("## Open Questions\n\n-", "## Open Questions\n\n- Which caching layer? (deferred)\n- Expected concurrent users? (ambiguous)");
+  changeMd = changeMd.replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy model. (decision required)");
+  changeMd = changeMd.replace("## Recommendation\n\n-", "## Recommendation\n\n- Schema-per-tenant. (human)");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["status", "--change", "0001-define-project-architecture"]);
+  assert.equal(status, 0);
+  assert.match(out, /Definition readiness: 4\/18 sections filled in/);
+  assert.match(out, /Decision required: 1 item\(s\)/);
+  assert.match(out, /Ambiguous: 1 item\(s\)/);
+  assert.match(out, /Human approval required: 1 item\(s\)/);
+  assert.match(out, /Deferred until implementation: 1 item\(s\)/);
+});
+
+test("status --change on a non-Definition Change never prints a Definition readiness block", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  const { out } = aief(dir, ["status", "--change", "0001-thing"]);
+  assert.doesNotMatch(out, /Definition readiness/);
+});
+
+test("prompt on a Definition Change explains the marker convention", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /\(decision required\)/);
+  assert.match(out, /\(ambiguous\)/);
+  assert.match(out, /\(deferred\)/);
+  assert.match(out, /never invents a category from prose/);
+});
+
 // AIEF Core 3.0, Entrega 1 (Change 0043) — status reads an optional
 // manifest.json when a Change has one. change.md carries no ## Status
 // section here on purpose: under legacy-only inference this Change would
