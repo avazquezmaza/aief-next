@@ -17,8 +17,9 @@ import { validateDescriptor } from "../core/domain/skill.js";
 import * as changeContext from "./change-context.js";
 import * as requirementsAnalysisInstructions from "./requirements-analysis-instructions.js";
 import * as architectureDefinition from "./architecture-definition.js";
+import * as dataDefinition from "./data-definition.js";
 
-const MODULES = [changeContext, requirementsAnalysisInstructions, architectureDefinition];
+const MODULES = [changeContext, requirementsAnalysisInstructions, architectureDefinition, dataDefinition];
 
 // createRegistry(modules) -> { id -> module } or throws. Exported (in
 // addition to the static registry built from it below) so tests can exercise

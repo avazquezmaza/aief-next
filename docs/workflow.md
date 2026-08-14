@@ -96,18 +96,27 @@ Every shipped Skill is instructions-only: it hands the assistant guidance to fol
 writes a file, runs a command, or calls the network on its own — following the instructions is not
 by itself evidence the described work happened.
 
-Three Skills ship this release: `change-context`, `requirements-analysis-instructions`, and
-`architecture-definition` (Change 0091 — a pilot for one expert Definition domain). The third
-applies only to a Definition Change (`## Type: Definition`) whose own content carries an
-architecture-relevant signal (authentication, tenancy, integration, persistence, availability,
-scalability, ...); it reads `context.definitionEnrichment` (Change 0090) to avoid duplicating what
-the Change already records, and instructs the assistant to draft Architecture Concerns, Options
-Considered, Trade-offs and a Recommendation inside the Change's own existing sections — never
-filling `Decision (human)`, checking a `(human)` task, or writing application code itself. The
-human decision it leads to is recorded the same way any other Definition decision already is: in
+Four Skills ship this release: `change-context`, `requirements-analysis-instructions`, and two
+expert Definition Skills, `architecture-definition` (Change 0091) and `data-definition` (Change
+0094) — validated together as a domain-coexistence pilot, not a framework. Each applies only to a
+Definition Change (`## Type: Definition`) whose own content carries its own domain-relevant
+signal — `architecture-definition`: authentication, tenancy, integration, persistence,
+availability, scalability, ...; `data-definition`: PII, personal/sensitive/customer data,
+retention, residency, classification, deletion, archival, ... (deliberately excluding bare
+"data"/"database"/"schema"/"storage", which would collide with `architecture-definition`'s own
+signal). Both read `context.definitionEnrichment` (Change 0090) to avoid duplicating what the
+Change already records, and instruct the assistant to draft Concerns, Options Considered,
+Trade-offs and a Recommendation inside the Change's own existing sections — never filling `Decision
+(human)`, checking a `(human)` task, or writing application code itself. Each Skill's own
+instructions state an explicit domain boundary (architecture owns persistence technology/
+deployment topology/tenant-isolation topology/cloud-provider selection; data owns classification/
+retention/residency/ownership/deletion/archival) so the two can apply to the same Definition Change
+without duplicating a governed concern or issuing a contradictory recommendation — proven by real
+coexistence scenarios in Change 0094's own evidence, not merely asserted. The human decision either
+leads to is recorded the same way any other Definition decision already is: in
 `knowledge/decisions.md`, gated by the same `(human)` markers and `verify --strict` completeness
-check every other Definition Change already uses. No new graph, state store, or approval mechanism
-was introduced for this — see [Concepts — Skill](concepts.md#skill).
+check every other Definition Change already uses. No new graph, state store, approval mechanism, or
+Skill orchestration layer was introduced for either — see [Concepts — Skill](concepts.md#skill).
 
 ## Harness — Hooks Runtime, visibility and configuration
 

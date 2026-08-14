@@ -279,3 +279,19 @@ test("buildInstructions: the generic 'do not re-raise or duplicate' guidance cov
   assert.match(text, /Deferred: ```\nERP synchronization design will be decided during Delivery\./);
   assert.match(text, /do not re-raise or duplicate these, build on them instead/);
 });
+
+// Change 0094 (Data Definition coexistence) regression: architecture-definition's
+// own "What you may do" example list previously included "data ownership" —
+// a term data-definition (Change 0094) explicitly claims as its own domain,
+// a real ownership-duplication risk between the two Skills. Fixed by
+// replacing the example with unambiguously architecture-scoped terms and an
+// explicit disclaimer. Locked in here.
+test("buildInstructions: does not claim data-governance concerns (classification/retention/residency/ownership) as its own finding — defers to data-definition (Change 0094 fix)", () => {
+  const dir = makeChangeDir({ ...OTHER_FILES, "change.md": ARCHITECTURE_RELEVANT });
+  const context = buildSkillContext(dir, dir);
+  const text = buildInstructions(context);
+  const section = text.match(/## What you may do[\s\S]*?## What you must NOT do/)[0];
+  assert.doesNotMatch(section, /\be\.g\.[^)]*\bdata\s*\n?\s*ownership\b/);
+  assert.match(text, /data-definition's own domain/);
+  assert.match(text, /never claim them as this Skill's own finding/);
+});

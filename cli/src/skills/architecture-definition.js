@@ -146,11 +146,14 @@ export function buildInstructions(context) {
   lines.push("## What you may do");
   lines.push("");
   lines.push("- Identify architecture concerns this Change's Known Requirements/Context raise but do not");
-  lines.push("  yet address (e.g. system boundaries, deployment topology, persistence strategy, data");
-  lines.push("  ownership, tenant isolation, authentication/authorization boundaries, external");
+  lines.push("  yet address (e.g. system boundaries, deployment topology, persistence technology");
+  lines.push("  selection, tenant-isolation topology, authentication/authorization boundaries, external");
   lines.push("  integrations, availability, scalability, observability, operational constraints) — only");
   lines.push("  the ones this project's own content actually makes relevant, never a fixed checklist run");
-  lines.push("  end to end regardless of relevance, and never a completeness score or percentage.");
+  lines.push("  end to end regardless of relevance, and never a completeness score or percentage. Data");
+  lines.push("  governance/lifecycle concerns (classification, retention, residency, ownership, deletion,");
+  lines.push("  archival) are data-definition's own domain (Change 0094) — note their implementation");
+  lines.push("  consequences for architecture if relevant, never claim them as this Skill's own finding.");
   lines.push("- Add new items to Open Questions/Decisions Required, marked (ambiguous) or");
   lines.push("  (decision required) exactly as this Change's existing items already are — reuse the");
   lines.push("  existing marker convention, never invent a new one.");

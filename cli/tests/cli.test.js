@@ -2197,8 +2197,10 @@ test("prompt --list-skills lists every registered Skill, deterministic order, wi
   assert.match(out, /change-context \(v1\.0\.0\): Change Context/);
   assert.match(out, /requirements-analysis-instructions \(v1\.0\.0\): Requirements Analysis Instructions/);
   assert.match(out, /architecture-definition \(v1\.0\.0\): Architecture Definition/);
+  assert.match(out, /data-definition \(v1\.0\.0\): Data Definition/);
   assert.ok(out.indexOf("change-context") < out.indexOf("requirements-analysis-instructions"));
   assert.ok(out.indexOf("requirements-analysis-instructions") < out.indexOf("architecture-definition"));
+  assert.ok(out.indexOf("architecture-definition") < out.indexOf("data-definition"));
 });
 
 test("prompt --list-skills performs zero writes and resolves no Change", () => {
