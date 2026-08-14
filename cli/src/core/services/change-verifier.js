@@ -53,6 +53,27 @@ function isPlaceholderContent(content) {
   return content === "" || content === "-";
 }
 
+// Change 0086 — a Definition Change (Change 0079) governance invariant: a
+// `Decisions Required` entry is not resolved merely because its `(human)`
+// approval *tasks* were checked off. Checking a task records that a human
+// looked; it says nothing about what `## Decision (human)` actually
+// contains. Reproduced: `aief close --yes` previously succeeded with every
+// `(human)` task checked while `## Decision (human)` still held the
+// scaffold's untouched "Pending human approval..." sentence — the exact
+// Case 2 governance bypass a focused pre-merge review found. Shared by
+// checkStrictCompleteness() (opt-in, informational) and
+// checkChangeReadiness() (close-blocking, always on for Definition Changes)
+// so the two never diverge on what "resolved" means.
+export function definitionDecisionOutcomeProblem(change) {
+  if (change.type !== "definition") return null;
+  const changeMd = change.files?.["change.md"] || "";
+  const { missing } = analyzeDefinitionSections(changeMd);
+  const decisionsRequiredIsKnown = !missing.includes("Decisions Required");
+  const decisionHasNoOutcome = missing.includes("Decision (human)");
+  if (decisionsRequiredIsKnown && decisionHasNoOutcome) return "Decisions Required has content but Decision (human) records no outcome yet";
+  return null;
+}
+
 // checkStrictCompleteness(change) -> string[] — one problem string per
 // objective gap found. Never subjective: every rule below is "this exact,
 // literal condition is true", never a heuristic score.
@@ -80,12 +101,8 @@ export function checkStrictCompleteness(change) {
   const acceptanceCriteria = extractSection(specMd, "Acceptance Criteria");
   if (acceptanceCriteria !== null && (isPlaceholderContent(acceptanceCriteria) || acceptanceCriteria === "- [ ]")) problems.push("spec.md Acceptance Criteria is empty");
 
-  if (change.type === "definition") {
-    const { missing } = analyzeDefinitionSections(changeMd);
-    const decisionsRequiredIsKnown = !missing.includes("Decisions Required");
-    const decisionHasNoOutcome = missing.includes("Decision (human)");
-    if (decisionsRequiredIsKnown && decisionHasNoOutcome) problems.push("Decisions Required has content but Decision (human) records no outcome yet");
-  }
+  const definitionProblem = definitionDecisionOutcomeProblem(change);
+  if (definitionProblem) problems.push(definitionProblem);
 
   for (const line of tasksMd.split(/\r?\n/)) {
     const match = line.match(/^\s*-\s*\[\s\]\s*\(human\)\s*(.+)$/i);
@@ -118,12 +135,21 @@ export function checkChangeReadiness(change) {
       : change.evidenceState === "partial" ? "evidence.md is only partially completed (placeholders still dominate)"
         : null;
   const status = statusProblem(change);
+  // Change 0086: unlike the rest of `--strict`'s objective-completeness
+  // checks (still opt-in only), this one specific Definition invariant is
+  // always enforced at close — the same "close adds close-specific
+  // questions on top of verify's structural ones" precedent openTasksCount
+  // already set (see docs/cli.md's verify-vs-close note), scoped to exactly
+  // the invariant a real governance bypass was found in, not the whole of
+  // checkStrictCompleteness().
+  const definitionProblem = definitionDecisionOutcomeProblem(change);
   return [
     ...change.missing.map((f) => `${f} is missing`),
     ...change.empty.map((f) => `${f} is empty`),
     ...(status ? [status] : []),
     ...(evidenceProblem ? [evidenceProblem] : []),
-    ...(change.openTasksCount ? [`${change.openTasksCount} unchecked task(s) in tasks.md`] : [])
+    ...(change.openTasksCount ? [`${change.openTasksCount} unchecked task(s) in tasks.md`] : []),
+    ...(definitionProblem ? [definitionProblem] : [])
   ];
 }
 

@@ -1525,6 +1525,56 @@ test("close refuses a fresh Definition Change until its (human) Human Approval t
   assert.match(out, /unchecked task/);
 });
 
+// Change 0086 — governance bypass found by a focused pre-merge review: checking
+// the (human) approval TASK is not the same fact as `## Decision (human)`
+// actually recording an outcome. close must refuse both independently.
+test("close refuses a Definition Change even when every (human) task is checked, while Decision (human) still holds the untouched pending placeholder", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd
+    .replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy isolation model. (decision required)")
+    .replace("## Recommendation\n\n-", "## Recommendation\n\n- Shared schema with row-level security. (human)");
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  // Simulate checking off every task WITHOUT actually editing Decision (human).
+  let tasksMd = fs.readFileSync(path.join(changeDir, "tasks.md"), "utf8");
+  tasksMd = tasksMd.replace(/- \[ \] /g, "- [x] ");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), tasksMd, "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nMulti-tenancy decided.\n", "utf8");
+
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1, "close must refuse — Decision (human) was never actually recorded");
+  assert.match(out, /Decisions Required has content but Decision \(human\) records no outcome yet/);
+
+  // Once Decision (human) is genuinely filled in, close succeeds.
+  changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd.replace(
+    "## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.",
+    "## Decision (human)\n\nApproved: shared schema with row-level security."
+  );
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const retry = aief(dir, ["close", "--yes"]);
+  assert.equal(retry.status, 0);
+});
+
+test("close on a Definition Change with an approved Decision (human) but an unchecked (human) task is still refused (Case 3 of the human-decision matrix)", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "define architecture", "--type", "definition"]);
+  const changeDir = path.join(dir, "changes", "0001-define-architecture");
+  let changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  changeMd = changeMd
+    .replace("## Decisions Required\n\n-", "## Decisions Required\n\n- Multi-tenancy isolation model. (decision required)")
+    .replace(
+      "## Decision (human)\n\nPending human approval. Do not treat any Recommendation above as final until this section records an explicit human decision.",
+      "## Decision (human)\n\nApproved: shared schema with row-level security."
+    );
+  fs.writeFileSync(path.join(changeDir, "change.md"), changeMd, "utf8");
+  const { status, out } = aief(dir, ["close", "--yes"]);
+  assert.equal(status, 1);
+  assert.match(out, /unchecked task/);
+});
+
 test("verify treats a Definition Change like any other typed Change (no special-casing)", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   aief(dir, ["new-change", "define project architecture", "--type", "definition"]);
