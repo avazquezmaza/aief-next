@@ -163,6 +163,13 @@ did (Change 0072). `aief prompt` tags a weak-confidence Skill (`(weak signal —
 relying on this)`) so the assistant reading it can tell a speculative match from a solid one;
 `aief doctor`'s report lists strong-confidence recommendations first for the same reason.
 
+A Skill's context (the Skill Context Builder's `buildSkillContext()`) always carries
+`project`/`change`/`workflow`/`sdd`/`action`, plus `definitionEnrichment` (Change 0090) — the
+Definition Change's own Known/Missing sections and `(deferred)`/`(ambiguous)`/`(decision
+required)`/`(human)`-marked items, reusing `analyzeDefinitionSections()` (the same classification
+`aief status --change <id>`'s "Definition readiness:" block already reports). `null` for every
+non-Definition Change — a Skill never gets a fabricated result for a Change that isn't one.
+
 ## Hook / Harness
 
 A **Hook** is a versioned observer that reacts to one of a small, closed set of lifecycle events
