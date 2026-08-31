@@ -96,6 +96,53 @@ test("discoverAiSpecs: is deterministic across repeated calls", () => {
   assert.deepEqual(first, second);
 });
 
+// Folder-per-skill discovery (<id>/SKILL.md) — the convention real
+// LIDR/specboot projects use (github.com/LIDR-academy/lidr-specboot's
+// ai-specs/skills/<name>/SKILL.md), added alongside AIEF's original flat
+// "<id>.md" convention (Change 0053). Neither replaces the other.
+
+test("discoverAiSpecs: a folder skill (<id>/SKILL.md) is discovered", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "adversarial-review", "SKILL.md"), "# Adversarial Review\n\nReview independently.\n");
+  const result = discoverAiSpecs(cwd);
+  assert.equal(result.skills.length, 1);
+  assert.equal(result.skills[0].id, "adversarial-review");
+  assert.equal(result.skills[0].state, "present");
+  assert.match(result.skills[0].content, /Review independently/);
+});
+
+test("discoverAiSpecs: flat <id>.md and folder <id>/SKILL.md skills coexist", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "code-review.md"), "flat");
+  writeFile(path.join(cwd, "ai-specs", "skills", "adversarial-review", "SKILL.md"), "folder");
+  const result = discoverAiSpecs(cwd);
+  assert.equal(result.skills.length, 2);
+  const ids = result.skills.map((r) => r.id).sort();
+  assert.deepEqual(ids, ["adversarial-review", "code-review"]);
+  assert.equal(result.skills.every((r) => r.state === "present"), true);
+});
+
+test("discoverAiSpecs: a flat <id>.md always wins a same-id collision over <id>/SKILL.md", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "foo.md"), "flat wins");
+  writeFile(path.join(cwd, "ai-specs", "skills", "foo", "SKILL.md"), "folder loses");
+  const result = discoverAiSpecs(cwd);
+  assert.equal(result.skills.length, 2);
+  const present = result.skills.find((r) => r.state === "present");
+  const duplicate = result.skills.find((r) => r.state === "duplicate");
+  assert.equal(present.id, "foo");
+  assert.match(present.content, /flat wins/);
+  assert.equal(duplicate.id, "foo");
+  assert.match(duplicate.path, /SKILL\.md$/);
+});
+
+test("discoverAiSpecs: a subdirectory without SKILL.md is silently ignored, not an error", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "not-a-skill", "README.md"), "unrelated");
+  const result = discoverAiSpecs(cwd);
+  assert.deepEqual(result.skills, []);
+});
+
 test("resolveResources: a project resource overrides a matching built-in id (never merged)", () => {
   const builtins = [{ id: "code-review", description: "AIEF built-in review guidance" }];
   const project = [{ id: "code-review", path: "/proj/ai-specs/skills/code-review.md", state: "present", content: "project guidance", diagnostic: null }];

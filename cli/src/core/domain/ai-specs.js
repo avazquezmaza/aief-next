@@ -34,17 +34,37 @@ function discoverResourceDir(dir) {
     return [{ id: null, path: dir, state: "read_error", content: null, diagnostic: `could not read ${dir}: ${err.message}` }];
   }
 
-  const names = entries
+  // Two source shapes are recognized, neither replacing the other. Flat
+  // "<id>.md" directly in `dir` is AIEF's original convention (Change 0053).
+  // "<id>/SKILL.md" — a subdirectory per resource — is the convention real
+  // LIDR/specboot projects actually use (confirmed against every skill in
+  // github.com/LIDR-academy/lidr-specboot's ai-specs/skills/). Flat files are
+  // listed first so that a flat "<id>.md" always wins a same-id collision
+  // over a folder "<id>/SKILL.md" (existing duplicate handling below,
+  // unchanged) — this is deliberate precedence, not an ordering accident.
+  const flatCandidates = entries
     .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"))
-    .map((entry) => entry.name)
-    .sort();
+    .map((entry) => ({ id: path.basename(entry.name, path.extname(entry.name)), filePath: path.join(dir, entry.name) }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const folderCandidates = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const subDir = path.join(dir, entry.name);
+    let subEntries;
+    try {
+      subEntries = fs.readdirSync(subDir, { withFileTypes: true });
+    } catch {
+      continue; // unreadable subdirectory: not a resource, not an error for this scan
+    }
+    const skillFile = subEntries.find((e) => e.isFile() && e.name.toLowerCase() === "skill.md");
+    if (skillFile) folderCandidates.push({ id: entry.name, filePath: path.join(subDir, skillFile.name) });
+  }
+  folderCandidates.sort((a, b) => a.id.localeCompare(b.id));
 
   const claimedIds = new Set();
   const resources = [];
-  for (const name of names) {
-    const filePath = path.join(dir, name);
-    const id = path.basename(name, path.extname(name));
-
+  for (const { id, filePath } of [...flatCandidates, ...folderCandidates]) {
     if (claimedIds.has(id)) {
       resources.push({ id, path: filePath, state: "duplicate", content: null, diagnostic: `duplicate id "${id}" in ${dir} — a previous file already claimed it` });
       continue;
