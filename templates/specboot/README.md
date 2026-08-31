@@ -13,10 +13,26 @@ A project may carry:
 ```text
 ai-specs/
 ├── skills/
-│   └── <id>.md
+│   ├── <id>.md            (flat file — AIEF's own original convention)
+│   └── <id>/
+│       └── SKILL.md       (folder-per-skill — the convention real LIDR/specboot
+│                            projects actually use, e.g. github.com/LIDR-academy/
+│                            lidr-specboot's ai-specs/skills/<name>/SKILL.md)
 └── standards/
     └── <id>.md
 ```
+
+Both Skill shapes are discovered; neither replaces the other, and a same-id collision between them
+resolves in favor of the flat `<id>.md` file (see `discoverResourceDir()` in `ai-specs.js`).
+
+**`ai-specs/standards/` is an AIEF-only convention — real LIDR/specboot projects do not have this
+directory.** In `github.com/LIDR-academy/lidr-specboot`, standards documents
+(`base-standards.md`, `backend-standards.md`, `frontend-standards.md`, `documentation-standards.md`,
+etc.) live under `docs/`, at the repository root, not under `ai-specs/`. AIEF does not read `docs/`
+as a Standards source (that directory means something different — and is used differently — in
+every project). A project that wants AIEF to discover its specboot-authored standards must place
+copies (or symlinks) of the relevant `docs/*-standards.md` files under `ai-specs/standards/`
+itself; AIEF will not find them under `docs/` on its own.
 
 Each file's name (without extension) is its id; its content is free-form Markdown. AIEF's
 `cli/src/core/domain/ai-specs.js` (`discoverAiSpecs()`/`resolveResources()`, ADR-023) can read
