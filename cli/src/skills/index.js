@@ -18,8 +18,9 @@ import * as changeContext from "./change-context.js";
 import * as requirementsAnalysisInstructions from "./requirements-analysis-instructions.js";
 import * as architectureDefinition from "./architecture-definition.js";
 import * as dataDefinition from "./data-definition.js";
+import * as adversarialReview from "./adversarial-review.js";
 
-const MODULES = [changeContext, requirementsAnalysisInstructions, architectureDefinition, dataDefinition];
+const MODULES = [changeContext, requirementsAnalysisInstructions, architectureDefinition, dataDefinition, adversarialReview];
 
 // createRegistry(modules) -> { id -> module } or throws. Exported (in
 // addition to the static registry built from it below) so tests can exercise

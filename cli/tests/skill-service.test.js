@@ -32,11 +32,12 @@ test("listSkills: lists all registered Skills with their applicability, determin
   const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const listed = listSkills(context);
-  assert.deepEqual(listed.map((s) => s.id), ["change-context", "requirements-analysis-instructions", "architecture-definition", "data-definition"]);
+  assert.deepEqual(listed.map((s) => s.id), ["change-context", "requirements-analysis-instructions", "architecture-definition", "data-definition", "adversarial-review"]);
   assert.equal(listed[0].applicable, true); // change-context applies to any resolved Change
   assert.equal(listed[1].applicable, false); // no sdd section
   assert.equal(listed[2].applicable, false); // not a Definition Change
   assert.equal(listed[3].applicable, false); // not a Definition Change
+  assert.equal(listed[4].applicable, true); // adversarial-review: open legacy Change, no track — widest safe default
 });
 
 test("listSkills: never calls buildInstructions() — a listing does not perform a Skill's work", () => {
