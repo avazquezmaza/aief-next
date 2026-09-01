@@ -23,11 +23,22 @@
       confirmed it names no mechanism (no "SQL"/"middleware"/"import"/"module"/"strangler"/"API
       boundary" anywhere in it).
 - [x] Snapshot all three: each fixture's pristine state is the commit that introduces it in this
-      repo (`git log -- changes/0096-.../fixtures/<name>/`) — restoring between sessions means
-      re-copying the directory tree from that commit into a fresh working copy for the next
-      participant, never editing the tracked pristine copy in place. No separate git tag/archive
-      mechanism was added; the outer repo's own history already satisfies R4's "prepared once,
-      restored byte-for-byte" requirement without inventing a second one.
+      repo — no separate git tag was added; the commit itself is the snapshot.
+
+**Canonical restore recipe (one form, always identical — fixed after a review finding: a naive
+`cp -r` would drag along `node_modules` that already exists on disk from testing these fixtures,
+breaking the byte-for-byte guarantee across sessions since native builds like `better-sqlite3`
+would stay pinned to whatever machine built them first):**
+
+```bash
+git archive HEAD -- changes/0096-run-usability-validation-study/fixtures/<fixture>/ \
+  | tar -x -C /tmp/<destination>
+cd /tmp/<destination>/changes/0096-run-usability-validation-study/fixtures/<fixture>
+npm install
+```
+
+`git archive` exports only tracked files — `node_modules` (gitignored) never comes along regardless
+of disk state. `npm install` runs fresh every time. Never `cp -r` the working tree directly.
 
 ## Pilot — P0
 
@@ -38,7 +49,8 @@
 - [ ] Record any **operational** issue found (recording, timing, repo prep) — cause named,
       fix applied. The protocol's design itself is not changed (§9b rule 1).
 - [ ] Pilot data excluded from all aggregates, per `consolidation.md` §1.
-- [ ] Restore the fixture repo to its pristine snapshot before P1.
+- [ ] Restore the fixture to its pristine snapshot before P1, using the canonical restore recipe
+      above (`git archive` + `npm install` — never `cp -r` the working tree).
 
 ## Scored sessions — P1–P5
 
@@ -48,7 +60,8 @@
 - [ ] (human) P3 — senior, Scenario A.
 - [ ] (human) P4 — mid, Scenario B.
 - [ ] (human) P5 — senior, Scenario C.
-- [ ] Restore the relevant fixture repo to its pristine snapshot between every session.
+- [ ] Restore the relevant fixture to its pristine snapshot between every session, using the same
+      canonical restore recipe every time — never mixed with an ad hoc copy.
 - [ ] Each observation sheet completed live and at debrief; no field left blank without a reason.
 
 ## Consolidation
