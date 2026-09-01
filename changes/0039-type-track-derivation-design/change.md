@@ -46,4 +46,4 @@ Design the **Type ↔ Depth** transition: Depth becomes the user-facing entry po
 
 ## Status
 
-Open.
+Closed (2026-09-01)
