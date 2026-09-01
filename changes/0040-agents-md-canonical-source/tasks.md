@@ -44,7 +44,8 @@
 ## Human gates
 
 - [x] (human) **Approve execution.** Approved 2026-07-17; executed.
-- [ ] (review) Independent review of the merged canonical content before it ships.
+- [x] (review) Independent review of the merged canonical content before it ships. Completed
+      2026-09-01 — see evidence.md's "Independent review" section.
 
 ## Out of scope — do not do here
 

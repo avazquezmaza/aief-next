@@ -57,6 +57,6 @@ Scope: one canonical source, every adoption path generating it, tests proving it
 
 ## Status
 
-Open
+Closed (2026-09-01)
 
-Implementation executed 2026-07-17 (human-approved): one canonical source; every adoption path delivers 100% of the approved rules; 128/128 tests pass; `aief verify` global PASS; zero deletions, zero renames. The Change stays **Open** because one `(review)` gate remains — independent review of the merged canonical content. See [evidence.md](evidence.md).
+Implementation executed 2026-07-17 (human-approved): one canonical source; every adoption path delivers 100% of the approved rules; 128/128 tests pass; `aief verify` global PASS; zero deletions, zero renames. The remaining `(review)` gate — independent review of the merged canonical content — completed 2026-09-01: 22/22 rule-matrix rows confirmed present, both documented links resolve, 7/7 dedicated tests pass, and a fresh `aief bootstrap` still produces output byte-identical to the canonical. See [evidence.md](evidence.md).
