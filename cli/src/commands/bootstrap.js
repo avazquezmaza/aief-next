@@ -46,7 +46,7 @@ function createStandards(project) {
 // capability: it is a workflow file plus documentation. Visible (no hidden
 // state, ADR-009) and never overwritten, like every other adoption artifact.
 // Not on GitHub Actions? The gate is one command: `npx aief verify`
-// (docs/ci-gate.md).
+// (docs/configuration.md, "CI gate").
 function createCiGate() {
   if (!fs.existsSync(CI_TEMPLATE)) return null;
   const created = writeFile(cwd(".github", "workflows", "aief-verify.yml"), fs.readFileSync(CI_TEMPLATE, "utf8"));

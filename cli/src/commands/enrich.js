@@ -63,7 +63,7 @@ export function enrich(args) {
     return;
   }
   if (!hasAdapter(provider)) {
-    console.error(`Provider "${provider}" is not implemented yet. It is planned — see docs/requirement-sources.md.\n\nImplemented now: ${implementedProviders().join(", ")}.`);
+    console.error(`Provider "${provider}" is not implemented yet. It is planned — see docs/configuration.md, "Requirement Source providers".\n\nImplemented now: ${implementedProviders().join(", ")}.`);
     process.exitCode = 1;
     return;
   }
