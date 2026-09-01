@@ -160,3 +160,9 @@ Per the ratified flow — `Candidate DELETE → consensus → Approved DELETE �
 **None.** This package authorizes nothing; it prepares a human review.
 
 Blocking sequence, per the approved order: (A) Change 0039 approved → (B) Change 0040 executed → (C) **this review accepted by someone other than its author** → (D) cluster execution, starting with R10–R14.
+
+**Status of the sequence (2026-09-01):** (B) Change 0040 — executed and closed. (C) this review —
+the independent second-reader passes above are already on record (2026-07-17); this Change's own
+tasks.md gates are all satisfied. (A) Change 0039 — still pending the project owner's approval as
+of this note. Closing this Change (0041) records that its own deliverable — the review package —
+is complete; it does not itself advance (A), and does not authorize (D).

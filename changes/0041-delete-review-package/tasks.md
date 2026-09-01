@@ -55,7 +55,7 @@
 
 ## Deferred
 
-- [-] Execution of the R10/R11/R13/R14 Approved DELETEs — deferred by instruction; a later, separate Change.
+- [-] Execution of the R10/R11/R13/R14 Approved DELETEs — deferred by instruction; a later, separate Change. (Marker fixed 2026-09-01 to match this section's own `[-]` convention — this was never a task this Change owed; it was miscategorized as an open `[ ]` task, blocking `aief close` on work explicitly out of scope.)
 - [-] Link validation on a temporary copy — belongs to the execution Change; nothing has moved yet.
 - [-] Onboarding cluster content review — last, and by hand, per the approved order.
 - [-] A separate Change to consider merging starter-project's PR/issue templates and knowledge samples into `adopt` (R3).
