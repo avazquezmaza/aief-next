@@ -57,4 +57,4 @@ The most serious correction: **`aief propose` must be KEEP.** It is mandated by 
 
 ## Status
 
-Open.
+Closed (2026-09-01)
