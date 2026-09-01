@@ -171,3 +171,48 @@ test("jira adapter: --file pointing inside the project root to a nonexistent fil
     process.chdir(cwd);
   }
 });
+
+// --- Change 0105: sourceId itself (no --file) escaping the project root ---
+// sourceId is unsanitized CLI input (cli/src/commands/enrich.js passes argv
+// straight through) — it is interpolated into the default
+// "requirements/jira/<sourceId>.json" path exactly like --file is
+// interpolated into an explicit one, so it needs the same containment check.
+
+test("jira adapter: a sourceId escaping the project root via '../' (no --file) is rejected before any read", () => {
+  const dir = tmp();
+  const outside = path.join(path.dirname(dir), `aief-jira-secret-sourceid-${process.pid}`);
+  fs.writeFileSync(`${outside}.json`, JSON.stringify({ fields: { summary: "EXFILTRATED", status: { name: "Open" } } }), "utf8");
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    // Default path is requirements/jira/<sourceId>.json — sourceId needs to
+    // climb out of both of those segments, then out of the project root
+    // itself, to reach `outside` (dir's own sibling).
+    const relativeEscape = `../../../${path.basename(outside)}`;
+    const { requirement, retrieved, openQuestions, riskNotes, consoleNotes } = retrieveRequirement("jira", relativeEscape, {});
+    assert.equal(retrieved, false);
+    assert.notEqual(requirement.title, "EXFILTRATED", "outside content must never be read");
+    assert.match(openQuestions.join("\n"), /outside the project root/);
+    assert.match(riskNotes.join("\n"), /outside the project root/);
+    assert.match(consoleNotes.join("\n"), /outside the project root/);
+  } finally {
+    fs.rmSync(`${outside}.json`, { force: true });
+    process.chdir(cwd);
+  }
+});
+
+test("jira adapter: a sourceId that stays within requirements/jira/ (no --file) is unaffected by the containment check", () => {
+  const dir = tmp();
+  fs.mkdirSync(path.join(dir, "requirements", "jira"), { recursive: true });
+  const exportPath = path.join(dir, "requirements", "jira", "ISSUE-8.json");
+  fs.writeFileSync(exportPath, JSON.stringify({ fields: { summary: "Normal case", status: { name: "Open" } } }), "utf8");
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    const { requirement, retrieved } = retrieveRequirement("jira", "ISSUE-8", {});
+    assert.equal(retrieved, true);
+    assert.equal(requirement.title, "Normal case");
+  } finally {
+    process.chdir(cwd);
+  }
+});
