@@ -77,7 +77,12 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
       closed `0001-adopt-aief` without reported friction — the same pre-existing 2-unchecked-task
       condition does not always produce a blocked-close finding. Data recorded in
       `consolidation.md` (§1, §7b).
-- [ ] (human) P3 — senior, Scenario A.
+- [x] (human) P3 — senior, Scenario A. Run 2026-09-01. Reached a correct close in 03:33, 0 hints
+      (independently re-verified — see evidence.md's "P3 results"). Confirmed discoverability-by-
+      transfer (navigated via CLI/git/npm conventions, not because AIEF was self-explanatory from
+      zero) — the exact caveat `scenarios.md` §2 names for a senior pass. **Scenario A is now
+      complete (P1/P2/P3)** — the 15-minute criterion (H8) is confirmed 3/3; see
+      `consolidation.md` §2. Data recorded in `consolidation.md` (§1, §1b, §2, §6, §7, §7b).
 - [ ] (human) P4 — mid, Scenario B.
 - [ ] (human) P5 — senior, Scenario C.
 - [ ] Restore the relevant fixture to its pristine snapshot between every session, using the same

@@ -1,8 +1,58 @@
 # Evidence
 
-> **Partial evidence — pilot + P1 + P2 complete, P3–P5 and consolidation pending.** The
-> assistant-doable block, the pilot (P0), P1, and P2 are done. P3–P5 and the consolidation remain
-> `(human)` work not yet done.
+> **Partial evidence — pilot + P1 + P2 + P3 complete (Scenario A finished), P4–P5 and
+> consolidation pending.** The assistant-doable block, the pilot (P0), P1, P2, and P3 are done.
+> P4–P5 and the consolidation remain `(human)` work not yet done.
+
+## P3 results (senior, Scenario A) — Scenario A now complete
+
+Run 2026-09-01, restored via the canonical recipe into `/tmp/sesion-p3`. Recorded in
+`consolidation.md` (§1, §1b, §2, §6, §7, §7b). **With P3, all three Scenario A participants are
+done** — the 15-minute criterion (H8) is confirmed 3/3, see `consolidation.md` §2.
+
+**Metrics:** M-T3 03:33, M-HINT 0, reached a correct close.
+
+**Independently re-verified:**
+- Diffed `src/app.ts` against the pristine fixture: same `WHERE tenant_id = ?` shape as P0/P1/P2.
+- Participant added her own test (`GET /executions returns only the specific tenant rows and
+  empty for unknown tenant`).
+- Re-ran `npm test` myself: **3/3 green**.
+- Confirmed on disk: `changes/0002-filter-executions-by-tenant/` created and `## Status / Closed`.
+  **`changes/0001-adopt-aief/` was left open** — a third distinct pattern (P1 hit friction closing
+  it then resolved it; P2 closed it cleanly; P3 never touched it at all, since `TASK.md` never
+  asked her to). `aief verify`: PASS, one Change still open (the untouched adoption Change) —
+  correct, expected state, not an error.
+
+**Debrief, in full** (richer than P1/P2's — recorded here since `consolidation.md`'s tables only
+have a slot for Q7, not the narrative questions):
+
+- *Where did you feel lost/unsure what to do next?* "Momentarily unsure whether `0001-adopt-aief`
+  (already in the fixture) had to be closed first, or whether the bugfix Change could be created in
+  parallel. Seeing the `--change <id>` flag made it clear they're independent." → recorded as
+  `consolidation.md` §6 row 2 (self-resolved, "annoyed" not "slowed").
+- *What did you expect that wasn't there?* "A direct command to auto-generate `evidence.md` from a
+  test/linter run, instead of pasting the output manually." (Echoes P2's Q7 — a second,
+  independent signal toward the same "missing automation" class.)
+- *Which words/labels confused you?* "None in particular — `spec`/`tasks`/`evidence`/`verify`/
+  `close` map naturally onto the standard spec→verify cycle."
+- *What did you do without fully understanding but seemed to work?* "Passing `--yes --change <id>`
+  to close — assumed by CLI convention that `--yes` skips interactive prompts, and it worked first
+  try." — another explicit discoverability-by-transfer instance.
+- *What did you never come to understand?* "Nothing critical for this basic flow. Didn't need to
+  touch the role of profiles or secondary standards in `knowledge/` for a point bugfix."
+- *If a colleague started tomorrow, what's the one thing you'd warn them about?* "Check `aief
+  status` and `AGENTS.md` first before touching code — if you try to close a Change with pending
+  tasks in `tasks.md` or without evidence, it'll bounce you back."
+- **Q7 (reported as a summary, not verbatim — flagged, confirmed with the user):** "would create
+  the Change (`aief new-change`) immediately, before writing the first line of code or test, so the
+  scaffolding guides the spec and tasks from minute zero."
+
+**Discoverability-by-transfer, confirmed explicitly** (the exact caveat `scenarios.md` §2 names for
+a senior pass — "did they *know* or *guess* the path?"): the moderator's own assessment states P3
+navigated via transferred conventions from git/npm-style CLIs and RFC/ADR-style artifact
+structures (`status`, `verify`, `close` read as semantically familiar; `AGENTS.md` read like a
+project README) — not because AIEF's flow was self-explanatory from zero. Recorded in
+`consolidation.md` §1b as the explicit answer to its own "seniors who guessed" question.
 
 ## P2 results (mid, Scenario A)
 

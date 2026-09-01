@@ -10,16 +10,16 @@
 |---|---|---|---|---|---|---|
 | Experience | junior | mid | senior | mid | senior | — |
 | Scenario | A | A | A | B | C | — |
-| M-T1 first Change | 09:22 | not reported (see note²) | | | | |
-| M-T2 first verify | 12:00 | not reported (see note²) | | | | |
-| M-T3 correct close | 12:10 | 03:45 | | | | |
-| **M-IDLE total idle** | ~05:30 | not reported | | | | |
-| Reached correct close? | Yes | Yes | | | | |
-| M-DOCS opened | 8 (see note¹) | not reported | | | | |
-| M-DEC decisions | not reported | not reported | | | | |
-| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | not reported | | | | |
-| M-ABANDON count | 0 | 0 | | | | |
-| M-HINT rungs (max) | 0 | 0 | | | | |
+| M-T1 first Change | 09:22 | not reported (see note²) | not reported (see note²) | | | |
+| M-T2 first verify | 12:00 | not reported (see note²) | not reported (see note²) | | | |
+| M-T3 correct close | 12:10 | 03:45 | 03:33 | | | |
+| **M-IDLE total idle** | ~05:30 | not reported | not reported | | | |
+| Reached correct close? | Yes | Yes | Yes | | | |
+| M-DOCS opened | 8 (see note¹) | not reported | not quantified — `AGENTS.md`, `aief --help`, `aief explain`, existing `changes/`/`knowledge/` dirs (qualitative, see evidence.md) | | | |
+| M-DEC decisions | not reported | not reported | not reported | | | |
+| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | not reported | 0 (momentary hesitation about close order, self-resolved — §6 row 2, not an error) | | | |
+| M-ABANDON count | 0 | 0 | 0 | | | |
+| M-HINT rungs (max) | 0 | 0 | 0 | | | |
 
 *(P0 pilot excluded from all aggregates. Five scored sessions, experience-spread per [protocol.md §2](protocol.md).)*
 
@@ -42,25 +42,25 @@ Only the total (mapped to M-T3, the headline metric) is reported with confidence
 
 | | Junior | Mid | Senior/lead |
 |---|---|---|---|
-| Median M-T3 | | | |
-| Median M-IDLE | | | |
-| Median M-DOCS | | | |
-| Reached correct close (n) | | | |
-| Problems unique to this level | | | |
+| Median M-T3 | 12:10 (n=1, P1) | 03:45 (n=1, P2 — P4 pending) | 03:33 (n=1, P3 — P5 pending) |
+| Median M-IDLE | ~05:30 (n=1) | not reported | not reported |
+| Median M-DOCS | 8 (n=1, see note¹) | not reported | not quantified (n=1, see §1) |
+| Reached correct close (n) | 1/1 | 1/1 (partial — P4 pending) | 1/1 (partial — P5 pending) |
+| Problems unique to this level | §6 row 1 (blocked `aief close`, resolved) | none reported | §6 row 2 (momentary hesitation, self-resolved) |
 
-- **Problems that blocked every level** (hard product defects): ___
-- **Problems that blocked only juniors** (onboarding/naming): ___
-- **Seniors who "found" a command by *guessing from other tools*, not from AIEF** (discoverability-by-transfer, not by design): ___
+- **Problems that blocked every level** (hard product defects): none so far — both §6 findings were self-resolved with zero hints, at different levels, not the same problem recurring.
+- **Problems that blocked only juniors** (onboarding/naming): §6 row 1 (the unchecked-task block on `0001-adopt-aief`) only produced a reported friction for P1; P2 (mid) closed the same pre-existing Change without reporting friction, and P3 (senior) never even touched it. One data point per level — not yet safe to call this an onboarding-specific defect; revisit once P4/P5 are in.
+- **Seniors who "found" a command by *guessing from other tools*, not from AIEF** (discoverability-by-transfer, not by design): **P3, confirmed explicitly.** The moderator's own assessment: P3 navigated by transferring conventions from git/npm-style CLIs and RFC/ADR-style artifact structures, not because AIEF's flow was self-explanatory from zero. Directly relevant to H3/H7 (see §7) — a senior passing tells us less than a junior passing, per `scenarios.md`'s own framing.
 
 ## 2. The 15-minute criterion
 
 > The single headline. Scenario A only (P1–P3, three experience levels).
 
-- Participants who reached a **correct close within 15 minutes, main flow only, zero rung-≥3 hints:** __ / 3
-- Median M-T3 (Scenario A): __ min
-- Median M-IDLE (Scenario A): __ min (__ % of M-T3)
-- **Verdict on the criterion:** met / not met / partially — *stated as fact, not excused.*
-- **Held across experience levels?** did the junior also make it, or only the senior? ___
+- Participants who reached a **correct close within 15 minutes, main flow only, zero rung-≥3 hints:** **3 / 3** (P1 12:10, P2 03:45, P3 03:33 — all zero hints of any rung, so trivially zero rung-≥3)
+- Median M-T3 (Scenario A): **03:45** (of 12:10 / 03:45 / 03:33)
+- Median M-IDLE (Scenario A): not computable — only P1's is reported (~05:30); P2/P3 did not report M-IDLE separately
+- **Verdict on the criterion: MET.** All three Scenario A participants reached a correct close within 15 minutes, autonomously, with zero hints of any kind.
+- **Held across experience levels? Yes.** The junior (P1) made it too — slower (12:10 vs. 03:33–03:45) and with one self-resolved friction point (§6 row 1), but well inside the 15-minute bound, same as mid and senior.
 
 ## 3. Discovery aggregate
 
@@ -120,7 +120,7 @@ CLOSE     [   ]
 | # | Problem (what the participant experienced) | Primary class | Sessions affected | Severity (blocked / slowed / annoyed) | Evidence (session + timestamp) |
 |---|---|---|---|---|---|
 | 1 | `aief close --yes` on the pre-existing `0001-adopt-aief` was blocked by unchecked tasks in its own `tasks.md`, with no path to that file in the error message — caused initial confusion about whether the real task could even start | discoverability | 1/5 | slowed | P1, `aief close --yes --change 0001-adopt-aief` attempt |
-| 2 | | | /5 | | |
+| 2 | Momentary hesitation about whether the pre-existing `0001-adopt-aief` had to be closed before or in parallel with a new Change for the bugfix — self-resolved on noticing `--change <id>` makes Changes independent | excess decisions | 1/5 | annoyed | P3, debrief Q1 |
 | 3 | | | /5 | | |
 | … | | | | | |
 
@@ -142,14 +142,14 @@ CLOSE     [   ]
 
 | Hypothesis | Outcome | Evidence |
 |---|---|---|
-| H1 first Change < 5 min | | |
+| H1 first Change < 5 min | **INCONCLUSIVE** | Only P1's M-T1 was reported as a separate checkpoint (09:22, already over 5 min); P2/P3's moderator reports gave phase breakdowns or a narrative, not the M-T1 checkpoint specifically — no median computable from consistent data. Zero rung-≥3 hints held for all three regardless. |
 | H2 ≤ 1 doc to close | | |
 | H3 next step is discoverable | | |
 | H4 bug = 1 artifact | | |
 | H5 no ADR/OpenSpec/SpecBoot for a bug | | |
 | H6 nobody runs verify unprompted | | |
 | H7 core names understood without explanation | | |
-| H8 correct close < 15 min | | |
+| H8 correct close < 15 min | **CONFIRMED** | 3/3 Scenario A participants (P1, P2, P3) reached a correct close within 15 min, main flow only, zero hints — hypotheses.md's exact condition ("≥3 of 3 scored participants running Scenario A"). See §2. |
 | **H-DISC** doc-sourced discovery = discoverability defect | | list each doc-sourced discovery |
 
 ## 7b. "What would you do differently tomorrow?" (mandatory Q7)
@@ -160,7 +160,7 @@ CLOSE     [   ]
 |---|---|---|---|---|
 | P1 | junior | **(not verbatim — moderator's paraphrase, flagged, not recorded as the participant's own words):** "indicate in the `aief close` error message the exact path of the checklist blocking it" | Error message doesn't name where to look (discoverability) | discoverability |
 | P2 | mid | (verbatim, confirmed) "Sería genial que `aief new-change` pudiera inferir o autocompletar parte del `spec.md` directo desde el test que está fallando para escribir aún menos boilerplate." | Manual spec/boilerplate writing when a failing test already implies the fix | missing automation |
-| P3 | senior | | | |
+| P3 | senior | **(not verbatim — reported as a summary, flagged, not the participant's own words):** "would create the Change (`aief new-change`) immediately, before writing the first line of code or test, so the scaffolding guides the spec and tasks from minute zero" | Change-creation timing relative to starting the fix | onboarding |
 | P4 | mid | | | |
 | P5 | senior | | | |
 
