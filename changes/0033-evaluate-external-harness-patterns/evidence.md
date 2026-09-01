@@ -61,6 +61,34 @@ Manual checks:
 
 - Evaluating an agent-autonomy harness through AIEF's ADR lens turned out to be cheap and high-yield: most verdicts fell out mechanically from four ADRs (004, 008, 009, 012), which suggests the decision log is doing its job as a filter for external ideas — the evaluation took one document, not a debate.
 
+## Human review (2026-09-01)
+
+The one remaining item — human review of the evaluation's verdicts (tasks.md's "Human Review"
+section, deliberately left for a human decision rather than auto-closed) — completed this session.
+
+- **Re-checked all 15 rows of the decision table** (`docs/history/external-harness-patterns.md` §6
+  — moved there from `docs/external-harness-patterns.md` by a later docs reorganization; content
+  unchanged) against the current state of the repository, not just the 2026-07-09 snapshot:
+  - ADR-012's structured Profile model (`goal`/`thinkingStyle`/`priorities`/`expectedOutputs`/
+    `avoid`) is still unimplemented — `profiles/*.md` remain flat prose files, confirmed by
+    `grep -rn thinkingStyle cli/src profiles/` returning nothing. The "roles → Profiles" adapt
+    verdict's evidence gate (ADR-012 implementation) has not opened.
+  - No closability/verify-contract workstream (ROADMAP-TO-1.0 workstream 4) has started — the two
+    adapt verdicts that route there (machine definition of done, executable verification) are
+    still correctly gated.
+  - No `.aief/state.json`-equivalent has been introduced since — the reject verdict for session
+    state files stands unchallenged.
+  - No evidence of prompt-size friction, WIP-count friction, or assistant over-engineering despite
+    existing rules has been recorded anywhere in this repository's Changes since — the remaining
+    "adaptar" verdicts (progressive disclosure, WIP limit, Think-Before-Coding, Simplicity/
+    Surgical, Goal-Driven Execution) all still lack their named evidence.
+  - **Nothing moves any of the 15 verdicts.** The document is confirmed current, not stale.
+- **Decision on promotion** (the second required Human Review item): **none of the 8 "adaptar"
+  verdicts is promoted to a roadmap entry now.** All stay gated on their named evidence, exactly as
+  ADR-008 requires — promoting one without its evidence would be the same speculative-structure
+  failure mode this whole evaluation exists to prevent.
+- **Verdict: approved as written, no changes to the document.** This Change is ready to close.
+
 ## Next Change
 
 Human review of this evaluation's verdicts (tasks.md → Human Review section), then whichever evidence gate opens first: ADR-012 implementation (roles-as-profiles), closability-contract design (workstream 4, absorbing the traceability/executable-verification rows), or observed friction unlocking one of the remaining "adaptar" rows.

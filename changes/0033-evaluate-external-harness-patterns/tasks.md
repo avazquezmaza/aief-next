@@ -29,9 +29,18 @@
 
 ## Human Review (required before acting on any verdict)
 
-- [ ] Review the adopt/adapt/reject verdicts and their evidence gates.
-- [ ] Decide whether any "adaptar" item should become a roadmap entry now, or wait for its evidence.
-- [ ] Close this Change manually when reviewed (not closed automatically, per instructions).
+- [x] Review the adopt/adapt/reject verdicts and their evidence gates. **Completed
+      2026-09-01** — see evidence.md's "Human review" section: all 15 decision-table rows
+      re-checked against the current codebase; nothing has changed since 2026-07-09 that
+      would move a verdict (ADR-012's structured Profile model still unimplemented, no
+      closability/verify-contract workstream started, no `.aief/state.json`-equivalent
+      introduced).
+- [x] Decide whether any "adaptar" item should become a roadmap entry now, or wait for
+      its evidence. **Decided 2026-09-01: none promoted.** All 8 "adaptar" verdicts stay
+      gated on their named evidence, exactly as designed (ADR-008) — no speculative work
+      opened.
+- [x] Close this Change manually when reviewed (not closed automatically, per
+      instructions). Closed 2026-09-01 via `aief close --yes`.
 
 ## Evidence
 

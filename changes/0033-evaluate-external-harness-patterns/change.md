@@ -37,3 +37,7 @@ Evaluate which patterns from two external repositories (`betta-tech/harness-sdd`
 - Every "adapt" verdict names its required evidence; every "reject" verdict names the ADR or product-identity boundary it protects.
 - The six expected decisions are explicitly confirmed in the document.
 - No executable file changed; `aief verify` PASS; no other document modified; AGENTS.md untouched.
+
+## Status
+
+Closed (2026-09-01)
