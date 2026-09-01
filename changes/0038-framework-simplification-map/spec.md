@@ -230,8 +230,8 @@ Six decisions remain human, and three are newly forced by ADR-013:
 2. **3 levels → 6 steps** — needs an ADR, or the flow stays a study artifact. **Decided:** ADR-033 (2026-09-01).
 3. **ADR-006 amendment** — progressive teaching, or `help` stays verbose by decision. **Decided:** ADR-034 (2026-09-01).
 4. **ADR-010** — do standards survive? Gate: n=2. **Decided:** ADR-035 (2026-09-01) — reaffirmed, unamended.
-5. **ADR-012** — is the Role model implemented, or reconsidered? 0 uses. **Decided:** ADR-036 (2026-09-01) — amended down to the named role selector that actually shipped; the structured schema is dropped, `profiles/`/`use-profile` verdicts unchanged.
-6. **`propose` / `release` removal** — confirm no adopter depends on them. **Partially evidenced** by Change 0041 (R1 `propose` KEEP, human-confirmed; R7/R8 `use-profile`/`release` ARCHIVE, mechanical pass only) — no explicit human ratification on record for R7/R8.
+5. **ADR-012** — is the Role model implemented, or reconsidered? 0 uses. **Decided:** ADR-036 (2026-09-01) — amended down to the named role selector that actually shipped; the structured schema is dropped. `profiles/` stays KEEP; `use-profile` corrected to **ARCHIVE** (this map's original DELETE verdict, line 182 above, is superseded by Change 0041's R7 — not equivalent to `prompt --profile`, the only Role-facing command).
+6. **`propose` / `release` removal** — confirm no adopter depends on them. **Decided:** ratified by the project owner (2026-09-01) — `propose` **KEEP** (R1, ADR-002 + Change 0030 + 9 tests); `release`/`use-profile` **ARCHIVE**, not DELETE (R7/R8 — this map's original DELETE verdicts, lines 182–183 above, are superseded).
 
 ## Acceptance Criteria
 
@@ -244,5 +244,5 @@ Six decisions remain human, and three are newly forced by ADR-013:
 - [x] Collisions forced by ADR-013 (`## Type` vs Track) are surfaced, not resolved silently.
 - [x] Nothing is removed by this Change.
 - [x] (human) Approve the map, or amend verdicts. Ratified as a *classification* map — ADR-014 (2026-07-17).
-- [ ] (human) Decide the six items in §6 — starting with `## Type` → Track. 5 of 6 decided (see above); #6 (`propose`/`release`, partially evidenced) remains open.
+- [x] (human) Decide the six items in §6 — starting with `## Type` → Track. All 6 decided as of 2026-09-01 (see above).
 - [x] (review) Independent review of the DELETE column by someone other than its author. Done by Change 0041 (second reader on R1–R6, second reader on R10–R14); only execution of approved DELETEs remains, out of scope here.
