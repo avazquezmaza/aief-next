@@ -20,6 +20,23 @@ test("an untouched generic scaffold: every objective gap is reported", () => {
   assert.ok(problems.some((p) => /Acceptance Criteria is empty/.test(p)));
 });
 
+// Change 0109: "-", "*" and "+" are equally valid CommonMark bullets — the
+// same tolerance change.js's countOpenTasks() already applies to tasks.md
+// (Change 0075). The Acceptance Criteria placeholder check used to only
+// recognize the exact string "- [ ]", so an untouched placeholder written
+// as "* [ ]" was silently accepted as real content.
+test("an untouched Acceptance Criteria placeholder is flagged the same way with a '*' bullet as with '-'", () => {
+  const specMd = GENERIC_SPEC_MD.replace("## Acceptance Criteria\n\n- [ ]", "## Acceptance Criteria\n\n* [ ]");
+  const problems = checkStrictCompleteness(change({ changeMd: GENERIC_CHANGE_MD, specMd, tasksMd: GENERIC_TASKS_MD }));
+  assert.ok(problems.some((p) => /Acceptance Criteria is empty/.test(p)));
+});
+
+test("an untouched Acceptance Criteria placeholder is flagged the same way with a '+' bullet as with '-'", () => {
+  const specMd = GENERIC_SPEC_MD.replace("## Acceptance Criteria\n\n- [ ]", "## Acceptance Criteria\n\n+ [ ]");
+  const problems = checkStrictCompleteness(change({ changeMd: GENERIC_CHANGE_MD, specMd, tasksMd: GENERIC_TASKS_MD }));
+  assert.ok(problems.some((p) => /Acceptance Criteria is empty/.test(p)));
+});
+
 test("a filled-in Change reports no objective gaps", () => {
   const changeMd = GENERIC_CHANGE_MD
     .replace("### In scope\n\n-", "### In scope\n\n- Real scope item.")
