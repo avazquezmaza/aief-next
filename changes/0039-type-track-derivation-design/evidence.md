@@ -80,8 +80,37 @@ node cli/bin/aief.js verify --change 0039-type-track-derivation-design  # -> PAS
 3. **A risk you can measure is not a risk.** "I2 might break an existing Change" took one grep to close. Two greps distinguished a mention from a declaration.
 4. **The gate being protected has never fired.** Enrichment has 0 uses. Worth knowing before treating its preservation as the design's hardest constraint.
 
+## Naming collision found and fixed before approval (2026-09-01)
+
+This design's "Track" (`Basic`/`Standard`/`Migration`, deriving `## Type`) was never reconciled
+against the Workflow Engine's Track (`manifest.track`: `lite`/`standard`/`governed`, stage/gate
+progression), which shipped later (ADR-016 onward) and was never cross-checked against this
+dormant design. Found while reviewing this Change for approval: same word, two unrelated concepts,
+partially overlapping vocabulary (`Standard`/`standard` in both) — the exact "two classification
+axes" collision this project's own decision log warns against for Type vs. Track, recurring here
+as Track vs. Track. **Renamed to "Depth"** throughout `change.md`/`spec.md`/`design.md`/`tasks.md`
+before approval, confirmed free of collision by grepping the repository. "Track" now refers
+exclusively to the Workflow Engine.
+
+## Design approved, I4 re-validated, review still pending (2026-09-01)
+
+The project owner approved the design (as amended by the rename above), unchanged otherwise. I4
+("unknown `## Type` token never fails, resolves to `general`") was re-validated against the
+current ~94-Change corpus, not just the design's original 2026-07-17 sample: **~10 non-standard
+Type tokens exist today** (up from 5 of 40 originally cited), including Change 0036 itself
+(`Type: Implementation`) — a strict rule would break roughly twice as many real, closed Changes
+now as when this was designed. Confirmed non-fatal, with stronger evidence than the design
+originally had.
+
+**The `(review)` gate — independent review before implementation — is deliberately left open.**
+The rename and its approval were done by the same session working this Change; that session
+cannot certify its own work as independent, the same discipline Change 0042 applied to its pilot
+review. This Change stays open until a human who did not do this rename/approval reviews it.
+
 ## Next Change
 
-**None proposed.** Design only; implementation is separately approved and separately gated.
+**None proposed.** Design only; implementation is separately approved and separately gated, and
+still requires the pending independent review above.
 
-Per the approved order, the next work is **Change 0040 (AGENTS.md)**, then **0041 (DELETE review)**.
+Per the approved order, the next work is **Change 0040 (AGENTS.md)** — already closed — then
+**0041 (DELETE review)** — already closed.
