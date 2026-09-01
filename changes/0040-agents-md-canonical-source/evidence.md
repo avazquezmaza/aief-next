@@ -34,6 +34,45 @@ Each rule with the variant(s) it came from. Root = 170-line repo AGENTS.md · St
 
 **The merge went both ways**, as the analysis required: the assistant-file pointer was rescued from the poorest variant (Stub); "focused" from Starter; "do not implement without a specification" from Templates. The 170-line Root was the base, not the whole.
 
+## Independent review (2026-09-01)
+
+The one remaining `(review)` gate — independent review of the merged canonical content — closed
+out. Performed by a different session than the one that executed the merge on 2026-07-17.
+
+- **Read `cli/templates/agents/AGENTS.md`** (176 lines today — grew from 172 since execution via
+  the unrelated Findings Status addition, see below) in full, line by line.
+- **Checked all 22 rows of spec.md §1's rule matrix** against the current canonical content — every
+  row present: Prime Directive + both named clauses (L15), R1–R10 (L21–30, including "do not
+  implement without a specification" folded into R2 at L22 and "focused" folded into R6 at L26),
+  the 5-phase AIEF Workflow (L34–77), Working with Changes (L80–99), Tasks and gates with
+  `(human)`/`(review)` labels and the "stays blocking for `aief close`" clause (L101–110), the
+  governance-conventions pointer (L110), the 7-item Required Completion Checklist (L114–124), the
+  6-rule Coding Guidance (L128–135), Documentation Guidance (L139–148), the 4-question Evidence
+  Guidance (L152–159), Human Responsibilities (L167–176), and the assistant-file pointer — the one
+  rule the merge had to rescue from the poorest variant (L7). Zero rows missing.
+- **Confirmed the two documented external links resolve**: the governance-conventions pointer
+  (twice — general and the Findings Status anchor) targets `docs/history/governance-conventions.md`,
+  which exists and carries a `## 9. Findings Status — tracking resolution across Changes` section
+  at the exact anchor referenced.
+- **`node --test cli/tests/agents-canonical.test.js`: 7/7 pass** (unchanged since execution).
+- **Manual re-run of the acceptance criteria's own instruction**: `aief bootstrap` on a fresh
+  temporary directory; `diff` against the canonical template → **empty**. Byte-identical, confirmed
+  independently of the original execution's own claim.
+- **`npm test`: 988/988 pass. `aief verify --change 0040-agents-md-canonical-source`: PASS.**
+
+**One observation, not a defect.** The canonical picked up an unrelated addition after this
+Change's 2026-07-17 execution — the "Findings Status" paragraph under Evidence Guidance (L161–163)
+— 172 → 176 lines. That addition is out of this Change's scope (it belongs to whatever Change
+introduced the Findings Status convention) and does not touch anything this Change's rule matrix
+tracks; the drift-guard test (root `AGENTS.md` === canonical template) still passes because both
+copies moved together. No action needed — noted here only so the review is honest about what
+"the merged canonical content" means today versus at execution time.
+
+**Verdict: approved.** The merge is complete, both-ways as designed (D3's assistant-file pointer
+rescue verified in place), no rule lost, no unrelated onboarding change smuggled in
+(`Understand -> Plan -> Build` still present per the explicit non-goal). This Change is ready to
+close.
+
 ## (original analysis follows)
 
 ## Activities Performed
