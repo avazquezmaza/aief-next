@@ -160,7 +160,7 @@ CLOSE     [   ]
 
 ## 9. Threats to validity (stated honestly)
 
-- n = 4 scored sessions. Small. Systematic problems surface; rates are indicative, not precise.
+- n = 5 scored sessions (+ 1 discarded pilot). Small. Systematic problems surface; rates are indicative, not precise.
 - Think-aloud slows timings; treat absolute minutes as generous, comparisons as sound.
 - Scenario mix is bug-heavy by design; B and C are n=1 probes.
 - Moderator/author independence: note whether the moderator was independent of the protocol author.
