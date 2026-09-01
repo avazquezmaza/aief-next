@@ -52,10 +52,10 @@
 - [x] (human) R6 decided KEEP (decision 2026-07-17).
 - [x] (review) Second reader for **R10–R14** (dead templates) → 4 of 5 consensus Candidate DELETE (R10/R11/R13/R14), R12 → ARCHIVE. Matrix in evidence.md.
 - [x] (human) Map ratified as a *classification* map, not a delete authorization (2026-07-17, ADR-014).
-- [ ] Execution of the R10/R11/R13/R14 Approved DELETEs — deferred by instruction; a later, separate Change.
 
 ## Deferred
 
+- [-] Execution of the R10/R11/R13/R14 Approved DELETEs — deferred by instruction; a later, separate Change.
 - [-] Link validation on a temporary copy — belongs to the execution Change; nothing has moved yet.
 - [-] Onboarding cluster content review — last, and by hand, per the approved order.
 - [-] A separate Change to consider merging starter-project's PR/issue templates and knowledge samples into `adopt` (R3).

@@ -226,12 +226,12 @@ So the templates the documentation points people to are **not** the templates th
 
 Six decisions remain human, and three are newly forced by ADR-013:
 
-1. **`## Type` → Track** — the merge the design rule forces. ⚙ Touches real behavior. **Highest-risk item on this map.**
-2. **3 levels → 6 steps** — needs an ADR, or the flow stays a study artifact.
-3. **ADR-006 amendment** — progressive teaching, or `help` stays verbose by decision.
-4. **ADR-010** — do standards survive? Gate: n=2.
-5. **ADR-012** — is the Role model implemented, or reconsidered? 0 uses.
-6. **`propose` / `release` removal** — confirm no adopter depends on them.
+1. **`## Type` → Track** — the merge the design rule forces. ⚙ Touches real behavior. **Highest-risk item on this map.** **Decided:** Change 0039 (approved 2026-09-01) — renamed to **Depth**, not Track.
+2. **3 levels → 6 steps** — needs an ADR, or the flow stays a study artifact. **Decided:** ADR-033 (2026-09-01).
+3. **ADR-006 amendment** — progressive teaching, or `help` stays verbose by decision. **Decided:** ADR-034 (2026-09-01).
+4. **ADR-010** — do standards survive? Gate: n=2. **Decided:** ADR-035 (2026-09-01) — reaffirmed, unamended.
+5. **ADR-012** — is the Role model implemented, or reconsidered? 0 uses. **Still open.**
+6. **`propose` / `release` removal** — confirm no adopter depends on them. **Partially evidenced** by Change 0041 (R1 `propose` KEEP, human-confirmed; R7/R8 `use-profile`/`release` ARCHIVE, mechanical pass only) — no explicit human ratification on record for R7/R8.
 
 ## Acceptance Criteria
 
@@ -243,6 +243,6 @@ Six decisions remain human, and three are newly forced by ADR-013:
 - [x] Closed Changes are excluded from re-pointing, and the rule is stated.
 - [x] Collisions forced by ADR-013 (`## Type` vs Track) are surfaced, not resolved silently.
 - [x] Nothing is removed by this Change.
-- [ ] (human) Approve the map, or amend verdicts.
-- [ ] (human) Decide the six items in §6 — starting with `## Type` → Track.
-- [ ] (review) Independent review of the DELETE column by someone other than its author.
+- [x] (human) Approve the map, or amend verdicts. Ratified as a *classification* map — ADR-014 (2026-07-17).
+- [ ] (human) Decide the six items in §6 — starting with `## Type` → Track. 4 of 6 decided (see above); #5 (ADR-012) and #6 (`propose`/`release`, partially) remain open.
+- [x] (review) Independent review of the DELETE column by someone other than its author. Done by Change 0041 (second reader on R1–R6, second reader on R10–R14); only execution of approved DELETEs remains, out of scope here.
