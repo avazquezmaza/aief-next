@@ -138,6 +138,33 @@ test("bootstrap creates backend standards for a Django-only project (Change 0106
   assert.match(skillsDoc, /knowledge\/standards\/backend-standards\.md/, "skills.md references backend-standards.md");
 });
 
+// Change 0108: standardsForProject() now derives its frontend/backend tech-id
+// sets from skills-catalog.json itself (every `when` trigger of a Skill whose
+// own `standardsToRead` names the file), instead of a hand-maintained list —
+// closing the whole class of gap Change 0106 fixed one detector at a time.
+// A Next.js project is a case Change 0106 deliberately left out of scope
+// (nextjs-nestjs-architecture's `when: ["nextjs","nestjs"]` also names
+// backend-standards.md, since a Next.js app commonly has its own API
+// routes) — this is the first test to cover it, now that it is derived
+// automatically rather than hand-added.
+test("bootstrap creates backend standards for a Next.js-only project (Change 0108: catalog-derived, not hand-listed)", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { next: "14.0.0" } }) });
+  const { out } = aief(dir, ["bootstrap"]);
+  assert.match(out, /Created knowledge\/standards\/frontend-standards\.md/);
+  assert.match(out, /Created knowledge\/standards\/backend-standards\.md/);
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards"));
+  assert.ok(files.includes("frontend-standards.md"));
+  assert.ok(files.includes("backend-standards.md"));
+});
+
+test("bootstrap still creates no backend standards for a plain React (non-Next.js) project — the catalog derivation adds cases, it never removes the existing baseline", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { react: "18.0.0" } }) });
+  aief(dir, ["bootstrap"]);
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards"));
+  assert.ok(files.includes("frontend-standards.md"));
+  assert.ok(!files.includes("backend-standards.md"));
+});
+
 test("bootstrap on an unknown stack creates only the base standards", () => {
   const dir = makeProject({ "README.md": "A plain library." });
   aief(dir, ["bootstrap"]);
