@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
+import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 import { detectProject } from "../detect.js";
 import { nextAction, explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { resolveHarnessConfig, describeHarnessRegistry } from "../core/services/harness-service.js";
@@ -13,7 +14,7 @@ import { analyzeDefinitionSections, DEFINITION_SECTIONS } from "../core/domain/d
 import {
   section, exists, getChangeDirs, openChangeDirs, invalidManifestChanges, workflowChanges,
   sddChanges, buildProjectGraph, cwd, printNext, resolveExplicitChange, resolveImplicitChange,
-  parseArgs, resolveWorkflowFor
+  parseArgs, resolveWorkflowFor, manifestStatusDriftChanges
 } from "./shared.js";
 
 export function statusOverview(project = detectProject(), showNext = true) {
@@ -41,6 +42,19 @@ export function statusOverview(project = detectProject(), showNext = true) {
     for (const { dir, change } of invalidManifests) {
       console.log(`- ${path.basename(dir)}:`);
       for (const err of change.manifestError) console.log(`    ${err.field}: ${err.message}`);
+    }
+  }
+  // Additive only (Change 0095): absent whenever no manifest-backed Change's
+  // manifest.status disagrees with its own change.md ## Status declaration,
+  // which is every Change in this repository today (none carries a
+  // manifest.json yet). Detection only — nothing here decides which value is
+  // right, and nothing writes to either file (docs/concepts.md's "Current
+  // limitation" stands unchanged).
+  const driftingManifests = manifestStatusDriftChanges();
+  if (driftingManifests.length) {
+    console.log(`\nChanges where manifest.status disagrees with change.md: ${driftingManifests.length}`);
+    for (const { dir, drift } of driftingManifests) {
+      console.log(`- ${path.basename(dir)}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
     }
   }
   // Additive only (WF-R15): absent whenever no Change declares a recognized
@@ -225,6 +239,10 @@ function statusSingleChange(parsed) {
     return;
   }
   console.log(`Status: ${change.closed ? "closed" : "open"}`);
+  const drift = detectManifestStatusDrift(change);
+  if (drift.drift) {
+    console.log(`  Warning: manifest.status ("${drift.manifestStatus}") disagrees with change.md's own ## Status ("${drift.changeMdStatus}") — not reconciled automatically, see docs/concepts.md`);
+  }
 
   if (parsed.next) {
     // Compact Normalized Action view — the single computation both this

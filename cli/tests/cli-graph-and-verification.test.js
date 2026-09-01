@@ -376,6 +376,58 @@ test("valid flags still work after the parser migration: verify --requirements, 
   assert.equal(aief(dir, ["verify", "--change", "0001-typed-thing", "--requirements"]).status, 0);
 });
 
+// --- Change 0095: manifest.status / change.md ## Status disagreement ---
+
+test("status/verify: with no manifest-backed Change, output is byte-identical to the pre-Change-0095 baseline", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "drift-baseline"]);
+  const statusOut = aief(dir, ["status"]).out;
+  assert.doesNotMatch(statusOut, /manifest\.status disagrees/);
+  const verifyOut = aief(dir, ["verify", "--change", "0001-drift-baseline"]).out;
+  assert.doesNotMatch(verifyOut, /Manifest status disagreement/);
+  const verifyWholeOut = aief(dir, ["verify"]).out;
+  assert.doesNotMatch(verifyWholeOut, /manifest\.status disagreement/i);
+});
+
+test("status/verify: aief close --yes on a manifest-backed Change surfaces the resulting drift, without writing manifest.json or blocking verify's PASS", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "drift-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-drift-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), manifestFor("0001", "drift-thing", "x"), "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+
+  // aief close --yes writes only change.md (Change 0043/0044's established
+  // behavior) — manifest.status ("open") is left untouched.
+  const closed = aief(dir, ["close", "--yes"]);
+  assert.equal(closed.status, 0);
+  const manifestBefore = fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8");
+  assert.match(manifestBefore, /"status":"open"/);
+
+  const statusOverview = aief(dir, ["status"]);
+  assert.match(statusOverview.out, /Changes where manifest\.status disagrees with change\.md: 1/);
+  assert.match(statusOverview.out, /0001-drift-thing: manifest says "open", change\.md says "closed"/);
+
+  const statusSingle = aief(dir, ["status", "--change", "0001-drift-thing"]);
+  assert.match(statusSingle.out, /Warning: manifest\.status \("open"\) disagrees with change\.md's own ## Status \("closed"\)/);
+
+  const verifySingle = aief(dir, ["verify", "--change", "0001-drift-thing"]);
+  assert.match(verifySingle.out, /Manifest status disagreement for this Change \(non-blocking\)/);
+  assert.match(verifySingle.out, /manifest\.status says "open", change\.md's own ## Status says "closed"/);
+  assert.match(verifySingle.out, /\nResult: PASS/);
+  assert.equal(verifySingle.status, 0);
+
+  const verifyWhole = aief(dir, ["verify"]);
+  assert.match(verifyWhole.out, /Changes with a manifest\.status disagreement \(non-blocking\)/);
+  assert.match(verifyWhole.out, /0001-drift-thing: manifest says "open", change\.md says "closed"/);
+  assert.match(verifyWhole.out, /\nResult: PASS/);
+  assert.equal(verifyWhole.status, 0);
+
+  // Detection only — manifest.json is still exactly what it was.
+  const manifestAfter = fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8");
+  assert.equal(manifestAfter, manifestBefore);
+});
+
 test("--help / help / --version output is unaffected by the parser migration", () => {
   const dir = makeProject();
   const help1 = aief(dir, ["--help"]);
