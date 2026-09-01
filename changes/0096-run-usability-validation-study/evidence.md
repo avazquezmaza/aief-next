@@ -1,8 +1,52 @@
 # Evidence
 
-> **Partial evidence — pilot complete, scored sessions pending.** The assistant-doable block (the
-> three fixture repos) and the pilot (P0) are both done. P1–P5 and the consolidation remain
-> `(human)` work not yet done.
+> **Partial evidence — pilot + P1 complete, P2–P5 and consolidation pending.** The assistant-doable
+> block, the pilot (P0), and P1 are done. P2–P5 and the consolidation remain `(human)` work not
+> yet done.
+
+## P1 results (junior, Scenario A)
+
+Run 2026-09-01, restored via the canonical recipe into `/tmp/sesion-p1`. Consent and the
+fresh-user pre-check confirmed before the session. Recorded in `consolidation.md` (§1 Sessions
+summary, §6 Problem ledger, §7b Q7 table) — the first scored session, so the first data that
+actually enters the study's aggregates (unlike P0).
+
+**Metrics reported by the moderator:**
+
+| Metric | Value |
+|---|---|
+| M-T1 (time to first Change) | 09:22 |
+| M-T2 (time to first `verify`) | 12:00 |
+| M-T3 (time to correct close) | 12:10 |
+| M-IDLE | ~5:30 |
+| M-HINT (rungs climbed) | 0 |
+| Docs opened | `TASK.md`, `README.md`, `AGENTS.md`, `knowledge/standards/*.md`, both Changes' own files, `src/app.ts`, `test/executions.test.ts` |
+| Commands discovered | `aief status`, `aief prompt`, `aief doctor`, `aief explain new-change`, `aief new-change`, `aief verify`, `aief close` — all confirmed real against this AIEF version's own `--help`/`explain` output |
+
+**Independently re-verified (not just transcribed):**
+- Diffed the final `src/app.ts` against the pristine fixture: adds `WHERE tenant_id = ?`,
+  parameterized — technically correct, same fix shape as the pilot's.
+- The participant added her own test (`GET /executions returns tenant-specific rows and isolates
+  tenant-b`), covering tenant-b isolation and an unknown-tenant edge case (empty array) — not
+  required by the fixture's own test suite, self-initiated.
+- Re-ran `npm test` myself: **3/3 green**.
+- Confirmed on disk: `changes/0002-fix-tenant-executions-filter/` created and `## Status / Closed`;
+  `changes/0001-adopt-aief/` also closed (its own two previously-unchecked tasks — adapting the
+  "(adapt)" standards lines, running verify+close — were completed first).
+- `aief verify` in the session's final state: PASS, "no open Change" (both Changes closed cleanly).
+
+**One real operational finding** (not a fixture defect — recorded as data, `consolidation.md` §6
+row 1): `aief close --yes --change 0001-adopt-aief` was attempted before that Change's own
+unchecked tasks were resolved, and the error message doesn't name the file to check. The
+participant resolved it herself, with zero hints. Q7's answer (moderator's paraphrase, **not
+verbatim** — flagged as such in `consolidation.md` rather than recorded as the participant's own
+words) pointed at the same friction: the error message not naming the checklist's path.
+
+**A separate, purely operational note**, unrelated to the protocol's design: this session's setup
+went through a false start — duplicate/nested copies of the fixture appeared under `/tmp/` at one
+point (traced to copying the working tree into a subdirectory of itself), discarded and restarted
+clean via the canonical `git archive` recipe. Worth stating explicitly for P2–P5's setup: hand over
+the restored directory as-is; don't copy or move it once handed over.
 
 ## Pilot (P0) results
 
