@@ -48,4 +48,4 @@ Design success criterion: a person who never participated in Flux Portal can cor
 
 ## Status
 
-Open.
+Closed (2026-09-01)
