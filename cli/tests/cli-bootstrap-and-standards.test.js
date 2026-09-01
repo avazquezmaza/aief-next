@@ -121,6 +121,23 @@ test("bootstrap creates starter standards and never overwrites existing ones", (
   assert.ok(!files.includes("backend-standards.md"), "no backend standards for a frontend-only project");
 });
 
+// Change 0106: python-backend-architecture (and every other Skill added in
+// Changes 0098/0100 whose standardsToRead names backend-standards.md) must
+// get the standards file it recommends actually created — otherwise
+// knowledge/skills.md links to a file bootstrap never wrote.
+test("bootstrap creates backend standards for a Django-only project (Change 0106)", () => {
+  const dir = makeProject({
+    "manage.py": "#!/usr/bin/env python\n",
+    "requirements.txt": "django==5.0\n"
+  });
+  const { out } = aief(dir, ["bootstrap"]);
+  assert.match(out, /Created knowledge\/standards\/backend-standards\.md/);
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards"));
+  assert.ok(files.includes("backend-standards.md"), "backend standards expected for a Django project");
+  const skillsDoc = fs.readFileSync(path.join(dir, "knowledge", "skills.md"), "utf8");
+  assert.match(skillsDoc, /knowledge\/standards\/backend-standards\.md/, "skills.md references backend-standards.md");
+});
+
 test("bootstrap on an unknown stack creates only the base standards", () => {
   const dir = makeProject({ "README.md": "A plain library." });
   aief(dir, ["bootstrap"]);
