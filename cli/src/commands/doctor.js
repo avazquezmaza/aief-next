@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { run, commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills } from "../detect.js";
-import { resolveSkillRecommendations, resolveStandardRecommendations } from "../core/domain/ai-specs.js";
+import { resolveSkillRecommendations, resolveStandardRecommendations, resolveAgentRecommendations } from "../core/domain/ai-specs.js";
 import { describeHarnessRegistry } from "../core/services/harness-service.js";
 import { resolveLoopConfig, countPreviousAttempts } from "../core/services/loop-service.js";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
@@ -70,6 +70,33 @@ function printStandardsReport(options = {}) {
     }
   } else if (invalidCount) {
     console.log(`\n⚠ ${invalidCount} ai-specs standard resource(s) ignored — see aief doctor --verbose`);
+  }
+}
+// Calco de printStandardsReport() para ai-specs/agents/ — mismo criterio de
+// ausencia byte-idéntica (`aiSpecsAgentsPresent`), pero sin builtins: AIEF
+// no copia profiles/ a proyectos adoptados, así que no hay catálogo propio
+// contra el cual resolver — todo lo listado aquí es siempre
+// `source: "project"`, nunca hay `overridesBuiltin` que mostrar.
+function printAgentsReport(options = {}) {
+  const { verbose = false } = options;
+  const { items, warnings, invalidCount, aiSpecsAgentsPresent } = resolveAgentRecommendations(process.cwd());
+  if (!aiSpecsAgentsPresent) return;
+  console.log("\nAgents:");
+  for (const agent of items) {
+    console.log(`- ${agent.id} [project]: ${agent.description}`);
+    for (const reason of agent.because) console.log(`    because: ${reason}`);
+    if (verbose) {
+      console.log(`    source: ${agent.source}`);
+      if (agent.path) console.log(`    path: ${path.relative(process.cwd(), agent.path)}`);
+    }
+  }
+  if (verbose) {
+    if (warnings.length) {
+      console.log("\nai-specs warnings (agents):");
+      for (const warning of warnings) console.log(`- ${warning}`);
+    }
+  } else if (invalidCount) {
+    console.log(`\n⚠ ${invalidCount} ai-specs agent resource(s) ignored — see aief doctor --verbose`);
   }
 }
 // Called from doctor() only under --verbose (Change 0056/ADR-026) — the
@@ -176,4 +203,4 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project, { verbose }); printStandardsReport({ verbose }); printAgentsReport({ verbose }); if (verbose) { printHarnessRegistry(); printLoopRegistry(); } printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }

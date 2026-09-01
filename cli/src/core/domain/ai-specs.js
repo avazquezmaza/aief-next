@@ -11,12 +11,21 @@ import path from "node:path";
 
 export function discoverAiSpecs(cwd) {
   const root = path.join(cwd, "ai-specs");
-  if (!fs.existsSync(root)) return { present: false, root, skills: [], standards: [] };
+  if (!fs.existsSync(root)) return { present: false, root, skills: [], standards: [], agents: [] };
   return {
     present: true,
     root,
     skills: discoverResourceDir(path.join(root, "skills")),
-    standards: discoverResourceDir(path.join(root, "standards"))
+    standards: discoverResourceDir(path.join(root, "standards")),
+    // Role definitions (real LIDR/specboot layout: ai-specs/agents/<id>.md,
+    // flat — confirmed against every agent in github.com/LIDR-academy/
+    // lidr-specboot's ai-specs/agents/). Unlike skills/standards, AIEF has no
+    // per-project built-in catalog to resolve this against: profiles/ is
+    // never copied into an adopted project by bootstrap (only
+    // profiles/README.md, pointing back at AIEF's own source repo) — so
+    // resolveAgentRecommendations() below always resolves against an empty
+    // builtins list, discovery only.
+    agents: discoverResourceDir(path.join(root, "agents"))
   };
 }
 
@@ -228,5 +237,27 @@ export function resolveStandardRecommendations(builtins, cwd) {
   return {
     ...resolveResourceRecommendations(builtins, aiSpecs.standards, "standards"),
     aiSpecsStandardsPresent: aiSpecs.standards.length > 0
+  };
+}
+
+// resolveAgentRecommendations(cwd) -> { items, warnings, invalidCount, aiSpecsAgentsPresent }
+//
+// Unlike resolveSkillRecommendations()/resolveStandardRecommendations(),
+// there is no `builtins` parameter — AIEF has no per-project built-in
+// agent/role catalog to resolve against (profiles/ is never copied into an
+// adopted project; see discoverAiSpecs()'s own comment). Always resolves
+// against an empty list, so every discovered agent is `source: "project"`
+// and `overridesBuiltin` is always false — discovery and listing only,
+// never a precedence decision this function would otherwise have to
+// invent. `aiSpecsAgentsPresent` mirrors aiSpecsStandardsPresent's own
+// signal: true whenever `ai-specs/agents/` contributed at least one entry
+// (valid or not), the flag a caller (e.g. `aief doctor`) uses to decide
+// whether to show anything at all — a project with no such directory is
+// fully unaffected.
+export function resolveAgentRecommendations(cwd) {
+  const aiSpecs = discoverAiSpecs(cwd);
+  return {
+    ...resolveResourceRecommendations([], aiSpecs.agents, "agents"),
+    aiSpecsAgentsPresent: aiSpecs.agents.length > 0
   };
 }

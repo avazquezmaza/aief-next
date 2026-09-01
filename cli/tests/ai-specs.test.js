@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { discoverAiSpecs, resolveResources, deriveSkillDescription, resolveSkillRecommendations, resolveStandardRecommendations } from "../src/core/domain/ai-specs.js";
+import { discoverAiSpecs, resolveResources, deriveSkillDescription, resolveSkillRecommendations, resolveStandardRecommendations, resolveAgentRecommendations } from "../src/core/domain/ai-specs.js";
 
 function tempCwd() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "aief-ai-specs-"));
@@ -22,6 +22,7 @@ test("discoverAiSpecs: no ai-specs/ directory is a strict no-op", () => {
   assert.equal(result.root, path.join(cwd, "ai-specs"));
   assert.deepEqual(result.skills, []);
   assert.deepEqual(result.standards, []);
+  assert.deepEqual(result.agents, []);
 });
 
 test("discoverAiSpecs: skills and standards are both discovered when present", () => {
@@ -414,4 +415,49 @@ test("resolveStandardRecommendations: is deterministic across repeated calls", (
   const first = resolveStandardRecommendations(builtins, cwd);
   const second = resolveStandardRecommendations(builtins, cwd);
   assert.deepEqual(first, second);
+});
+
+// --- resolveAgentRecommendations() — discovery-only, no builtin catalog.
+// AIEF never copies profiles/ into an adopted project (only
+// profiles/README.md), so unlike Skills/Standards there is no per-project
+// built-in list to resolve against; every discovered agent is always
+// source: "project", overridesBuiltin always false.
+
+test("discoverAiSpecs: agents/ is discovered like skills/standards, flat <id>.md (real specboot layout)", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "agents", "backend-developer.md"), "# Backend Developer\n\nOwns the API layer.\n");
+  writeFile(path.join(cwd, "ai-specs", "agents", "frontend-developer.md"), "# Frontend Developer\n\nOwns the UI layer.\n");
+  writeFile(path.join(cwd, "ai-specs", "agents", "product-strategy-analyst.md"), "# Product Strategy Analyst\n\nOwns discovery.\n");
+  const result = discoverAiSpecs(cwd);
+  assert.equal(result.agents.length, 3);
+  const ids = result.agents.map((a) => a.id).sort();
+  assert.deepEqual(ids, ["backend-developer", "frontend-developer", "product-strategy-analyst"]);
+  assert.equal(result.agents.every((a) => a.state === "present"), true);
+});
+
+test("resolveAgentRecommendations: every discovered agent is source \"project\", never overridesBuiltin", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "agents", "backend-developer.md"), "# Backend Developer\n\nOwns the API layer.\n");
+  const { items, aiSpecsAgentsPresent } = resolveAgentRecommendations(cwd);
+  assert.equal(aiSpecsAgentsPresent, true);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, "backend-developer");
+  assert.equal(items[0].source, "project");
+  assert.equal(items[0].overridesBuiltin, false);
+});
+
+test("resolveAgentRecommendations: aiSpecsAgentsPresent is false with no ai-specs/agents/ directory", () => {
+  const cwd = tempCwd();
+  const { items, aiSpecsAgentsPresent } = resolveAgentRecommendations(cwd);
+  assert.equal(aiSpecsAgentsPresent, false);
+  assert.deepEqual(items, []);
+});
+
+test("resolveAgentRecommendations: aiSpecsAgentsPresent is true even when every entry is invalid", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "agents", "blank.md"), "   ");
+  const { items, invalidCount, aiSpecsAgentsPresent } = resolveAgentRecommendations(cwd);
+  assert.equal(aiSpecsAgentsPresent, true);
+  assert.equal(invalidCount, 1);
+  assert.deepEqual(items, []);
 });
