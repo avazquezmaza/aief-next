@@ -94,12 +94,18 @@ export function analyzeDefinitionSections(changeMd) {
   }
 
   const marked = { deferred: [], ambiguous: [], decisionRequired: [], humanApprovalRequired: [] };
+  // Change 0107: accept "-", "*" or "+" as the bullet character — the same
+  // CommonMark unordered-list markers change.js's countOpenTasks() already
+  // accepts (/^\s*[-*+] \[ \]/, Change 0075). This module predates that
+  // standardization and only ever recognized "-", silently dropping any
+  // (deferred)/(ambiguous)/(decision required)/(human) marker written with
+  // "*" or "+".
   for (const rawLine of String(changeMd || "").split(/\r?\n/)) {
     const line = rawLine.trim();
-    if (!line.startsWith("-")) continue;
+    if (!/^[-*+]/.test(line)) continue;
     for (const [bucket, pattern] of ITEM_MARKERS) {
       if (pattern.test(line)) {
-        marked[bucket].push(line.replace(/^-+\s*/, ""));
+        marked[bucket].push(line.replace(/^[-*+]+\s*/, ""));
         break; // one marker per line — first match wins, same discipline as changeTypeFromContent's single match
       }
     }

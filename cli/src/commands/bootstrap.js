@@ -24,10 +24,24 @@ const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), ".."
 const AGENTS_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "templates", "agents", "AGENTS.md");
 const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "testing-standards.md", "security-standards.md"];
 
+// Backend tech ids that must create knowledge/standards/backend-standards.md
+// (Change 0106). This list must cover every detector id that is a `when`
+// trigger of a skills-catalog.json Skill whose own `standardsToRead` names
+// "backend-standards.md" — otherwise bootstrap recommends a Skill (via
+// knowledge/skills.md) that points at a standards file it never created.
+// Found by reproduction: a Django-only project (python-backend-architecture
+// Skill, `when: ["django","flask","fastapi"]`) got recommended
+// backend-standards.md in knowledge/skills.md, but this function — written
+// before those detectors/Skills existed (Change 0098/0100) — never created
+// the file, leaving a dangling reference in the generated doc. Same gap for
+// aws-saas-platform (`aws`, `cognito`), payments-reviewer (`stripe`) and
+// container-deployment-reviewer (`docker`, `kubernetes`).
+const BACKEND_TECH_IDS = ["nestjs", "postgres", "cognito", "n8n", "aws", "django", "flask", "fastapi", "stripe", "docker", "kubernetes"];
+
 function standardsForProject(project) {
   const files = [...BASE_STANDARDS];
   if (project.tech.nextjs || project.tech.react || project.tech.tailwind) files.push("frontend-standards.md");
-  if (project.tech.nestjs || project.tech.postgres || project.tech.cognito || project.tech.n8n) files.push("backend-standards.md");
+  if (BACKEND_TECH_IDS.some((id) => project.tech[id])) files.push("backend-standards.md");
   return files;
 }
 function createStandards(project) {

@@ -49,16 +49,24 @@ export function retrieve(sourceId, options = {}) {
     ? path.resolve(projectRoot, options.file)
     : path.resolve(projectRoot, "requirements", "jira", `${sourceId}.json`);
 
-  // Only an explicitly-supplied --file is containment-checked: the default
-  // location is always built from a fixed "requirements/jira/" segment, so
-  // it can never itself resolve outside the project root.
-  if (usingExplicitFile && !isReallyWithin(projectRoot, filePath)) {
+  // Containment is checked for BOTH the explicit --file case and the default
+  // "requirements/jira/<sourceId>.json" template — sourceId is unsanitized
+  // CLI input (cli/src/commands/enrich.js passes it straight through from
+  // argv), so a sourceId containing "../" segments (e.g.
+  // `aief enrich jira ../../../etc/passwd`) interpolates into the default
+  // path exactly as dangerously as a malicious --file value would. The
+  // earlier assumption that the default path "can never resolve outside the
+  // project root" only held for a sourceId with no path metacharacters —
+  // this was a real arbitrary-file-read gap, found and fixed here (Change
+  // 0105), the same class of bug Change 0074 fixed for --file alone.
+  if (!isReallyWithin(projectRoot, filePath)) {
+    const label = usingExplicitFile ? `--file ${options.file}` : `source id ${JSON.stringify(sourceId)}`;
     return {
       requirement: emptyRequirement("jira", sourceId),
       retrieved: false,
-      openQuestions: [`- \`--file ${options.file}\` resolves outside the project root — rejected before reading. Point --file at a project-local Jira export (see docs/workflow.md).`],
-      riskNotes: [`- \`--file ${options.file}\` was rejected: it resolves (directly, or via a symlink) outside the project root, so no content was read.`],
-      consoleNotes: [`--file "${options.file}" resolves outside the project root — rejected before reading. Point --file at a project-local Jira export.`]
+      openQuestions: [`- \`${label}\` resolves outside the project root — rejected before reading. Point --file (or the source id) at a project-local Jira export (see docs/workflow.md).`],
+      riskNotes: [`- \`${label}\` was rejected: it resolves (directly, or via a symlink) outside the project root, so no content was read.`],
+      consoleNotes: [`${label} resolves outside the project root — rejected before reading. Point --file (or the source id) at a project-local Jira export.`]
     };
   }
 
