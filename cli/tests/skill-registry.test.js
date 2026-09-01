@@ -15,8 +15,8 @@ function fixture(overrides = {}) {
   };
 }
 
-test("the real registry contains exactly the four built-in Skills, in a fixed order", () => {
-  assert.deepEqual(skillIds(), ["change-context", "requirements-analysis-instructions", "architecture-definition", "data-definition"]);
+test("the real registry contains exactly the five built-in Skills, in a fixed order", () => {
+  assert.deepEqual(skillIds(), ["change-context", "requirements-analysis-instructions", "architecture-definition", "data-definition", "adversarial-review"]);
 });
 
 test("hasSkill/getSkill: known ids resolve, unknown ids do not", () => {
@@ -39,7 +39,7 @@ test("skillIds/getSkill are deterministic across repeated calls", () => {
 
 test("describeSkill/listDescriptors expose only descriptor metadata, not the implementation methods", () => {
   const descriptors = listDescriptors();
-  assert.equal(descriptors.length, 4);
+  assert.equal(descriptors.length, 5);
   for (const d of descriptors) {
     assert.deepEqual(Object.keys(d).sort(), ["capabilities", "description", "id", "title", "version"]);
   }

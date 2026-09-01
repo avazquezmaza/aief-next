@@ -31,3 +31,7 @@ Add a copy-ready AIEF starter project that users can use as the base for new AI 
 - A user can copy `starter-project/` and immediately start a new AIEF project.
 - The starter project explains where code, tests, changes, and knowledge go.
 - The starter project includes one example completed Change.
+
+## Status
+
+Closed (2026-09-01)

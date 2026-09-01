@@ -25,3 +25,7 @@ Rewrite the main README and evolve the CLI to v2 with doctor, status, and propos
 - Full OpenSpec API integration.
 - GitHub release automation.
 - Interactive prompts.
+
+## Status
+
+Closed (2026-09-01)

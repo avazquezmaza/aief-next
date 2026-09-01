@@ -62,4 +62,4 @@ initiative, not a new architectural boundary.
 
 ## Status
 
-Open.
+Closed (2026-08-31)

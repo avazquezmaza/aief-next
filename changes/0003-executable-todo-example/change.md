@@ -32,3 +32,7 @@ Turn the Todo App example into a small executable project that demonstrates AIEF
 - A user can run the example with `npm test`.
 - The example includes code, tests, and AIEF evidence.
 - The example remains simple enough to understand in minutes.
+
+## Status
+
+Closed (2026-09-01)

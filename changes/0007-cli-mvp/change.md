@@ -20,3 +20,7 @@ Add a minimal AIEF CLI to automate common starter actions.
 - Specboot execution integration.
 - Publishing to npm.
 - Advanced configuration.
+
+## Status
+
+Closed (2026-09-01)
