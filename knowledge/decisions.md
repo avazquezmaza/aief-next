@@ -4,6 +4,60 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-036: ADR-012's structured Profile model is amended down to what actually shipped — a named role selector, not a `goal`/`thinkingStyle`/`priorities`/`expectedOutputs`/`avoid` schema
+
+**Status: Accepted (2026-09-01), by the project owner.**
+
+**Decision.**
+
+> ADR-012 (2026-07-05) proposed a Profile as **structured operational knowledge**: five fields
+> (`goal`, `thinkingStyle`, `priorities`, `expectedOutputs`, `avoid`), conceptually parallel to the
+> Skills catalog. [Change 0038](../changes/0038-framework-simplification-map/)'s classification
+> map named this one of its six open human decisions (spec §6, item 5): *"is the Role model
+> implemented, or reconsidered? 0 uses."* Verified against the code and the evidence on record:
+>
+> - `--profile <name>` (`prompt.js`) and `use-profile <name>` (`misc.js`) are real, working
+>   surfaces — but both only interpolate the name into one line of the generated prompt
+>   (`"Act as the ${profile} profile."`). No structured field is read or written anywhere.
+> - `profiles/*.md` (11 role files) carry free-text guidance, not the five-field schema.
+> - **Zero tests** reference `profile` anywhere in `cli/test/`.
+> - **Zero uses of the structured model** across the only two real-usage data points on record:
+>   the full Flux Portal migration, and all five scored sessions of
+>   [Change 0096](../changes/0096-run-usability-validation-study/)'s usability study — no
+>   participant needed a profile at all, structured or not.
+>
+> **The structured schema is amended out of ADR-012.** Profile stays exactly what it already is
+> and already does: a named role selector (`--profile architect`) whose guidance lives as free
+> text in `profiles/*.md`. No `goal`/`thinkingStyle`/`priorities`/`expectedOutputs`/`avoid` fields,
+> no parser, no catalog service — building that structure now, with zero evidence anyone has ever
+> needed it, is exactly the speculative-capability pattern [ADR-013](#adr-013-aief-20-is-a-redesign-no-capability-enters-the-core-without-removing-an-equivalent)
+> exists to block.
+
+**What stays true, unmodified.** [Change 0038](../changes/0038-framework-simplification-map/)'s
+map already settled the surrounding questions, and this ADR does not reopen them:
+
+- **`profiles/` (11 files) — KEEP**, per the map, permanently separate from Track/Depth.
+- **Role/Profile as a concept — KEEP.** This ADR narrows *what Profile is*, it does not remove it.
+- **`use-profile` (the command) — DELETE**, per the map: `aief prompt --profile <role>` already
+  does the same thing; `use-profile` is a second way to say it, zero capability lost. Execution of
+  that DELETE is separate, gated work (ADR-014), not performed by this ADR.
+
+**A separate, real bug — not decided by this ADR.** The map also found `profiles/` never actually
+reaches an adopted project: `aief adopt` writes only `profiles/README.md`, pointing back at "the
+source AIEF repository" — the 11 role files themselves never arrive. The map calls this "a
+*delivery* defect, not a content defect." This ADR does not fix it; it is left as an open
+candidate for a future Change, independent of Profile's schema question this ADR does resolve.
+
+**Consequences.**
+
+- Change 0038's spec §6 item 5 is answered; the Change may cite this ADR when it closes.
+- No code changes. `--profile`, its default (`"developer"`), and `profiles/*.md`'s free-text
+  shape are unchanged — this ADR ratifies existing behavior, it does not alter it.
+- Any future proposal to add structured Profile fields needs its own evidence of demand — the
+  absence found here does not expire on its own.
+
+---
+
 ## ADR-035: ADR-010 (standards are contextual knowledge AIEF creates) survives unamended — Change 0096's second real adoption case closes the tension Change 0037's audit raised
 
 **Status: Accepted (2026-09-01), by the project owner.**
