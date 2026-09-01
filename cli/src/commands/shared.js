@@ -21,6 +21,7 @@ import { resolveSddProvider } from "../core/domain/sdd-provider-resolver.js";
 import { deriveResourceDescription } from "../core/domain/ai-specs.js";
 import { buildGraph } from "../core/domain/change-graph.js";
 import { formatHookLogSection } from "../core/services/harness-service.js";
+import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 
 // --- fs/string primitives ---
 
@@ -90,6 +91,18 @@ export function invalidManifestChanges() {
   return getChangeDirs()
     .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
     .filter(({ change }) => Array.isArray(change.manifestError) && change.manifestError.length > 0);
+}
+// Change 0095 — every manifest-backed Change whose manifest.status disagrees
+// with its own change.md's ## Status declaration (the known, documented gap:
+// no command writes/synchronizes manifest.status — see docs/concepts.md's
+// "Current limitation"). Detection only, mirroring invalidManifestChanges()'s
+// own additive-section pattern: absent whenever no Change drifts, which is
+// every Change in this repository today (none carries a manifest.json yet).
+export function manifestStatusDriftChanges() {
+  return getChangeDirs()
+    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
+    .map(({ dir, change }) => ({ dir, change, drift: detectManifestStatusDrift(change) }))
+    .filter(({ drift }) => drift.drift);
 }
 // AIEF Core 3.0, Entrega 2 (Change 0044) — the Workflow Engine's only wiring
 // point. A Change is a workflow candidate when it has a valid manifest with

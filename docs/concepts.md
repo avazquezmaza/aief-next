@@ -105,6 +105,17 @@ always read `change.md` directly, never the manifest, for the closed/open questi
 manifest's `status` field as advisory today, and keep `change.md`'s own `## Status` as the
 practical way to close a Change.
 
+This gap is now at least **detected**, never silently reconciled (Change 0095): when a
+manifest-backed Change's `manifest.status` disagrees with its own `change.md`'s `## Status`
+declaration, `aief status` (overview and `--change`) and `aief verify` (targeted and
+whole-project) print a non-blocking warning naming both values. Nothing is written to either
+file by this detection, and neither command's closed/open decision or PASS/FAIL changes because
+of it — the same "unverified hint, disagreement reported, never silently resolved" pattern this
+document's own [Loop](#loop)/[Graph](#graph) sections describe for other non-blocking signals.
+An automatic writer or reconciliation command was deliberately rejected as a fix here: it would
+re-introduce the second-source-of-truth problem ADR-009 already ruled out once (for a proposed
+`.aief/state.json`) and ADR-016 rules out explicitly for the manifest itself.
+
 ## Workflow Engine — Track, Stage, Gate
 
 A Change that declares a `track` gets a small state machine layered on top of it, read-only from

@@ -6,6 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadChange } from "../core/domain/change.js";
+import { loadChangeUnified } from "../core/domain/change-loader.js";
+import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 import { verifyProject, verifyChange } from "../core/services/change-verifier.js";
 import { explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { detectProject } from "../detect.js";
@@ -100,6 +102,17 @@ function runGraphCheck(changeDir) {
   console.log("\nDependency Graph issues for this Change (non-blocking):");
   for (const issue of relevant) console.log(`- ${issue.type}: ${issue.detail}`);
 }
+// Change 0095 — a non-blocking note when the targeted Change's manifest.status
+// disagrees with its own change.md ## Status declaration (the documented gap:
+// no command writes/synchronizes manifest.status). Mirrors runGraphCheck()'s
+// own shape: never touches report.passed or the exit code, silent for every
+// Change today (none carries a manifest.json yet).
+function runManifestStatusDriftCheck(change) {
+  const drift = detectManifestStatusDrift(change);
+  if (!drift.drift) return;
+  console.log("\nManifest status disagreement for this Change (non-blocking):");
+  console.log(`- manifest.status says "${drift.manifestStatus}", change.md's own ## Status says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
+}
 // Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
 // opt-in flag: Structural Verification (renderReport, above) always runs
 // first, unchanged; this function only ever ADDS a section after it, never
@@ -149,6 +162,7 @@ export function verify(args = []) {
     if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
     runLoop(changeDir, inspection.change, report);
     runGraphCheck(changeDir);
+    runManifestStatusDriftCheck(inspection.change);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -162,6 +176,17 @@ export function verify(args = []) {
     strict: Boolean(parsed.strict)
   });
   renderReport(report);
+  // Change 0095 — same non-blocking drift note as the --change path, scanned
+  // across every Change while whole-project verify already iterates them.
+  // Never affects report.passed/exit code (both already decided above).
+  const drifting = getChangeDirs().map(loadChangeUnified).filter((c) => detectManifestStatusDrift(c).drift);
+  if (drifting.length) {
+    console.log("\nChanges with a manifest.status disagreement (non-blocking):");
+    for (const c of drifting) {
+      const drift = detectManifestStatusDrift(c);
+      console.log(`- ${c.basename}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
+    }
+  }
   runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });
   // Requirement Verification is Change-scoped (requirements come from one
   // Change's own SDD provider) — whole-project `aief verify --requirements`

@@ -81,6 +81,12 @@ function loadManifestChange(changeDir, manifestPath) {
     source: "manifest",
     manifest: parsed.value,
     manifestError: null,
+    // Raw change.md content, exposed so callers can compare against
+    // manifest.status without re-reading the file themselves (Change 0095,
+    // manifest-status-drift.js's detectManifestStatusDrift()) — the closed/
+    // open decision itself still comes from manifest.status alone, below;
+    // this is additive, read-only context, never consulted for `.closed`.
+    changeMdRaw: files["change.md"],
     closed: parsed.value.status === "closed",
     statusState: parsed.value.status,
     statusRaw: parsed.value.status,
