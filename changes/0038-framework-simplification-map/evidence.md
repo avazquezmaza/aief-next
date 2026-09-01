@@ -98,3 +98,42 @@ As recorded in Change 0037, the working tree already carried **Change 0036's F1/
 **None proposed.** The map authorizes nothing.
 
 The next action is a **human decision** on the six items in [spec §6](spec.md#6-what-this-map-does-not-decide), beginning with `## Type` → Track. Execution of any removal is a separate, separately approved Change, blocked on that review.
+
+## Addendum (2026-09-01): ADR-012 (Role model) — evidence for §6 item 5
+
+Gathered to support the still-open human decision (implement the structured Profile model, or
+reconsider/retire ADR-012). Not a decision — this Change's author is not the approver.
+
+**Current state, verified against the code.**
+
+- `--profile <name>` is a real, working flag (`prompt.js:77`, default `"developer"`) and
+  `use-profile <name>` is a real command — neither is broken or unused.
+- Both only interpolate the name into one line of the generated prompt: `"Act as the ${profile}
+  profile."` (`prompt.js:253`, `misc.js:153`). No structured fields.
+- `profiles/*.md` (11 role files) are never read by the CLI at all —
+  `ai-specs.js:23` states this explicitly: *"profiles/ is never copied into an adopted
+  project."* No catalog, no resolution, no validation that a given name matches a real file.
+- **0 tests** reference `profile` anywhere in `cli/test/`.
+- ADR-012's structured model (`goal` / `thinkingStyle` / `priorities` / `expectedOutputs` /
+  `avoid`) has zero matches in `cli/src` — already flagged once, independently, by Change 0037's
+  own audit (`evidence.md:56,126` there).
+
+**What implementing it for real would take.** Skills already has the exact pattern ADR-012 asks
+Profile to mirror: `skills-catalog.json` + `skill.js` (domain model) + `skill-service.js`
+(resolution). Implementing ADR-012 means replicating that pattern for Profile: structure each
+`profiles/*.md`'s five fields (frontmatter or a parallel catalog), add a `profile.js` +
+`profile-service.js`, and replace the one-line prompt block with the structured one. Rough size:
+comparable to the Skills registry slice — a domain model, a service, 11 populated profiles, and a
+new test file (there is currently no regression surface to protect).
+
+**Does it break anything?** No — it is additive. The flag, its default, and `use-profile` keep
+their exact shape; only what backs them gains substance. The one behavior change worth naming: if
+implementation adds validation (reject an unknown profile name), that is new — today any string is
+accepted silently. Making that a warning, not a hard error, avoids a breaking change for existing
+invocations.
+
+**Terminology note.** Change 0037's audit (`evidence.md:62`, A10) flagged a collision between
+ADR-012's "Profile" (role reasoning) and a second "profile" meaning (complexity tier) then in the
+brief. That second meaning shipped as **Depth** (Change 0039), not Track — the collision is
+resolved; "Profile" (role), "Track" (workflow gates) and "Depth" (Type-derived complexity) are
+three distinct words today.
