@@ -99,7 +99,14 @@ export function checkStrictCompleteness(change) {
   if (requirements !== null && isPlaceholderContent(requirements)) problems.push("spec.md Requirements is empty");
 
   const acceptanceCriteria = extractSection(specMd, "Acceptance Criteria");
-  if (acceptanceCriteria !== null && (isPlaceholderContent(acceptanceCriteria) || acceptanceCriteria === "- [ ]")) problems.push("spec.md Acceptance Criteria is empty");
+  // The scaffold's own untouched placeholder is one unchecked box with no
+  // label — genericChangeFiles() always writes it as "- [ ]" (shared.js),
+  // but "-", "*" and "+" are equally valid CommonMark bullets, the same
+  // "[-*+]" tolerance change.js's countOpenTasks() already applies to
+  // tasks.md (Change 0075). This exact-string check only ever recognized
+  // "-", so an author who typed "* [ ]" instead had this placeholder
+  // silently accepted as real content under --strict (Change 0109).
+  if (acceptanceCriteria !== null && (isPlaceholderContent(acceptanceCriteria) || /^[-*+] \[ \]$/.test(acceptanceCriteria))) problems.push("spec.md Acceptance Criteria is empty");
 
   const definitionProblem = definitionDecisionOutcomeProblem(change);
   if (definitionProblem) problems.push(definitionProblem);
