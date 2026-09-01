@@ -373,3 +373,17 @@ export function builtinStandardsList() {
     return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
   });
 }
+
+// --- interactive stdin (multi-consumer: bootstrap's ambiguous-SDD-provider
+// choice, prompt's ambiguous-assistant choice) ---
+
+// Blocking, dependency-free stdin read — only ever called after an isTTY
+// check, so it never hangs a non-interactive shell (CI, piped input, the
+// test suite).
+export function promptSync(question) {
+  process.stdout.write(question);
+  const buffer = Buffer.alloc(2048);
+  let bytesRead = 0;
+  try { bytesRead = fs.readSync(0, buffer, 0, buffer.length, null); } catch { bytesRead = 0; }
+  return buffer.toString("utf8", 0, bytesRead).trim();
+}

@@ -9,7 +9,7 @@ import { commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills } from "../detect.js";
 import { resolveSddProvider, sddProviderConfigPath } from "../core/domain/sdd-provider-resolver.js";
 import { getProvider } from "../sdd-providers/index.js";
-import { cwd, exists, writeFile, section, printNext, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles } from "./shared.js";
+import { cwd, exists, writeFile, section, printNext, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles, promptSync } from "./shared.js";
 import { analyze } from "./analyze.js";
 import { newChange } from "./new-change.js";
 
@@ -169,16 +169,6 @@ function runAdoption() {
   return artifacts;
 }
 function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), "# Project Agent Instructions\n\nAI assists. Humans decide.\n"); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
-// Blocking, dependency-free stdin read — only ever called after an isTTY
-// check (bootstrap's ambiguous-provider case), so it never hangs a
-// non-interactive shell (CI, piped input, the test suite).
-function promptSync(question) {
-  process.stdout.write(question);
-  const buffer = Buffer.alloc(2048);
-  let bytesRead = 0;
-  try { bytesRead = fs.readSync(0, buffer, 0, buffer.length, null); } catch { bytesRead = 0; }
-  return buffer.toString("utf8", 0, bytesRead).trim();
-}
 // Implements sdd-provider-resolver.js's step 2 (project-level configuration)
 // from the bootstrap side (spec.md R4). Only ever prompts when the choice is
 // genuinely ambiguous (OpenSpec available AND a specboot/LIDR marker
