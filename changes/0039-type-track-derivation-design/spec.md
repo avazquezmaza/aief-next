@@ -35,6 +35,9 @@ AIEF has an approved, evidence-checked design for introducing Depth without dist
 - [x] Reversibility: code revert only, no data to undo (§10).
 - [x] Rules validated against the real corpus — two were corrected as a result (§1.1, §4).
 - [x] Nothing implemented.
-- [ ] (human) Approve the design, or amend it.
-- [ ] (human) Confirm I4 stays non-fatal, given it would otherwise break Change 0036.
-- [ ] (review) Independent review before any implementation.
+- [x] (human) Approve the design, or amend it. **Approved, as amended, 2026-09-01** — renamed
+      "Track" → "Depth" before sign-off (see `tasks.md` for the full reasoning).
+- [x] (human) Confirm I4 stays non-fatal, given it would otherwise break Change 0036. **Confirmed
+      2026-09-01**, re-validated against the current corpus (see `tasks.md`).
+- [ ] (review) Independent review before any implementation. **Still pending** — deliberately left
+      open; needs a human who was not the author of the rename/approval above.
