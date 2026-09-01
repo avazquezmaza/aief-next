@@ -115,6 +115,14 @@ consolidation). None of that can be performed or self-certified by the assistant
 Change; it requires a real, independent human. This Change stays open until that gate and the
 study exist.
 
+## Moderator designated (2026-09-01)
+
+**Mandi Orange** designated as the independent moderator (`moderator.md` §0). The project owner
+confirmed all four independence criteria in `moderator.md` §1 are met. This is a designation, not
+yet the `(review)` gate itself: the gate clears only when Mandi reads the seven deliverables
+(protocol.md, scenarios.md, metrics.md, observation-sheet.md, consolidation.md, hypotheses.md,
+moderator.md) and confirms, in their own words, that the protocol is runnable as written.
+
 ## Next Change
 
 **None proposed.** This Change delivers the instrument only.

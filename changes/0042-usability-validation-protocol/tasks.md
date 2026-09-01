@@ -58,10 +58,11 @@
 - [x] (human) Approve the protocol before recruiting participants. **Approved 2026-09-01**
       (project owner) — the protocol as written (protocol.md, scenarios.md, metrics.md,
       observation-sheet.md, consolidation.md, hypotheses.md, moderator.md), unchanged.
-- [ ] (review) An independent moderator confirms the protocol is runnable as written. Still
-      pending — needs a human who was not an author of AIEF and did not participate in
-      Flux Portal or Changes 0036–0042 (moderator.md §1); cannot be self-certified by the
-      session that worked those Changes.
+- [ ] (review) An independent moderator confirms the protocol is runnable as written.
+      **Moderator designated 2026-09-01: Mandi Orange** (moderator.md §0) — independence
+      criteria confirmed by the project owner. Still pending: Mandi's own confirmation, after
+      reading all seven deliverables, that the protocol is runnable as written. Designation
+      alone does not clear this gate.
 
 ## Deferred (next stage, not this Change)
 
