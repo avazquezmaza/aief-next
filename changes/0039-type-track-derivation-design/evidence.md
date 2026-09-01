@@ -107,6 +107,25 @@ The rename and its approval were done by the same session working this Change; t
 cannot certify its own work as independent, the same discipline Change 0042 applied to its pilot
 review. This Change stays open until a human who did not do this rename/approval reviews it.
 
+## Addendum (2026-09-01): design.md §5's caller list is now stale — re-verify at implementation time
+
+While preparing a review checklist for the pending independent-review gate, checked design.md
+§5's claimed migration surface (`prompt`, `close`, `verify`, `createChange` each call
+`changeType()` directly) against the code as it stands today. **It has drifted since the design
+was drafted (2026-07-17)** — not wrong when written, but code refactored since then consolidated
+the real call sites:
+
+- `prompt.js:179` is still a direct caller of `changeType()`.
+- `close`/`verify` **no longer call `changeType()` directly** — both now go through
+  `inspect()` (`change.js:236`, `changeTypeFromContent()`) → the `change.type` field, consumed by
+  `change-verifier.js:207`'s Enrichment check.
+- `new-change.js` writes no `## Type` at creation today, consistent with the design's assumption.
+
+**Net effect:** fewer real entry points to migrate than §5 lists, not more — good news for
+implementation risk (test 9's zero-drift regression is easier to satisfy with fewer paths). But
+whoever implements this should **re-derive the caller list from the code at that time**, not copy
+§5 verbatim — this addendum is a pointer to check again, not a replacement of that work.
+
 ## Next Change
 
 **None proposed.** Design only; implementation is separately approved and separately gated, and
