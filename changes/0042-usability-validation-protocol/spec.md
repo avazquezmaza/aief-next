@@ -43,5 +43,5 @@ A ready-to-run protocol that produces objective evidence about whether a fresh d
 - [x] H-DISC stated with confirm/refute (hypotheses.md) and a consolidation row.
 - [x] Mandatory Q7 "what would you do differently tomorrow?" on the observation sheet and consolidation.
 - [x] No product surface (Type, Track, onboarding, commands, docs, templates) modified.
-- [ ] (human) Approve the protocol before recruiting participants.
+- [x] (human) Approve the protocol before recruiting participants. Approved 2026-09-01.
 - [ ] (review) A moderator independent of this protocol's author confirms it is runnable as written.

@@ -55,8 +55,13 @@
 
 ## Human gates
 
-- [ ] (human) Approve the protocol before recruiting participants.
-- [ ] (review) An independent moderator confirms the protocol is runnable as written.
+- [x] (human) Approve the protocol before recruiting participants. **Approved 2026-09-01**
+      (project owner) — the protocol as written (protocol.md, scenarios.md, metrics.md,
+      observation-sheet.md, consolidation.md, hypotheses.md, moderator.md), unchanged.
+- [ ] (review) An independent moderator confirms the protocol is runnable as written. Still
+      pending — needs a human who was not an author of AIEF and did not participate in
+      Flux Portal or Changes 0036–0042 (moderator.md §1); cannot be self-certified by the
+      session that worked those Changes.
 
 ## Deferred (next stage, not this Change)
 

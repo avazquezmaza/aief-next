@@ -101,6 +101,20 @@ The approved direction named the new hypothesis "H7". This document's hypotheses
 
 **Resolved (2026-07-17):** the project owner ratified keeping **H-DISC** and **not renumbering** — preserving existing references outranks a tidy numbering; the "requested as H7" annotation is sufficient. No renumber will be done.
 
+## Protocol approved (2026-09-01)
+
+The project owner approved the protocol as written — unchanged from the 2026-07-17 design —
+clearing the `(human)` gate in tasks.md/spec.md. This is **not** the same approval as the
+2026-07-17 one recorded in change.md's Status (that approved *building* the protocol and its
+same-day extensions); this one approves the *finished instrument* before recruiting.
+
+**Still open, deliberately:** the `(review)` gate — an independent moderator (disqualified per
+`moderator.md` §1 from being an AIEF author or a participant in Changes 0036–0042) confirming the
+protocol is runnable as written — and the study run itself (recruiting ≥5 participants, sessions,
+consolidation). None of that can be performed or self-certified by the assistant working this
+Change; it requires a real, independent human. This Change stays open until that gate and the
+study exist.
+
 ## Next Change
 
 **None proposed.** This Change delivers the instrument only.
