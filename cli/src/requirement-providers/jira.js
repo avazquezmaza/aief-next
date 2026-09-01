@@ -1,7 +1,8 @@
 // Placeholder adapter: reads a local Jira issue export (REST-shaped JSON).
 // No network call, no live Jira connection, no credentials — see
-// docs/requirement-sources.md for the export format and the future
-// network/MCP integration path. Same contract as every other provider
+// docs/configuration.md, "Requirement Source providers", for the export
+// path convention and the future network/MCP integration path. Same
+// contract as every other provider
 // adapter: retrieve(sourceId, options) -> { requirement, retrieved,
 // openQuestions, riskNotes, consoleNotes } — see manual.js for the shape.
 import fs from "node:fs";
@@ -70,8 +71,8 @@ export function retrieve(sourceId, options = {}) {
   return {
     requirement: emptyRequirement("jira", sourceId),
     retrieved: false,
-    openQuestions: [`- No local Jira export found at \`${relative}\`. Provide one (see docs/requirement-sources.md) or answer: is this requirement still only a placeholder?`],
+    openQuestions: [`- No local Jira export found at \`${relative}\`. Provide one (see docs/configuration.md, "Requirement Source providers") or answer: is this requirement still only a placeholder?`],
     riskNotes: [`- No local Jira export found at \`${relative}\`; this Change is a placeholder until real data is provided.`],
-    consoleNotes: [`No local Jira export found at ${relative} — creating a placeholder Change. See docs/requirement-sources.md for the export format and future MCP/API integration path.`]
+    consoleNotes: [`No local Jira export found at ${relative} — creating a placeholder Change. See docs/configuration.md, "Requirement Source providers", for the export path and future MCP/API integration path.`]
   };
 }

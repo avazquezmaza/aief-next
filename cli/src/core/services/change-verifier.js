@@ -9,8 +9,8 @@ import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
-// this is a name/Type heuristic, not a full phase model — see
-// docs/enrichment-workflow.md, "Verify limitations").
+// this is a name/Type heuristic, not a full phase model — see docs/workflow.md,
+// "Starting from a Requirement Source").
 function checkEnrichmentChange(change) {
   const problems = [];
   const changeMd = change.files["change.md"];
