@@ -10,12 +10,15 @@ import {
   printNext, parseCommandArgs, parseArgs, section,
   evidenceTemplate, evidenceIsPlaceholder,
   appendHookLog,
-  analysisContextSection, analysisChangeFiles, definitionChangeFiles, genericChangeFiles, createChange
+  analysisContextSection, analysisChangeFiles, definitionChangeFiles, genericChangeFiles, createChange,
+  builtinStandardsList
 } from "./commands/shared.js";
 import { help, commandRemoved, useProfile, release, printVersion } from "./commands/misc.js";
+import { newChange } from "./commands/new-change.js";
+import { enrich } from "./commands/enrich.js";
+import { propose } from "./commands/propose.js";
+import { analyze } from "./commands/analyze.js";
 import { detectProject, recommendSkills } from "./detect.js";
-import { PROVIDERS, providerList } from "./requirement.js";
-import { retrieveRequirement, hasAdapter, implementedProviders } from "./requirement-providers/index.js";
 import { loadChange, isClosedContent } from "./core/domain/change.js";
 import { loadChangeUnified } from "./core/domain/change-loader.js";
 import { verifyProject, verifyChange, checkChangeReadiness } from "./core/services/change-verifier.js";
@@ -34,7 +37,6 @@ import { selectNextChange } from "./core/services/next-change-service.js";
 import { buildVerificationContext } from "./core/services/verification-context.js";
 import { evaluateRequirements, aggregateVerificationResult } from "./core/services/verification-service.js";
 import { parseJUnitReport, renderCapturedVerification } from "./core/domain/junit-report.js";
-import { classifyMaturity } from "./core/domain/project-maturity.js";
 import { analyzeDefinitionSections, DEFINITION_SECTIONS } from "./core/domain/definition-enrichment.js";
 import { replaceOrAppendEvidenceSection } from "./core/domain/evidence-sections.js";
 
@@ -181,113 +183,12 @@ function createCiGate() {
   const created = writeFile(cwd(".github", "workflows", "aief-verify.yml"), fs.readFileSync(CI_TEMPLATE, "utf8"));
   return created ? ".github/workflows/aief-verify.yml" : null;
 }
-function listStandards() {
-  const dir = cwd("knowledge", "standards");
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
-}
-// Maps listStandards()'s bare filenames into the { id, description, path }
-// shape resolveResources() (and resolveStandardRecommendations()) can
-// consume as `builtins` (Change 0055/ADR-025) — id is the filename without
-// `.md` (so it can collide, by id, with an ai-specs/standards/<id>.md);
-// description is derived from the file's own first heading, read from disk
-// exactly once here, never cached, never written back.
-function builtinStandardsList() {
-  return listStandards().map((file) => {
-    const filePath = cwd("knowledge", "standards", file);
-    return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
-  });
-}
 function printSignals(project) {
   console.log("\nDetected project signals:");
   if (!project.signals.length) { console.log("(none)"); return; }
   for (const signal of project.signals) {
     console.log(`✓ ${signal.id} (${signal.signal}): ${signal.reasons.join("; ")}`);
   }
-}
-function newChange(args) { const parsed = parseArgs("new-change", args); if (!parsed) return; const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
-
-// Requirement Sources / Enrichment: real work starts in Jira, Notion, GitHub
-// Issues or a document, not in `aief new-change`. Every provider is read-only
-// and produces the same Normalized Requirement; enrichment output always lands
-// in visible Change artifacts (no hidden state) and always requires human
-// review before implementation — enforced by the same close/verify gates
-// every other Change already uses (unchecked Human Review tasks refuse close).
-//
-// cli.js never branches on a provider name: `retrieveRequirement` (imported
-// from requirement-providers/) is the one contract every provider implements,
-// so adding notion/github/azure-devops/markdown means adding an adapter file
-// there, never touching the functions below.
-function findChangeBySlugSuffix(slug) {
-  return getChangeDirs().find((dir) => path.basename(dir).endsWith(`-${slug}`));
-}
-function requirementFactsAndAssumptions(requirement) {
-  const fields = [
-    ["Title", requirement.title],
-    ["Description", requirement.description],
-    ["Status (source)", requirement.status],
-    ["Priority", requirement.priority],
-    ["Reporter", requirement.reporter],
-    ["Assignee", requirement.assignee],
-    ["Labels", requirement.labels.length ? requirement.labels.join(", ") : ""],
-    ["Comments", requirement.comments.length ? `${requirement.comments.length} comment(s) retrieved` : ""],
-    ["Attachments", requirement.attachments.length ? requirement.attachments.join(", ") : ""],
-    ["Links", requirement.links.length ? requirement.links.join(", ") : ""]
-  ];
-  const facts = fields.filter(([, v]) => v).map(([k, v]) => `- **${k}:** ${v}`);
-  const assumptions = fields.filter(([, v]) => !v).map(([k]) => `- **${k}:** not provided by the source — treat as unknown until a human confirms it.`);
-  return { facts, assumptions };
-}
-function enrichmentChangeFiles(id, slug, provider, sourceId, requirement, retrieved, notes) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { facts, assumptions } = requirementFactsAndAssumptions(requirement);
-  const openQuestions = [...notes.openQuestions];
-  if (!requirement.title || requirement.title === sourceId) openQuestions.push("- What is the actual title/summary of this requirement? (currently a placeholder)");
-  if (!requirement.description) openQuestions.push("- What is the full description / acceptance intent behind this requirement?");
-  if (!openQuestions.length) openQuestions.push("- None identified yet. If new information emerges before Human Review, add it here.");
-  const changeMd = `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nEnrichment\n\n## Objective\n\nNormalize the requirement from ${provider}:${sourceId} into AIEF Change artifacts, without modifying the source or implementing application code.\n\n## Scope\n\n### In scope\n\n- Retrieve the requirement from ${provider} (read-only).\n- Normalize it into a common Requirement shape.\n- Classify information as Fact [H], Inference [I] or Assumption [S].\n- Raise open questions.\n- Require human review before any implementation.\n\n### Out of scope\n\n- Implementing application code.\n- Modifying the external source (${provider}) in any way — it is read-only.\n- Approving scope or acceptance criteria — that is a human decision, not this Change's job.\n\n## Requirement Source\n\n- **Provider:** ${provider}\n- **Source ID:** ${sourceId}\n- **Source URL:** ${requirement.sourceUrl || "(not available)"}\n- **Retrieved at:** ${requirement.retrievedAt}\n- **Read-only:** yes — AIEF never writes back to ${provider}.\n\n## Success Criteria\n\n- Requirement normalized into spec.md with [H]/[I]/[S] classification.\n- Open questions recorded.\n- Human review completed before implementation begins.\n\n## Review Status\n\nRequires Human Review\n`;
-  const specMd = `# Specification\n\n## Goal\n\n${requirement.title || "(unknown — see Open Questions)"}\n\n## Normalized Requirement\n\n- **Provider:** ${provider}\n- **Source ID:** ${sourceId}\n- **Title:** ${requirement.title || "(unknown)"}\n- **Description:** ${requirement.description || "(unknown)"}\n\n## Facts, Inferences, Assumptions\n\n### [H] Facts (directly from the source)\n\n${facts.length ? facts.join("\n") : "- None retrieved yet."}\n\n### [I] Inferences (derived, not stated by the source)\n\n- None recorded yet. Add any inference here during Human Review, with its reasoning.\n\n### [S] Assumptions (missing data, treated as unknown)\n\n${assumptions.length ? assumptions.join("\n") : "- None — every field was retrieved from the source."}\n\n## Open Questions\n\n${openQuestions.join("\n")}\n\n## Acceptance Criteria\n\n- [ ] A human has reviewed this spec and the Normalized Requirement above.\n- [ ] Every open question is answered or explicitly deferred with a reason.\n- [ ] Scope in change.md is approved or adjusted by a human.\n`;
-  const tasksMd = `# Tasks\n\n## Human Review (required before implementation)\n\n- [ ] Review spec.md and the Normalized Requirement.\n- [ ] Answer or explicitly defer each Open Question.\n- [ ] Approve or adjust the scope in change.md.\n- [ ] Decide whether to proceed (\`aief propose\` / \`aief prompt\`) or close this Change as not actionable.\n\n## Enrichment (done automatically by \`aief enrich\`)\n\n- [x] Retrieve the requirement from ${provider}:${sourceId} (read-only).\n- [x] Normalize into Facts [H] / Inferences [I] / Assumptions [S].\n- [x] Record source metadata and mark it read-only.\n\n## Evidence\n\n- [ ] Update evidence.md\n`;
-  const evidenceMd = `# Evidence\n\n> Generated by AIEF during enrichment.\n\n## Summary\n\nRequirement ${provider}:${sourceId} retrieved (read-only) and normalized into this Change on ${today}.\n\n## Activities Performed\n\n- Retrieved requirement metadata from ${provider} (${sourceId})${retrieved ? "" : " — no local data found; placeholder only"}.\n- Normalized into Facts [H] / Inferences [I] / Assumptions [S] in spec.md.\n- Recorded the source as read-only; no writes were made against ${provider}.\n\n## Verification\n\n- Source read-only: confirmed — no code path in this Change writes back to ${provider}.\n- No application code modified.\n- No credentials read, stored or required.\n\n## Findings\n\n${facts.length ? facts.join("\n") : "- No fields retrieved yet — see Open Questions in spec.md."}\n\n## Risks\n\n- Fields marked [S] in spec.md are assumptions — confirm during Human Review before implementation.\n${notes.riskNotes.length ? `${notes.riskNotes.join("\n")}\n` : ""}\n## Recommendations\n\n- Complete Human Review (tasks.md) before running \`aief propose\` or \`aief prompt\`.\n\n## Artifacts Produced\n\n- changes/${id}-${slug}/ (this Change)\n\n## Lessons Learned\n\n- Pending — add after Human Review.\n\n## Next Change\n\nComplete Human Review, then \`aief propose\` or \`aief prompt\` to continue toward implementation.\n`;
-  return { "change.md": changeMd, "spec.md": specMd, "tasks.md": tasksMd, "evidence.md": evidenceMd };
-}
-function enrich(args) {
-  const parsed = parseArgs("enrich", args);
-  if (!parsed) return;
-  const provider = (parsed._[0] || "").toLowerCase();
-  const sourceId = parsed._[1] || "";
-  section("AIEF Enrich");
-  console.log("Purpose: normalize a requirement from an external source (read-only) into a new or existing Change. Never modifies the source; never implements code.\n");
-  if (!provider || !PROVIDERS[provider]) {
-    console.error(`Unknown or missing provider${provider ? ` "${provider}"` : ""}.\n\nKnown providers:\n\n${providerList(hasAdapter)}\n\nExample:\n  aief enrich manual TEST-001`);
-    process.exitCode = 1;
-    return;
-  }
-  if (!hasAdapter(provider)) {
-    console.error(`Provider "${provider}" is not implemented yet. It is planned — see docs/requirement-sources.md.\n\nImplemented now: ${implementedProviders().join(", ")}.`);
-    process.exitCode = 1;
-    return;
-  }
-  if (!sourceId) { console.error(`Source ID is required.\n\nExample:\n  aief enrich ${provider} <source-id>`); process.exitCode = 1; return; }
-  const slug = slugify(`${provider}-${sourceId}`);
-  const existing = findChangeBySlugSuffix(slug);
-  if (existing) {
-    console.log(`A Change for ${provider}:${sourceId} already exists: ${path.relative(process.cwd(), existing)}`);
-    console.log("Not creating a duplicate. Re-run enrich under a different source-id if this is genuinely a new requirement.");
-    printNext(`review ${path.relative(process.cwd(), existing)}/spec.md`, "aief prompt");
-    return;
-  }
-  const { requirement, retrieved, openQuestions, riskNotes, consoleNotes } = retrieveRequirement(provider, sourceId, parsed);
-  for (const note of consoleNotes) console.log(note);
-  const id = nextChangeId();
-  const changeDir = cwd("changes", `${id}-${slug}`);
-  const files = enrichmentChangeFiles(id, slug, provider, sourceId, requirement, retrieved, { openQuestions, riskNotes });
-  for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
-  const name = path.relative(process.cwd(), changeDir);
-  console.log(`Created Change: ${name}`);
-  console.log(`Source: ${provider}:${sourceId} (read-only; nothing was written back to ${provider}).`);
-  console.log("\nThis Change requires human review before any implementation.");
-  printNext(`review ${name}/spec.md and answer its Open Questions`, `approve or adjust scope in ${name}/change.md`, `then: aief propose --change ${path.basename(changeDir)} (or aief prompt --change ${path.basename(changeDir)})`);
 }
 // Visible Skills: the recommended Skills become a readable artifact in the
 // adopted project. The catalog stays the technical source; this file is the
@@ -404,65 +305,6 @@ function runAdoption() {
     console.log(`✓ Created changes/${id}-adopt-aief (evidence generated automatically)`);
   } else console.log("✓ Adoption Change already exists");
   return artifacts;
-}
-const KNOWN_MATURITY_VALUES = new Set(["definition", "implemented", "ambiguous"]);
-
-// Change 0080: `aief analyze` used to unconditionally create an Analysis
-// Change — correct once application code exists, wrong for a repository
-// still in Definition (README/PRD/business requirements, no source yet):
-// that repository would get "review package configuration", "inspect source
-// modules" tasks for things that do not exist.
-//
-// Routing, in priority order:
-// - maturity "implemented" -> today's exact behavior, byte-identical
-//   (Analysis Change). Never regressed.
-// - maturity "definition"  -> a Definition Change instead (Change 0079),
-//   seeded with the same Objective text, explaining why.
-// - maturity "ambiguous"   -> falls back to today's exact behavior (Analysis
-//   Change), the smallest, safest, backward-compatible choice for a
-//   near-empty repository — but the ambiguity itself is reported explicitly,
-//   never silently swallowed. A bare/near-empty directory is exactly what
-//   every pre-existing `aief analyze` caller and test already expects to
-//   produce an Analysis Change; refusing to act here would be a real,
-//   observable regression, not a safety improvement. `--maturity` lets a
-//   human override the detected value either way.
-function analyze(args) {
-  const parsed = parseArgs("analyze", args);
-  if (!parsed) return;
-  let maturityOverride = null;
-  if (typeof parsed.maturity === "string") {
-    maturityOverride = parsed.maturity.toLowerCase();
-    if (!KNOWN_MATURITY_VALUES.has(maturityOverride)) {
-      console.error(`Unknown --maturity "${parsed.maturity}". Use one of: ${[...KNOWN_MATURITY_VALUES].join(", ")}.`);
-      process.exitCode = 1;
-      return;
-    }
-  }
-  section("AIEF Analyze");
-  const detected = classifyMaturity(cwd());
-  const maturity = maturityOverride || detected.maturity;
-  const name = parsed._.join(" ") || "analyze-current-architecture";
-
-  if (maturity === "definition") {
-    console.log("Purpose: create a Definition Change — this repository looks pre-implementation (requirements/context present, no application source found).\nWrites only under changes/<id>-<name>/.\n");
-    console.log(`Detected maturity: Definition${maturityOverride ? " (forced via --maturity)" : ""}.\n${detected.reasons.map((r) => `- ${r}`).join("\n")}\n`);
-    const dir = createChange(name, { type: "definition" });
-    printNext(dir ? `aief prompt --change ${path.basename(dir)}` : "aief prompt", "See docs/getting-started.md for the pre-implementation Definition workflow.");
-    return;
-  }
-
-  console.log("Purpose: create an Analysis Change seeded with the project context doctor already detects.\nWrites only under changes/<id>-<name>/.\n");
-  if (maturity === "ambiguous" && !maturityOverride) {
-    console.log(`Project maturity is ambiguous — defaulting to Analysis.\n${detected.reasons.map((r) => `- ${r}`).join("\n")}\nRun \`aief new-change <name> --type definition\` instead if this is actually pre-implementation work, or \`aief analyze --maturity definition\` to force this classification.\n`);
-  }
-  const project = detectProject();
-  const context = { project, skills: recommendSkills(project), standards: listStandards(), skillsDocPresent: exists("knowledge/skills.md") };
-  const dir = createChange(name, { type: "analysis", context });
-  if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
-  // Explicit selection in the hint: after adoption there are typically two
-  // open Changes (adopt-aief + this Analysis), so the suggested command must
-  // name its target instead of relying on implicit "latest open".
-  printNext(dir ? `aief prompt claude --profile architect --change ${path.basename(dir)}` : "aief prompt claude --profile architect");
 }
 // `aief prompt --set-assistant/--show-assistant/--clear-assistant` (Change
 // 0061) manage knowledge/assistant.json — the only writes this file
@@ -1476,60 +1318,5 @@ function bootstrap(args) {
   const parsed = parseArgs("bootstrap", args);
   if (!parsed) return;
   initProject(parsed._[0], { interactive: parsed.interactive === true, force: parsed.force === true });
-}
-// Validate the OpenSpec CLI contract before delegating. Never assume
-// "openspec propose <idea>" exists: check installation, version and
-// whether the propose command is actually exposed.
-function openspecInfo() {
-  if (!commandExists("openspec")) return { installed: false };
-  const versionResult = run("openspec", ["--version"]);
-  const version = versionResult.status === 0 ? String(versionResult.stdout || "").trim() : "unknown";
-  const helpResult = run("openspec", ["--help"]);
-  const helpText = `${helpResult.stdout || ""}${helpResult.stderr || ""}`;
-  const supportsPropose = helpResult.status === 0 && /\bpropose\b/i.test(helpText);
-  return { installed: true, version, supportsPropose };
-}
-function propose(args) {
-  section("AIEF Propose");
-  const parsed = parseArgs("propose", args);
-  if (!parsed) return;
-  // --change continues an existing Change (e.g. after `aief enrich` + Human
-  // Review) instead of forking a new one: it only adds/keeps proposal.md,
-  // never touching change.md/spec.md/tasks.md, so the Requirement Source,
-  // Normalized Requirement, [H]/[I]/[S] classification and Human Review
-  // status already recorded there stay exactly as they are.
-  if (typeof parsed.change === "string") { proposeForChange(parsed.change, parsed._.join(" ")); return; }
-  const idea = parsed._.join(" ");
-  if (!idea) { console.error('Example: aief propose "Add login"\n   or: aief propose --change <change-id>   (continue an existing Change, e.g. after aief enrich)'); process.exitCode = 1; return; }
-  const openspec = openspecInfo();
-  if (!openspec.installed) {
-    console.log("OpenSpec is not installed. Creating a local Change instead.");
-  } else if (!openspec.supportsPropose) {
-    console.warn(`OpenSpec ${openspec.version} is installed but does not expose a "propose" command. Falling back to local Change generation.`);
-  } else {
-    console.log(`Delegating to OpenSpec ${openspec.version}...`);
-    const r = run("openspec", ["propose", idea], { stdio: "inherit" });
-    if (r.status === 0) return;
-    console.error(`OpenSpec delegation failed (exit code ${r.status}). Falling back to local Change generation.`);
-  }
-  const dir = createChange(idea);
-  if (dir) {
-    writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`);
-    console.log("Created local proposal.md.");
-    printNext("review proposal.md", "aief prompt");
-  }
-}
-function proposeForChange(changeId, idea) {
-  // Same shared resolver as prompt/verify/close — never "last match wins".
-  const changeDir = resolveExplicitChange(changeId);
-  if (!changeDir) { printNext("aief status"); return; }
-  const name = path.relative(process.cwd(), changeDir);
-  const proposalPath = path.join(changeDir, "proposal.md");
-  const title = idea || path.basename(changeDir).replace(/^\d+-/, "");
-  console.log(`Change: ${name}\n`);
-  const created = writeFile(proposalPath, `# Proposal\n\n## Idea\n\n${title}\n\n## Why\n\n-\n\n## What Changes\n\n-\n\n## Source\n\nThis Change's Requirement Source, Normalized Requirement and Human Review status remain in change.md and spec.md — this proposal does not replace or duplicate them.\n`);
-  if (created) console.log(`Created ${name}/proposal.md.`);
-  else console.log(`${name}/proposal.md already exists — not overwritten. Edit it directly, or review change.md/spec.md for the underlying requirement.`);
-  printNext(`review ${name}/proposal.md and ${name}/spec.md`, "aief prompt");
 }
 export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "bootstrap": bootstrap(rest); break; case "adopt": commandRemoved("adopt"); break; case "analyze": analyze(rest); break; case "init": commandRemoved("init"); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

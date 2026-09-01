@@ -18,6 +18,7 @@ import { loadWorkflowDefinition, KNOWN_TRACKS } from "../core/domain/workflow-de
 import { evaluateGates } from "../core/services/gate-evaluator.js";
 import { resolveState } from "../core/services/transition-engine.js";
 import { resolveSddProvider } from "../core/domain/sdd-provider-resolver.js";
+import { deriveResourceDescription } from "../core/domain/ai-specs.js";
 import { buildGraph } from "../core/domain/change-graph.js";
 import { formatHookLogSection } from "../core/services/harness-service.js";
 
@@ -349,4 +350,26 @@ export function createChange(name, options = {}) {
       : genericChangeFiles(id, slug, name);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
+}
+
+// --- standards (multi-consumer: doctor/prompt, staying in cli.js for now,
+// and analyze, moved to commands/analyze.js — promoted here, third slice,
+// same reasoning as everything above: shared by more than one command) ---
+
+export function listStandards() {
+  const dir = cwd("knowledge", "standards");
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+}
+// Maps listStandards()'s bare filenames into the { id, description, path }
+// shape resolveResources() (and resolveStandardRecommendations()) can
+// consume as `builtins` (Change 0055/ADR-025) — id is the filename without
+// `.md` (so it can collide, by id, with an ai-specs/standards/<id>.md);
+// description is derived from the file's own first heading, read from disk
+// exactly once here, never cached, never written back.
+export function builtinStandardsList() {
+  return listStandards().map((file) => {
+    const filePath = cwd("knowledge", "standards", file);
+    return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
+  });
 }
