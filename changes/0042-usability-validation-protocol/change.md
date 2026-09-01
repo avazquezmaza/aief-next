@@ -75,6 +75,6 @@ Per [ADR-015](../../knowledge/decisions.md), the study has priority over the sim
 
 ## Status
 
-Open
+Closed (2026-09-01)
 
-Approved 2026-07-17 to build the protocol; extended the same day with the moderator charter, ≥5 experience-spread participants, M-IDLE, H-DISC and the mandatory closing question. The finished protocol itself — the `(human)` gate in tasks.md/spec.md — was approved 2026-09-01, unchanged from what shipped 2026-07-17. Stays **Open** pending its remaining `(review)` gate (an independent moderator, disqualified per moderator.md §1 from being anyone who authored AIEF or participated in Changes 0036–0042, confirms it is runnable) and the study run itself.
+Approved 2026-07-17 to build the protocol; extended the same day with the moderator charter, ≥5 experience-spread participants, M-IDLE, H-DISC and the mandatory closing question. The finished protocol itself — the `(human)` gate in tasks.md/spec.md — was approved 2026-09-01, unchanged from what shipped 2026-07-17. The `(review)` gate cleared the same day: Mandi Orange (independent per moderator.md §1) found and helped fix 4 real consistency ambiguities plus 2 cosmetic gaps across two review passes, then confirmed the corrected protocol is executable as written (evidence.md). Both gates now satisfied — this Change's own scope (deliver, approve and review a runnable protocol; explicitly not to run the study — see "Out of scope" above) is complete. **Closing this Change does not thaw ADR-015**: the freeze is tied to the study being run and its evidence consolidated, a separate, later stage this Change never covered.

@@ -58,12 +58,15 @@
 - [x] (human) Approve the protocol before recruiting participants. **Approved 2026-09-01**
       (project owner) — the protocol as written (protocol.md, scenarios.md, metrics.md,
       observation-sheet.md, consolidation.md, hypotheses.md, moderator.md), unchanged.
-- [ ] (review) An independent moderator confirms the protocol is runnable as written.
+- [x] (review) An independent moderator confirms the protocol is runnable as written.
       **Moderator designated 2026-09-01: Mandi Orange** (moderator.md §0) — independence
-      criteria confirmed by the project owner. **First-pass review completed 2026-09-01**:
-      found 3 real consistency ambiguities + 2 cosmetic gaps (see evidence.md's "Independent
-      review found 3 real ambiguities") — all fixed in this same commit. Still pending: Mandi's
-      confirmation on the *corrected* version. Gate stays unchecked until that re-confirmation.
+      criteria confirmed by the project owner. **First-pass review (2026-09-01)** found 3 real
+      consistency ambiguities + 2 cosmetic gaps, all fixed. **Second pass (2026-09-01)** caught
+      one residual the first pass's fix missed (consolidation.md §6's "/4" — see evidence.md's
+      "Independent review, second pass"), fixed. **Final verdict (2026-09-01), Mandi's own
+      words:** "the seven deliverables are clean and consistent... all the ambiguities I flagged
+      ... are fixed. Nothing blocking remains. From the content, the protocol is executable as
+      written." Gate cleared.
 
 ## Deferred (next stage, not this Change)
 
