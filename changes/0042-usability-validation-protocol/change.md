@@ -77,4 +77,4 @@ Per [ADR-015](../../knowledge/decisions.md), the study has priority over the sim
 
 Open
 
-Approved 2026-07-17. Extended the same day with the moderator charter, ≥5 experience-spread participants, M-IDLE, H-DISC and the mandatory closing question. Stays **Open** pending its `(review)` gate (an independent moderator confirms it is runnable) and the study run itself.
+Approved 2026-07-17 to build the protocol; extended the same day with the moderator charter, ≥5 experience-spread participants, M-IDLE, H-DISC and the mandatory closing question. The finished protocol itself — the `(human)` gate in tasks.md/spec.md — was approved 2026-09-01, unchanged from what shipped 2026-07-17. Stays **Open** pending its remaining `(review)` gate (an independent moderator, disqualified per moderator.md §1 from being anyone who authored AIEF or participated in Changes 0036–0042, confirms it is runnable) and the study run itself.
