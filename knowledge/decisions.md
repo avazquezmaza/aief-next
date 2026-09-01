@@ -4,6 +4,33 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-032: ADR-015's remaining freeze — DELETE/ARCHIVE candidates and Type↔Track — is thawed, by the project owner's direct decision, following Change 0096's consolidation
+
+**Status: Accepted (2026-09-01), by the project owner.**
+
+**Decision.**
+
+> ADR-022 already thawed new commands, onboarding, and documentation simplification for AIEF 3.1, ahead of the usability study, leaving a narrower remainder frozen: **DELETE/ARCHIVE candidates** (the [Change 0038](../changes/0038-framework-simplification-map/) map) and **Type↔Track** ([Change 0039](../changes/0039-type-track-derivation-design/)). ADR-015's own precondition for lifting that remainder — *"until the study is run and its evidence consolidated"* — is now met: [Change 0096](../changes/0096-run-usability-validation-study/) ran the pilot plus all five scored sessions Change 0042's protocol specified (junior/mid×2/senior×2, across Scenarios A/B/C), each independently re-verified against the real repository state, and `changes/0042-usability-validation-protocol/consolidation.md` is complete. The project owner, having read that consolidation, thaws the remainder now — the "separate, later, explicit decision" ADR-015 itself named as the only mechanism that lifts it. [Change 0037](../changes/0037-aief-2-0-experience-redesign/) and [Change 0041](../changes/0041-delete-review-package/) — both downstream of 0038/0039 and dormant for the same reason — resume alongside them.
+
+**What the consolidation established, and what it did not.** Read honestly, not oversold: the study validated the main `INTAKE → CLOSE` flow broadly — H8 (the 15-minute criterion) confirmed 3/3, H4/H5 confirmed (a bug fix stays to one artifact, no ADR/OpenSpec/SpecBoot/profile/skill required), H6 refuted (every session ran `verify` spontaneously, the opposite of Flux Portal's original finding), zero abandonments across all five sessions. It did **not** run a dedicated hypothesis on Type/Track naming, nor evaluate any specific DELETE-candidate artifact's actual dead weight — those were never in `hypotheses.md`'s scope. One relevant, incidental signal: **none of the five participants, across three scenarios, ever needed Type, Track, ADR, OpenSpec, SpecBoot, a profile, or a skill to reach a correct close** — consistent with (not proof of) Change 0038's classification work being safe to resume, but this ADR does not claim the study specifically vindicates any named artifact's DELETE/ARCHIVE/KEEP verdict. That verdict-by-verdict work is exactly what Change 0038/0041 do next.
+
+**Why thaw now rather than wait for a dedicated Type/Track or DELETE-specific study.** The same reasoning ADR-022 already used: the evidentiary value of waiting further is weighed against the cost, and the project owner — the accountable human ADR-015's "Consequences" reserved this authority for — judges the current evidence (this consolidation, plus the incidental signal above) suffices to resume the *classification and design* work. Resuming classification is not resuming deletion: ADR-014 is unmodified — DELETE remains a consensus state, never authorized by a single reviewer or by this ADR.
+
+**What stays true, unmodified.**
+
+- **ADR-014** (DELETE is a consensus state, never an initial one) — untouched. Change 0038's map remains a classification, not a work order; nothing is deleted by this ADR.
+- **ADR-013** (no capability enters the core without removing an equivalent) — every Change resuming under this thaw still owes its own accounting, independently.
+- **ADR-009** (no hidden state) — unaffected; this ADR persists nothing beyond itself.
+- Changes 0038/0039/0041/0037 resume from exactly where they stood when frozen — this ADR does not retroactively validate or invalidate any draft content already in them; each is read fresh against its own spec.md when work resumes.
+
+**Consequences.**
+
+- Changes 0037, 0038, 0039, and 0041 are no longer frozen and may resume — design and classification work, not execution of any DELETE.
+- ADR-015 is now fully superseded in practice (ADR-022 thawed three of its five frozen items; this ADR thaws the remaining two) — its reasoning stays on record as the correct discipline that was followed, not retracted.
+- Any future Change proposing to *execute* a DELETE/ARCHIVE verdict from Change 0038's map still requires the consensus process ADR-014 defines — this ADR does not shortcut that.
+
+---
+
 ## ADR-031: `aief prompt`'s assistant resolution gains a deterministic, symmetric precedence (explicit → `AIEF_ASSISTANT` → `knowledge/assistant.json` → passive detection → interactive/error); persistence lands as `--set-assistant`/`--show-assistant`/`--clear-assistant` flags on `prompt`, not a new `use-assistant` command
 
 **Status: Accepted (2026-07-31), by the project owner.** Change
@@ -1197,7 +1224,12 @@ Change 0043 took toward the vision document's `class SddProvider`).
 
 ## ADR-015: The usability study freezes the simplification
 
-**Status: Accepted (2026-07-17), by the project owner.**
+**Status: Accepted (2026-07-17), by the project owner.** **Fully thawed as of 2026-09-01** — new
+commands/onboarding/documentation simplification by [ADR-022](#adr-022-adr-015s-freeze-is-explicitly-thawed-for-aief-31-by-the-project-owners-direct-decision--not-by-change-0042s-consolidation)
+(ahead of the study), and the remainder (Candidate DELETE/ARCHIVE, Type↔Track) by
+[ADR-032](#adr-032-adr-015s-remaining-freeze--deletearchive-candidates-and-typetrack--is-thawed-by-the-project-owners-direct-decision-following-change-0096s-consolidation)
+(after Change 0096 ran the study and consolidated it, per this ADR's own text below). This
+entry's reasoning stays on record as the discipline that was actually followed, not retracted.
 
 **Decision.** Until the AIEF 2.0 usability study ([Change 0042](../changes/0042-usability-validation-protocol/)) is run and its evidence consolidated, the following are **frozen** — no execution, no modification:
 
