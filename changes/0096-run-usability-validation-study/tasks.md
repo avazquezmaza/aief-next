@@ -117,8 +117,8 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
 
 ## Human gates
 
-- [ ] (human) The project owner reads the completed `consolidation.md`. This Change's own closure
-      does not itself authorize redesign or thaw ADR-015 — that is a separate, explicit decision
-      (ADR-015's own text: "The thaw is a separate, later, explicit decision — it does not happen
-      automatically when the study ends; it happens when a human reads the consolidation and says
-      so").
+- [x] (human) The project owner reads the completed `consolidation.md`. Confirmed 2026-09-01. This
+      Change's own closure does not itself authorize redesign or thaw ADR-015 — that remains a
+      separate, explicit decision (ADR-015's own text: "The thaw is a separate, later, explicit
+      decision — it does not happen automatically when the study ends; it happens when a human
+      reads the consolidation and says so"), not yet made.
