@@ -72,7 +72,11 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
       clean via the canonical `git archive` recipe. Worth stating explicitly to whoever sets up
       P2–P5: hand over the restored fixture directory as-is, and don't copy/move it once handed
       over.
-- [ ] (human) P2 — mid, Scenario A.
+- [x] (human) P2 — mid, Scenario A. Run 2026-09-01. Reached a correct close in ~3:45, 0 hints
+      (independently re-verified — see evidence.md's "P2 results"). Unlike P1, this session
+      closed `0001-adopt-aief` without reported friction — the same pre-existing 2-unchecked-task
+      condition does not always produce a blocked-close finding. Data recorded in
+      `consolidation.md` (§1, §7b).
 - [ ] (human) P3 — senior, Scenario A.
 - [ ] (human) P4 — mid, Scenario B.
 - [ ] (human) P5 — senior, Scenario C.
