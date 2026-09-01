@@ -68,7 +68,7 @@ Tracks are **not** called Profiles. `profiles/` keeps its meaning and its files.
 
 ## Status
 
-Open
+Closed (2026-09-01)
 
 **THAWED 2026-09-01 — see [ADR-032](../../knowledge/decisions.md).** Frozen 2026-07-17 by project-owner decision until the usability study concluded; new commands/onboarding/documentation simplification were thawed early for AIEF 3.1 by [ADR-022](../../knowledge/decisions.md), leaving this map's own remainder (Candidate DELETEs, the ARCHIVE, MERGEs, the Type/Track conclusions) frozen. Change 0096 ran the study and consolidated its evidence; the project owner read it and thawed this remainder by ADR-032. **The map is still a classification, not a work order** — ADR-014 is unchanged: nothing on this map is executed by this thaw. Resuming means resuming the classification/design work, not any deletion.
 
