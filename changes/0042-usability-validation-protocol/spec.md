@@ -44,4 +44,4 @@ A ready-to-run protocol that produces objective evidence about whether a fresh d
 - [x] Mandatory Q7 "what would you do differently tomorrow?" on the observation sheet and consolidation.
 - [x] No product surface (Type, Track, onboarding, commands, docs, templates) modified.
 - [x] (human) Approve the protocol before recruiting participants. Approved 2026-09-01.
-- [ ] (review) A moderator independent of this protocol's author confirms it is runnable as written.
+- [x] (review) A moderator independent of this protocol's author confirms it is runnable as written. Confirmed 2026-09-01 by Mandi Orange, after two review passes that found and fixed 4 real consistency ambiguities + 2 cosmetic gaps (evidence.md).

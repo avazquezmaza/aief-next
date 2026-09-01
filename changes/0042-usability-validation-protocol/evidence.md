@@ -163,6 +163,29 @@ what was true when written.
 gate exists to catch — it is not "runnable as written" until Mandi confirms the *corrected*
 version. Re-review of this diff is the next step, not a formality.
 
+## Independent review, second pass — one residual found (2026-09-01)
+
+Mandi caught one more spot the first pass's grep missed: `consolidation.md` §6's Problem ledger
+table still had a bare **"/4"** (not the literal string "n=4", so the first pass's text search
+didn't catch it) as the Sessions-affected denominator in all three example rows. Fixed to "/5".
+Cosmetic, does not affect the design — same classification as the first pass's two cosmetic gaps.
+
+## Independent review — final verdict (2026-09-01)
+
+Mandi's own words, on the corrected deliverables: *"the seven deliverables are clean and
+consistent. All the ambiguities I flagged (participant numbering, n=4 vs n=5, the non-adopted
+variant, M-T2, the metrics count, and the residual '/4') are fixed. Nothing blocking remains.
+From the content, the protocol is executable as written."*
+
+**The `(review)` gate is cleared.** Both `(human)` and `(review)` gates in tasks.md/spec.md are
+now checked. This Change's own deliverable — a runnable, reviewed protocol — is complete.
+
+**This does not close the freeze.** ADR-015 ties the thaw to the study being *run* and its
+evidence *consolidated*, not to this Change's own closure (this Change's scope, per change.md,
+was always "deliver the protocol, not results" — running the study is explicitly out of scope
+here, tasks.md's own "Deferred (next stage, not this Change)" section). Recruiting ≥5 participants,
+running sessions, and consolidating results remain a separate, later stage.
+
 ## Next Change
 
 **None proposed.** This Change delivers the instrument only.
