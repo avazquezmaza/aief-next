@@ -191,7 +191,7 @@ export function resolveExplicitChange(selector) {
 }
 export function resolveImplicitChange(commandExample) {
   const open = openChangeDirs();
-  if (!open.length) { console.error("No open Change found."); process.exitCode = 1; return null; }
+  if (!open.length) { console.error('No open Change found.\n\nStart one with: aief new-change "<name>"\nOr see all Changes with: aief status'); process.exitCode = 1; return null; }
   if (open.length === 1) return open[0];
   console.error(`Multiple open Changes (${open.length}) — not selecting one implicitly:\n\n${open.map((d) => `- ${path.basename(d)}`).join("\n")}\n\nSelect one explicitly:\n\n  ${commandExample} --change <id>`);
   process.exitCode = 1;
@@ -356,7 +356,7 @@ export function genericChangeFiles(id, slug, title = "") {
   };
 }
 export function createChange(name, options = {}) {
-  const slug = slugify(name); if (!slug) { console.error("Change name is required."); process.exitCode = 1; return null; }
+  const slug = slugify(name); if (!slug) { console.error('Change name is required.\n\nExample: aief new-change "Add login"'); process.exitCode = 1; return null; }
   const id = nextChangeId(); const changeDir = cwd("changes", `${id}-${slug}`);
   const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)

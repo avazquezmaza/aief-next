@@ -57,14 +57,27 @@ test("matchChanges: unknown selector returns nothing; empty selector returns not
 
 // ---- CLI behavior: the 12 required scenarios ----
 
-test("1. zero open Changes: prompt and close report no open Change", () => {
+test("1. zero open Changes: prompt and close report no open Change, with a next step (Change 0099)", () => {
   const dir = makeProject({ "README.md": "x", "AGENTS.md": "x" });
   const p = aief(dir, ["prompt"]);
   assert.equal(p.status, 1);
   assert.match(p.out, /No open Change found/);
+  assert.match(p.out, /aief new-change/);
+  assert.match(p.out, /aief status/);
   const c = aief(dir, ["close", "--yes"]);
   assert.equal(c.status, 1);
   assert.match(c.out, /No open Change found/);
+  assert.match(c.out, /aief new-change/);
+});
+
+// --- Change 0099: three CLI error messages gain a next step ---
+
+test("new-change with no name reports the requirement with an example", () => {
+  const dir = makeProject({ "README.md": "x", "AGENTS.md": "x" });
+  const r = aief(dir, ["new-change"]);
+  assert.equal(r.status, 1);
+  assert.match(r.out, /Change name is required\./);
+  assert.match(r.out, /Example: aief new-change/);
 });
 
 test("2. one open Change: prompt and close target it implicitly (backward compatible)", () => {
