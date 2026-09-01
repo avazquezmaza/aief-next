@@ -170,14 +170,14 @@ test("prompt: with no ai-specs/skills/, the Skill context is byte-identical to b
   assert.doesNotMatch(before, /ai-specs/);
 });
 
-test("prompt: a project-only ai-specs skill (no built-in match) appears tagged [project], with the honest no-operational-content fallback", () => {
+test("prompt: a project-only ai-specs skill (no built-in match) appears tagged [project], pointed at its own file (Change 0110: no more generic 'no operational content' for a Skill AIEF can actually locate)", () => {
   const dir = makeProject({
     "README.md": "Multi-tenant SaaS platform.",
     "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nRotate driver/navigator often.\n"
   });
   aief(dir, ["bootstrap"]);
   const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
-  assert.match(out, /- pair-programming \[project\]: recommended for this project, but it has no operational content yet/);
+  assert.match(out, /- pair-programming \[project\]: recommended for this project — read ai-specs\/skills\/pair-programming\.md for its full instructions before starting\./);
 });
 
 test("prompt: an ai-specs skill overriding a built-in id replaces it wholly — the built-in's promptContext/commonRisks never show for that id", () => {
@@ -187,7 +187,7 @@ test("prompt: an ai-specs skill overriding a built-in id replaces it wholly — 
   });
   aief(dir, ["bootstrap"]);
   const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
-  assert.match(out, /- ai-workflow-governance \[project override\]: recommended for this project, but it has no operational content yet/);
+  assert.match(out, /- ai-workflow-governance \[project override\]: recommended for this project — read ai-specs\/skills\/ai-workflow-governance\.md for its full instructions before starting\./);
   assert.doesNotMatch(out, /AI-generated artifacts start inactive/, "the built-in's own promptContext must not leak through for an overridden id");
 });
 

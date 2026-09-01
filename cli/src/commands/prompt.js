@@ -198,7 +198,13 @@ export function prompt(args) {
   // keeping output byte-identical to before this Change in both cases.
   const skills = resolveSkillRecommendations(builtinSkills, process.cwd()).items.map((item) => item.source === "builtin"
     ? { ...builtinSkillById.get(item.id), tag: builtinSkillById.get(item.id).confidence === "weak" ? " (weak signal — confirm before relying on this)" : "" }
-    : { id: item.id, name: item.id, tag: item.overridesBuiltin ? " [project override]" : " [project]" });
+    // Change 0110: `path` carried through (ai-specs.js already resolves it)
+    // so skillsBlock below can point the assistant at the real file — a
+    // project-sourced Skill (e.g. a Claude Code / Kiro SKILL.md) has no
+    // `promptContext` (that field only ever comes from AIEF's own built-in
+    // skills-catalog.json entries) and previously left the assistant with
+    // no indication of where its actual content lives.
+    : { id: item.id, name: item.id, path: item.path, tag: item.overridesBuiltin ? " [project override]" : " [project]" });
   // Re-run guardrail: derived from files, no hidden state. Empty or template
   // ("Pending.") evidence is the normal fresh case and gets no warning.
   const evidenceContent = read(path.join(changeDir, "evidence.md"));
@@ -214,9 +220,19 @@ export function prompt(args) {
   const standardsBlock = standardItems.length ? `\nProject standards to follow:\n\n${standardItems.map((s) => s.source === "builtin"
     ? `- knowledge/standards/${s.id}.md`
     : `- ai-specs/standards/${s.id}.md${s.overridesBuiltin ? " [project override]" : " [project]"}`).join("\n")}\n` : "";
+  // Change 0110: a project-sourced Skill with no `promptContext` (every one
+  // does not carry AIEF's own catalog metadata — that field only ever comes
+  // from skills-catalog.json) used to fall through to a generic "no
+  // operational content yet" line with no indication of where its actual
+  // content lives — the assistant had no way to find e.g. a 140-line
+  // camel-quarkus SKILL.md AIEF had already discovered and recommended by
+  // id. Mirrors standardsBlock's own precedent immediately above: point at
+  // the real, relative path so the assistant knows to go read it.
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
     ? `- ${s.name || s.id}${s.tag || ""}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
-    : `- ${s.name || s.id}${s.tag || ""}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
+    : s.path
+      ? `- ${s.name || s.id}${s.tag || ""}: recommended for this project — read ${path.relative(process.cwd(), s.path)} for its full instructions before starting.`
+      : `- ${s.name || s.id}${s.tag || ""}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
   // Entrega 4 (Change 0046, ADR-018 §"work") — additive Workflow/SDD context,
   // same discipline as standardsBlock/skillsBlock: empty string, no header,
   // when the Change never opted in (no track / no sdd). Purely informational
