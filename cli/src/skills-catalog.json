@@ -88,6 +88,127 @@
       "files": ["graphify-out"],
       "keywords": ["dependency graph", "call graph", "architecture graph", "codebase graph", "code graph"],
       "searchFiles": ["README.md", "AGENTS.md", "docs/architecture.md"]
+    },
+    {
+      "id": "python",
+      "description": "Python application",
+      "signal": "strong",
+      "files": ["requirements.txt", "pyproject.toml", "Pipfile", "manage.py"]
+    },
+    {
+      "id": "go",
+      "description": "Go application",
+      "signal": "strong",
+      "files": ["go.mod"]
+    },
+    {
+      "id": "rust",
+      "description": "Rust application",
+      "signal": "strong",
+      "files": ["Cargo.toml"]
+    },
+    {
+      "id": "spring",
+      "description": "Spring Framework backend",
+      "signal": "weak",
+      "keywords": ["springframework", "spring-boot"],
+      "searchFiles": ["pom.xml", "build.gradle"]
+    },
+    {
+      "id": "vue",
+      "description": "Vue frontend",
+      "signal": "strong",
+      "dependencies": ["vue"]
+    },
+    {
+      "id": "angular",
+      "description": "Angular frontend",
+      "signal": "strong",
+      "dependencyPrefixes": ["@angular/"]
+    },
+    {
+      "id": "svelte",
+      "description": "Svelte frontend",
+      "signal": "strong",
+      "dependencies": ["svelte"]
+    },
+    {
+      "id": "mongodb",
+      "description": "MongoDB data layer",
+      "signal": "strong",
+      "dependencies": ["mongodb", "mongoose"]
+    },
+    {
+      "id": "redis",
+      "description": "Redis data layer",
+      "signal": "strong",
+      "dependencies": ["redis", "ioredis"]
+    },
+    {
+      "id": "graphql",
+      "description": "GraphQL API layer",
+      "signal": "strong",
+      "dependencies": ["graphql", "apollo-server", "@apollo/client", "graphql-yoga"]
+    },
+    {
+      "id": "docker",
+      "description": "Docker containerization",
+      "signal": "strong",
+      "files": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"]
+    },
+    {
+      "id": "kubernetes",
+      "description": "Kubernetes orchestration",
+      "signal": "strong",
+      "files": ["k8s", "kubernetes", "helm"]
+    },
+    {
+      "id": "vercel",
+      "description": "Vercel deployment",
+      "signal": "strong",
+      "files": ["vercel.json"]
+    },
+    {
+      "id": "netlify",
+      "description": "Netlify deployment",
+      "signal": "strong",
+      "files": ["netlify.toml"]
+    },
+    {
+      "id": "stripe",
+      "description": "Stripe payments",
+      "signal": "strong",
+      "dependencies": ["stripe", "@stripe/stripe-js"]
+    },
+    {
+      "id": "supabase",
+      "description": "Supabase backend-as-a-service",
+      "signal": "strong",
+      "dependencies": ["@supabase/supabase-js"]
+    },
+    {
+      "id": "firebase",
+      "description": "Firebase backend-as-a-service",
+      "signal": "strong",
+      "dependencies": ["firebase", "firebase-admin"]
+    },
+    {
+      "id": "react-native",
+      "description": "React Native mobile app",
+      "signal": "strong",
+      "dependencies": ["react-native"]
+    },
+    {
+      "id": "kafka",
+      "description": "Kafka messaging",
+      "signal": "strong",
+      "dependencies": ["kafkajs", "node-rdkafka"]
+    },
+    {
+      "id": "rabbitmq",
+      "description": "RabbitMQ messaging",
+      "signal": "strong",
+      "dependencies": ["amqplib"]
     }
   ],
   "skills": [
@@ -167,6 +288,28 @@
       "promptContext": "Build architecture/dependency understanding with a hybrid rule: if GEMINI_API_KEY is available to you, use the Graphify Skill to produce the enriched semantic graph; if it is not, read the codebase statically (imports, module boundaries, call sites) to build the same understanding offline, at $0. Either way, persist findings under graphify-out/ (already gitignored — never a hidden .aief/ directory, ADR-009) and summarize the result in knowledge/architecture-graph.md.",
       "commonRisks": ["treating the static fallback as lower-confidence without saying so in evidence", "AIEF's own CLI never calls Gemini or holds the API key — that stays entirely on the assistant side"],
       "evidenceExpectations": "Evidence should state which mode was used (semantic or static) and where the resulting summary was written."
+    },
+    {
+      "id": "payments-reviewer",
+      "name": "Payments & Billing Reviewer",
+      "description": "Stripe/payment integration: idempotency, webhooks, PCI scope, refunds.",
+      "when": ["stripe"],
+      "whenToUse": "Any Change that touches payment processing, subscriptions, webhooks, or stored payment methods.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "Payment operations must be idempotent (use idempotency keys), webhook handlers must verify signatures before trusting payloads, and no raw card data should ever touch AIEF-managed code (use Stripe Elements/hosted fields to stay out of PCI scope).",
+      "commonRisks": ["webhook handler trusting payload without signature verification", "double-charging from a retried request with no idempotency key", "storing raw card numbers or CVV anywhere in logs or the database"],
+      "evidenceExpectations": "Evidence should state how webhook signature verification and idempotency were exercised (real Stripe test mode or mocked)."
+    },
+    {
+      "id": "container-deployment-reviewer",
+      "name": "Container & Deployment Reviewer",
+      "description": "Docker/Kubernetes: image hardening, secrets handling, resource limits, rollout safety.",
+      "when": ["docker", "kubernetes"],
+      "whenToUse": "Changes that add or modify a Dockerfile, docker-compose service, or Kubernetes/Helm manifest.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "Container images should run as a non-root user, never bake secrets into image layers, and Kubernetes manifests should declare resource requests/limits and liveness/readiness probes so a bad rollout fails safely.",
+      "commonRisks": ["secrets committed into a Dockerfile ARG/ENV or an image layer", "container running as root by default", "a Deployment with no resource limits or health probes, letting one bad pod exhaust a node"],
+      "evidenceExpectations": "Evidence should state how the image/manifest change was validated (local build, dry-run apply, or a real cluster)."
     },
     {
       "id": "project-architecture-reviewer",

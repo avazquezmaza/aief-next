@@ -157,3 +157,85 @@ test("graph-understanding skill does not fire on unrelated projects", () => {
   const skills = recommendSkills(detectProject(dir));
   assert.ok(!skills.some((s) => s.id === "graphify-ast-architecture"));
 });
+
+// --- Change 0098: expand skills-catalog.json with more stack detectors ---
+
+test("file-presence detectors fire for python, go, rust, docker, kubernetes, vercel and netlify", () => {
+  const dir = makeProject({
+    "requirements.txt": "django\n",
+    "go.mod": "module example.com/app\n",
+    "Cargo.toml": "[package]\nname = \"app\"\n",
+    "Dockerfile": "FROM node:20\n",
+    "k8s/deployment.yaml": "apiVersion: apps/v1\n",
+    "vercel.json": "{}",
+    "netlify.toml": ""
+  });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  for (const id of ["python", "go", "rust", "docker", "kubernetes", "vercel", "netlify"]) {
+    assert.ok(ids.includes(id), `expected ${id} to be detected`);
+  }
+});
+
+test("dependency-based detectors fire for vue, angular, svelte, mongodb, redis, graphql, stripe, supabase, firebase, react-native, kafka and rabbitmq", () => {
+  const dir = makeProject({
+    "package.json": JSON.stringify({
+      dependencies: {
+        vue: "3.4.0",
+        "@angular/core": "17.0.0",
+        svelte: "4.2.0",
+        mongoose: "8.0.0",
+        ioredis: "5.3.0",
+        graphql: "16.8.0",
+        stripe: "14.0.0",
+        "@supabase/supabase-js": "2.39.0",
+        firebase: "10.7.0",
+        "react-native": "0.73.0",
+        kafkajs: "2.2.4",
+        amqplib: "0.10.3"
+      }
+    })
+  });
+  const signals = detectProject(dir).signals;
+  const ids = signals.map((s) => s.id);
+  for (const id of ["vue", "angular", "svelte", "mongodb", "redis", "graphql", "stripe", "supabase", "firebase", "react-native", "kafka", "rabbitmq"]) {
+    assert.ok(ids.includes(id), `expected ${id} to be detected`);
+  }
+  assert.equal(signals.find((s) => s.id === "vue").signal, "strong");
+});
+
+test("spring detector is a weak, keyword-in-file signal (pom.xml mentioning springframework)", () => {
+  const dir = makeProject({
+    "pom.xml": "<dependency><groupId>org.springframework.boot</groupId></dependency>"
+  });
+  const project = detectProject(dir);
+  const spring = project.signals.find((s) => s.id === "spring");
+  assert.ok(spring, "spring signal expected");
+  assert.equal(spring.signal, "weak");
+});
+
+test("plain Java/Gradle project without Spring does not trigger the spring detector", () => {
+  const dir = makeProject({ "build.gradle": "plugins { id 'java' }" });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  assert.ok(!ids.includes("spring"));
+});
+
+test("stripe dependency recommends the payments-reviewer skill with a reason", () => {
+  const dir = makeProject({
+    "package.json": JSON.stringify({ dependencies: { stripe: "14.0.0" } })
+  });
+  const skills = recommendSkills(detectProject(dir));
+  const match = skills.find((s) => s.id === "payments-reviewer");
+  assert.ok(match, "payments-reviewer expected");
+  assert.equal(match.confidence, "strong");
+  assert.ok(match.because.length > 0);
+});
+
+test("docker and kubernetes both recommend the container-deployment-reviewer skill", () => {
+  const dockerOnly = makeProject({ Dockerfile: "FROM node:20\n" });
+  const dockerSkills = recommendSkills(detectProject(dockerOnly));
+  assert.ok(dockerSkills.some((s) => s.id === "container-deployment-reviewer"));
+
+  const k8sOnly = makeProject({ "k8s/deployment.yaml": "apiVersion: apps/v1\n" });
+  const k8sSkills = recommendSkills(detectProject(k8sOnly));
+  assert.ok(k8sSkills.some((s) => s.id === "container-deployment-reviewer"));
+});
