@@ -16,9 +16,18 @@
       jargon-checked, and confirmed it names no implementation detail (no "SQL"/"WHERE"/
       "middleware"/"prepare(" anywhere in it) — the participant discovers the mechanism, not the
       task description.
-- [ ] Build the Reporting Monolith (frontend view + embedded backend `reporting/` module, obvious
-      seam); AIEF-adopt; `TASK.md` verbatim from Scenario C; jargon-check.
-- [ ] Snapshot all three (git tag or archive) before any session.
+- [x] Build the Reporting Monolith: `fixtures/reporting-monolith/` — a billing module (unrelated
+      concern, for realism) plus a reporting module the frontend view imports **directly, in
+      process** (no HTTP boundary) — the obvious seam Scenario C's strangler-split task targets.
+      Smoke tests green (2/2). AIEF-adopted; `TASK.md` verbatim from Scenario C; jargon-checked,
+      confirmed it names no mechanism (no "SQL"/"middleware"/"import"/"module"/"strangler"/"API
+      boundary" anywhere in it).
+- [x] Snapshot all three: each fixture's pristine state is the commit that introduces it in this
+      repo (`git log -- changes/0096-.../fixtures/<name>/`) — restoring between sessions means
+      re-copying the directory tree from that commit into a fresh working copy for the next
+      participant, never editing the tracked pristine copy in place. No separate git tag/archive
+      mechanism was added; the outer repo's own history already satisfies R4's "prepared once,
+      restored byte-for-byte" requirement without inventing a second one.
 
 ## Pilot — P0
 

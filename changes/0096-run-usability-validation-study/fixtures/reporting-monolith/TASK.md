@@ -1,0 +1,1 @@
+We're going to split the reporting UI out of the monolith into its own service, without downtime, keeping the old one running until the new one matches it. Set up the first change of this migration correctly.
