@@ -1,8 +1,73 @@
 # Evidence
 
-> **Partial evidence — pilot + P1–P4 complete, only P5 and consolidation pending.** The
-> assistant-doable block, the pilot (P0), and P1–P4 are all done. Only P5 and the consolidation
-> remain `(human)` work not yet done.
+> **All five scored sessions plus the pilot are complete; consolidation is filled.** The
+> assistant-doable block, the pilot (P0), P1–P5, and `consolidation.md` are all done. What
+> remains — per this Change's own scope — is the `(human)` gate: the project owner reading the
+> completed consolidation. This Change's own closure does not itself authorize redesign or thaw
+> the remainder of ADR-015 (see change.md's "Context correction").
+
+## P5 results (senior, Scenario C) — all five scored sessions now complete
+
+Run 2026-09-01, restored via the canonical recipe into `/tmp/sesion-p5`. Recorded in
+`consolidation.md` (§1, §1b, §5, §6 row 4, §7 incl. the H9 secondary note, §7b, §8, §9). **This is
+the last scored session** — `consolidation.md` was finalized after this data landed.
+
+**Metrics:** M-T0 00:16, M-T1 02:37, M-T2 01:00, **M-T3 06:18** (close of
+`0003-expose-reporting-api` — the artifact matching `TASK.md`'s literal ask; confirmed with the
+user before recording, since work continued past this point — see below), M-IDLE 00:00, M-HINT 0,
+M-TSTUCK 0. Reached a correct close.
+
+**Independently re-verified (not just transcribed):**
+- Confirmed `changes/0002-analyze-current-architecture/` carries `## Type / Analysis` — consistent
+  with the claimed `aief analyze` invocation (verified the artifact shape, not just the claim).
+- Diffed `src/app.ts` against the pristine fixture: a **surgical, 2-line addition** —
+  `GET /api/reports/summary`, delegating to the existing in-process `reporting/service.js`. The
+  legacy `/reports` view was left completely untouched — the "no downtime, keep the old one
+  running" requirement holds structurally, not just by claim.
+- Read `src/reporting-service/` (new, not required by `TASK.md`): a standalone Express app with an
+  HTTP client (`ReportingApiClient`) consuming the new seam, a `502` on upstream failure, and its
+  own `/health` endpoint. Re-ran `npm test` myself: **6/6 green**, including two new tests specific
+  to this service (upstream-failure handling, health check).
+- Confirmed on disk: all four Changes (`0001`–`0004`) closed; `aief verify`: PASS, "no open
+  Change".
+
+**The major finding of this session — and arguably of the whole study:** `TASK.md` asked only to
+*"set up the first change of this migration correctly"* (`scenarios.md`'s own framing: *"Only the
+start. No participant migrates a system in 60 minutes."*). The participant satisfied that with
+`0003` (the API seam) at 06:18, then **continued unprompted and fully extracted the reporting
+service** (`0004`, closed ~09:24) — real, correct, well-tested work, with no hint, no gate, and
+nothing in the flow signaling that the scoped task was already done. Recorded as
+`consolidation.md` §6 row 4, classified "other" (none of the seven taxonomy classes fit a
+scope-exceeding, non-blocking, self-initiated continuation cleanly) — **confirmed with the user**
+that M-T3 stays at the 06:18 close matching the literal task, with the 0004 work recorded
+separately rather than folded into the headline metric.
+
+**Debrief, in full:**
+
+- *Where did you feel lost/unsure what to do next?* "Never — `aief status` and the automatic
+  `Next:` recommendations gave immediate clarity on which command or file to complete."
+- *What did you expect that wasn't there?* "Everything needed for the lifecycle was present and
+  available in the CLI (`doctor`, `status`, `analyze`, `new-change`, `verify`, `close`)."
+- *Which words/labels confused you?* "None — Change/spec/evidence/seam/Strangler all align with
+  standard refactoring and modular-architecture terminology."
+- *What did you do without fully understanding but seemed to work?* "Nothing — every action, in
+  code and in AIEF's own metadata, had explicit technical justification."
+- *What did you never come to understand?* "The whole governance and service-separation cycle was
+  fully understood and executed."
+- *If a colleague started tomorrow, what's the one thing you'd warn them about?* "Don't skip
+  workflow steps: always adapt the standards at the start, run `npm test` before verifying, and
+  fill `evidence.md` with real data before invoking `aief close`."
+- **Q7 (reported as a summary, not verbatim — flagged, confirmed with the user):** would keep
+  exactly the same strategy and sequence — adopt/adapt, formal architectural analysis, extract the
+  zero-downtime API seam, build the decoupled service with output-parity tests — calling it the
+  safest, most auditable path for a Strangler Fig migration.
+
+**H9 (secondary hypothesis) — directly relevant, not decided here:** P5's own debrief and Q7
+attribute her success to **prior migration experience and domain knowledge**, never to AIEF
+prompting rollback/parity/cutover concepts. With n=1 for Scenario C, this leans toward H9 *not*
+holding as stated, but a single senior session can't rule out whether a less experienced
+participant on the same scenario would have needed the tool to surface those concepts instead.
+Recorded in `consolidation.md` §7 as inconclusive-leaning, not confirmed/refuted outright.
 
 ## P4 results (mid, Scenario B)
 

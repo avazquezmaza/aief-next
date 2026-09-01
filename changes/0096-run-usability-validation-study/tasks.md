@@ -55,12 +55,12 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
       session ran clean end to end; no adjustment to logistics or setup is needed before P1–P5.
 - [x] Pilot data excluded from all aggregates, per `consolidation.md` §1. Recorded in this
       Change's own `evidence.md` only — `consolidation.md` (P1–P5's aggregates) is untouched by P0.
-- [ ] Restore the fixture to its pristine snapshot before P1, using the canonical restore recipe
+- [x] Restore the fixture to its pristine snapshot before P1, using the canonical restore recipe
       above (`git archive` + `npm install` — never `cp -r` the working tree).
 
 ## Scored sessions — P1–P5
 
-- [ ] (human) Consent obtained and recorded for each, before their session.
+- [x] (human) Consent obtained and recorded for each, before their session.
 - [x] (human) P1 — junior, Scenario A. Run 2026-09-01. Reached a correct close (independently
       re-verified — see evidence.md's "P1 results"). One operational finding recorded (not a
       logistics defect requiring a fixture change): the pre-existing `0001-adopt-aief`'s own
@@ -88,23 +88,31 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
       Used AIEF's native `spec.md` for the feature spec without reaching for OpenSpec — direct
       data on the `spec.md`-vs-OpenSpec ambiguity `scenarios.md` names for this scenario. Data
       recorded in `consolidation.md` (§1, §1b, §6, §7b).
-- [ ] (human) P5 — senior, Scenario C.
-- [ ] Restore the relevant fixture to its pristine snapshot between every session, using the same
+- [x] (human) P5 — senior, Scenario C. Run 2026-09-01. Reached a correct close (M-T3 = close of
+      `0003-expose-reporting-api`, 06:18) with 0 hints — independently re-verified (see
+      evidence.md's "P5 results"). **Notable finding**: continued past the scoped task and built a
+      full standalone reporting service (`0004-create-reporting-service`), correct and
+      well-tested, but beyond `TASK.md`'s literal "set up the first change" ask — recorded in
+      `consolidation.md` §6 row 4, not folded into M-T3. **All five scored sessions are now
+      complete.** Data recorded in `consolidation.md` (§1, §1b, §5, §6, §7, §7b, §8, §9).
+- [x] Restore the relevant fixture to its pristine snapshot between every session, using the same
       canonical restore recipe every time — never mixed with an ad hoc copy.
-- [ ] Each observation sheet completed live and at debrief; no field left blank without a reason.
+- [x] Each observation sheet completed live and at debrief; no field left blank without a reason
+      (P2/P3/P4 reported some fields qualitatively rather than as clean checkpoint numbers — noted
+      explicitly as such in `consolidation.md`'s notes and §9, never silently invented).
 
 ## Consolidation
 
-- [ ] Fill `consolidation.md` from the real observation sheets — every table, every hypothesis
+- [x] Fill `consolidation.md` from the real observation sheets — every table, every hypothesis
       outcome, the Problem ledger, threats to validity. No recommendation sentence anywhere.
-- [ ] Update this Change's own `evidence.md` with what was done, what the numbers were, and what
+- [x] Update this Change's own `evidence.md` with what was done, what the numbers were, and what
       remains pending.
 
 ## Verification
 
-- [ ] `aief verify --change 0096-run-usability-validation-study` → PASS.
-- [ ] No real participant name in any file this Change writes.
-- [ ] `git diff --stat` touches only this Change's own directory and the fixture-repo artifacts —
+- [x] `aief verify --change 0096-run-usability-validation-study` → PASS.
+- [x] No real participant name in any file this Change writes.
+- [x] `git diff --stat` touches only this Change's own directory and the fixture-repo artifacts —
       no AIEF command/template/doc/Type/Track code.
 
 ## Human gates
