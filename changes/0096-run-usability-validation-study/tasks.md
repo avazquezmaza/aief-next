@@ -2,11 +2,13 @@
 
 ## Instrument prep (assistant-doable — no participant involved)
 
-- [ ] Build the Executions Service base (Node/TS/Express/SQLite, `executions` table with
-      `tenant_id`/`status`, `GET /executions`).
-- [ ] Snapshot A: seed the tenant-scoping bug (query missing the `tenant_id` filter); add a red
-      test or a manually-reproducible repro; AIEF-adopt (`aief bootstrap`); write `TASK.md`
-      verbatim from `scenarios.md`'s Scenario A; jargon-check by a fresh reader.
+- [x] Build the Executions Service base (Node/TS/Express/better-sqlite3, `executions` table with
+      `tenant_id`/`status`, `GET /executions`). `fixtures/executions-service/`.
+- [x] Snapshot A: seeded the tenant-scoping bug (the query ignores the `X-Tenant-Id` header
+      entirely); a red test (`test/executions.test.ts`) demonstrates it — confirmed failing
+      (`row 4 belongs to tenant-b, not tenant-a`); AIEF-adopted (`aief bootstrap --force`:
+      `AGENTS.md`, `changes/0001-adopt-aief`, CI gate); `TASK.md` verbatim from `scenarios.md`'s
+      Scenario A; jargon-checked (`grep -i aief README.md TASK.md` → empty).
 - [ ] Snapshot B: same service, tenant bug already fixed, `status` filter feature missing;
       AIEF-adopt; `TASK.md` verbatim from Scenario B; jargon-check.
 - [ ] Build the Reporting Monolith (frontend view + embedded backend `reporting/` module, obvious
