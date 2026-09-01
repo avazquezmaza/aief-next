@@ -38,9 +38,14 @@ map already settled the surrounding questions, and this ADR does not reopen them
 
 - **`profiles/` (11 files) — KEEP**, per the map, permanently separate from Track/Depth.
 - **Role/Profile as a concept — KEEP.** This ADR narrows *what Profile is*, it does not remove it.
-- **`use-profile` (the command) — DELETE**, per the map: `aief prompt --profile <role>` already
-  does the same thing; `use-profile` is a second way to say it, zero capability lost. Execution of
-  that DELETE is separate, gated work (ADR-014), not performed by this ADR.
+- **`use-profile` (the command) — ARCHIVE, not DELETE.** [Change 0038](../changes/0038-framework-simplification-map/)'s
+  own map first called it DELETE (`aief prompt --profile <role>` "already does the same thing").
+  [Change 0041](../changes/0041-delete-review-package/)'s independent review (R7) found that
+  verdict wrong: `prompt` composes a full Change brief, `use-profile` prints a standalone header
+  with no Change — **not equivalent** — and `use-profile` is **the only command that surfaces
+  Role at all**, a concept this very ADR keeps. Removing the sole Role-facing command while Role
+  is being kept is incoherent; corrected here to match R7's ARCHIVE (demote from `help`, keep
+  working), not the map's original DELETE.
 
 **A separate, real bug — not decided by this ADR.** The map also found `profiles/` never actually
 reaches an adopted project: `aief adopt` writes only `profiles/README.md`, pointing back at "the
