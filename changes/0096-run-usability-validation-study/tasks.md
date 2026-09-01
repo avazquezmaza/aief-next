@@ -9,8 +9,13 @@
       (`row 4 belongs to tenant-b, not tenant-a`); AIEF-adopted (`aief bootstrap --force`:
       `AGENTS.md`, `changes/0001-adopt-aief`, CI gate); `TASK.md` verbatim from `scenarios.md`'s
       Scenario A; jargon-checked (`grep -i aief README.md TASK.md` → empty).
-- [ ] Snapshot B: same service, tenant bug already fixed, `status` filter feature missing;
-      AIEF-adopt; `TASK.md` verbatim from Scenario B; jargon-check.
+- [x] Snapshot B: `fixtures/executions-service-b/` — same service, starting from Snapshot A's
+      post-fix state (tenant filter applied, both tests green); the `status` filter feature is
+      genuinely absent (confirmed: `status` appears only as a returned column, never as a query
+      filter). AIEF-adopted (`aief bootstrap --force`); `TASK.md` verbatim from Scenario B;
+      jargon-checked, and confirmed it names no implementation detail (no "SQL"/"WHERE"/
+      "middleware"/"prepare(" anywhere in it) — the participant discovers the mechanism, not the
+      task description.
 - [ ] Build the Reporting Monolith (frontend view + embedded backend `reporting/` module, obvious
       seam); AIEF-adopt; `TASK.md` verbatim from Scenario C; jargon-check.
 - [ ] Snapshot all three (git tag or archive) before any session.
