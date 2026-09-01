@@ -10,16 +10,16 @@
 |---|---|---|---|---|---|---|
 | Experience | junior | mid | senior | mid | senior | — |
 | Scenario | A | A | A | B | C | — |
-| M-T1 first Change | 09:22 | not reported (see note²) | not reported (see note²) | | | |
-| M-T2 first verify | 12:00 | not reported (see note²) | not reported (see note²) | | | |
-| M-T3 correct close | 12:10 | 03:45 | 03:33 | | | |
-| **M-IDLE total idle** | ~05:30 | not reported | not reported | | | |
-| Reached correct close? | Yes | Yes | Yes | | | |
-| M-DOCS opened | 8 (see note¹) | not reported | not quantified — `AGENTS.md`, `aief --help`, `aief explain`, existing `changes/`/`knowledge/` dirs (qualitative, see evidence.md) | | | |
-| M-DEC decisions | not reported | not reported | not reported | | | |
-| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | not reported | 0 (momentary hesitation about close order, self-resolved — §6 row 2, not an error) | | | |
-| M-ABANDON count | 0 | 0 | 0 | | | |
-| M-HINT rungs (max) | 0 | 0 | 0 | | | |
+| M-T1 first Change | 09:22 | not reported (see note²) | not reported (see note²) | not reported (see note²) | | |
+| M-T2 first verify | 12:00 | not reported (see note²) | not reported (see note²) | not reported (see note²) | | |
+| M-T3 correct close | 12:10 | 03:45 | 03:33 | ~06:30 | | |
+| **M-IDLE total idle** | ~05:30 | not reported | not reported | not reported | | |
+| Reached correct close? | Yes | Yes | Yes | Yes | | |
+| M-DOCS opened | 8 (see note¹) | not reported | not quantified — `AGENTS.md`, `aief --help`, `aief explain`, existing `changes/`/`knowledge/` dirs (qualitative, see evidence.md) | not quantified (qualitative, see evidence.md) | | |
+| M-DEC decisions | not reported | not reported | not reported | not reported | | |
+| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | not reported | 0 (momentary hesitation about close order, self-resolved — §6 row 2, not an error) | 0 | | |
+| M-ABANDON count | 0 | 0 | 0 | 0 (hint rung was 1–2, no content — does not count as abandonment) | | |
+| M-HINT rungs (max) | 0 | 0 | 0 | 1–2 (exact rung/trigger not detailed by the moderator) | | |
 
 *(P0 pilot excluded from all aggregates. Five scored sessions, experience-spread per [protocol.md §2](protocol.md).)*
 
@@ -42,14 +42,14 @@ Only the total (mapped to M-T3, the headline metric) is reported with confidence
 
 | | Junior | Mid | Senior/lead |
 |---|---|---|---|
-| Median M-T3 | 12:10 (n=1, P1) | 03:45 (n=1, P2 — P4 pending) | 03:33 (n=1, P3 — P5 pending) |
+| Median M-T3 | 12:10 (n=1, P1) | ~05:08 (n=2, P2 03:45 + P4 06:30) | 03:33 (n=1, P3 — P5 pending) |
 | Median M-IDLE | ~05:30 (n=1) | not reported | not reported |
 | Median M-DOCS | 8 (n=1, see note¹) | not reported | not quantified (n=1, see §1) |
-| Reached correct close (n) | 1/1 | 1/1 (partial — P4 pending) | 1/1 (partial — P5 pending) |
-| Problems unique to this level | §6 row 1 (blocked `aief close`, resolved) | none reported | §6 row 2 (momentary hesitation, self-resolved) |
+| Reached correct close (n) | 1/1 | 2/2 | 1/1 (partial — P5 pending) |
+| Problems unique to this level | §6 row 1 (blocked `aief close`, resolved) | P4: one low-rung (1–2) hint, trigger not detailed (not abandonment) | §6 row 2 (momentary hesitation, self-resolved) |
 
-- **Problems that blocked every level** (hard product defects): none so far — both §6 findings were self-resolved with zero hints, at different levels, not the same problem recurring.
-- **Problems that blocked only juniors** (onboarding/naming): §6 row 1 (the unchecked-task block on `0001-adopt-aief`) only produced a reported friction for P1; P2 (mid) closed the same pre-existing Change without reporting friction, and P3 (senior) never even touched it. One data point per level — not yet safe to call this an onboarding-specific defect; revisit once P4/P5 are in.
+- **Problems that blocked every level** (hard product defects): none so far — every §6/hint finding was resolved without reaching rung-≥3, at different levels, not the same problem recurring in the same shape.
+- **Problems that blocked only juniors** (onboarding/naming): §6 row 1 (the unchecked-task block on `0001-adopt-aief`) only produced a reported friction for P1; P2 and P4 (both mid) closed the same pre-existing Change without reporting the same friction — P4 in fact named securing that close order first as his own Q7 answer, suggesting awareness rather than confusion — and P3 (senior) never even touched it. Not safe to call this onboarding-specific with 4 of 5 sessions in; revisit once P5 is in.
 - **Seniors who "found" a command by *guessing from other tools*, not from AIEF** (discoverability-by-transfer, not by design): **P3, confirmed explicitly.** The moderator's own assessment: P3 navigated by transferring conventions from git/npm-style CLIs and RFC/ADR-style artifact structures, not because AIEF's flow was self-explanatory from zero. Directly relevant to H3/H7 (see §7) — a senior passing tells us less than a junior passing, per `scenarios.md`'s own framing.
 
 ## 2. The 15-minute criterion
@@ -121,20 +121,20 @@ CLOSE     [   ]
 |---|---|---|---|---|---|
 | 1 | `aief close --yes` on the pre-existing `0001-adopt-aief` was blocked by unchecked tasks in its own `tasks.md`, with no path to that file in the error message — caused initial confusion about whether the real task could even start | discoverability | 1/5 | slowed | P1, `aief close --yes --change 0001-adopt-aief` attempt |
 | 2 | Momentary hesitation about whether the pre-existing `0001-adopt-aief` had to be closed before or in parallel with a new Change for the bugfix — self-resolved on noticing `--change <id>` makes Changes independent | excess decisions | 1/5 | annoyed | P3, debrief Q1 |
-| 3 | | | /5 | | |
+| 3 | `evidence.md`'s test/verification output has to be pasted in by hand; no command infers it from a failing test or a test-runner's own output | missing automation | 2/5 (raised independently by two mid-level participants, Q7 each) | annoyed | P2 & P4, Q7 answers |
 | … | | | | | |
 
 **Class tally:**
 
 | Class | Problem count | Sessions touched |
 |---|---|---|
-| discoverability | | |
-| naming | | |
-| excess documentation | | |
-| excess decisions | | |
-| missing automation | | |
-| onboarding | | |
-| other | | |
+| discoverability | 1 | 1 (P1) |
+| naming | 0 | 0 |
+| excess documentation | 0 | 0 |
+| excess decisions | 1 | 1 (P3) |
+| missing automation | 1 | 2 (P2, P4) |
+| onboarding | 0 | 0 |
+| other | 0 | 0 |
 
 ## 7. Hypothesis outcomes
 
@@ -161,10 +161,10 @@ CLOSE     [   ]
 | P1 | junior | **(not verbatim — moderator's paraphrase, flagged, not recorded as the participant's own words):** "indicate in the `aief close` error message the exact path of the checklist blocking it" | Error message doesn't name where to look (discoverability) | discoverability |
 | P2 | mid | (verbatim, confirmed) "Sería genial que `aief new-change` pudiera inferir o autocompletar parte del `spec.md` directo desde el test que está fallando para escribir aún menos boilerplate." | Manual spec/boilerplate writing when a failing test already implies the fix | missing automation |
 | P3 | senior | **(not verbatim — reported as a summary, flagged, not the participant's own words):** "would create the Change (`aief new-change`) immediately, before writing the first line of code or test, so the scaffolding guides the spec and tasks from minute zero" | Change-creation timing relative to starting the fix | onboarding |
-| P4 | mid | | | |
+| P4 | mid | **(not verbatim — summary/interpretation, flagged):** would secure closing the pre-existing adoption Change before instantiating the new one; add strict typing/validation for invalid `status` values (specified in `spec.md`); automate collecting test results into `evidence.md` to speed up the AIEF close cycle | Manual evidence-gathering for `evidence.md`; the adoption-Change close-order question recurring as his own reflection | missing automation |
 | P5 | senior | | | |
 
-- **Recurring "differently" across participants** (what more than one person would change): ___
+- **Recurring "differently" across participants** (what more than one person would change): **automating `evidence.md` generation from test output** — raised independently by P2 (infer `spec.md` from a failing test) and P4 (automate collecting test results into `evidence.md`), both mid-level, both classified "missing automation." Two of four so far; revisit once P5 is in.
 
 ## 8. What this study establishes (evidence only)
 

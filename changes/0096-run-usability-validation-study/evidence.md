@@ -1,8 +1,59 @@
 # Evidence
 
-> **Partial evidence — pilot + P1 + P2 + P3 complete (Scenario A finished), P4–P5 and
-> consolidation pending.** The assistant-doable block, the pilot (P0), P1, P2, and P3 are done.
-> P4–P5 and the consolidation remain `(human)` work not yet done.
+> **Partial evidence — pilot + P1–P4 complete, only P5 and consolidation pending.** The
+> assistant-doable block, the pilot (P0), and P1–P4 are all done. Only P5 and the consolidation
+> remain `(human)` work not yet done.
+
+## P4 results (mid, Scenario B)
+
+Run 2026-09-01, restored via the canonical recipe into `/tmp/sesion-p4`. Recorded in
+`consolidation.md` (§1, §1b, §6 rows 2 and 3, §7b).
+
+**Metrics:** M-T3 ~06:30 (6-phase breakdown reported by the moderator, not checkpoint-based — see
+below). M-HINT: **1–2** (moderator confirmed at least one hint was needed, rung 1–2, "no content"
+— the specific trigger wasn't detailed). M-ABANDON: 0 (rung < 3 does not count as abandonment).
+Reached a correct close.
+
+| Phase | Duration | Activity |
+|---|---|---|
+| Pre-check y diagnóstico | ~0:45 | Workspace inspection, `TASK.md`, baseline `npm test`, `aief status` |
+| Adopción y gobernanza | ~1:00 | Closed the pre-existing `0001-adopt-aief`, created the new Change |
+| Especificación (`spec.md`/`change.md`) | ~1:30 | Scope, requirements, acceptance criteria |
+| Implementación (`src/app.ts`) | ~1:00 | `status` query-param handling, parameterized SQL |
+| Testing y docs | ~1:30 | Exhaustive test cases incl. isolation check, curl examples updated |
+| Verificación y cierre | ~1:00 | `evidence.md`, `aief verify`, close |
+| **Total** | **~6:30** | |
+
+**Independently re-verified (not just transcribed):**
+- Diffed `src/app.ts` against the pristine Snapshot B: adds `status` query-param handling with a
+  second parameterized branch (`WHERE tenant_id = ? AND status = ?`) — falls through to the
+  existing tenant-only query when `status` is absent. Correct, complete implementation of the
+  spec'd feature.
+- Re-ran `npm test` myself: **3/3 green**, including the participant's own added case
+  (`GET /executions?status=... filters results by status`).
+- Confirmed on disk: `changes/0002-filter-executions-by-status/` created and `## Status / Closed`;
+  `changes/0001-adopt-aief/` also closed. `aief verify`: PASS, "no open Change".
+
+**`spec.md` vs. OpenSpec — direct data point** (`scenarios.md`'s named ambiguity for this
+scenario): the participant used AIEF's native `spec.md` (`## Goal`/`## Requirements`/
+`## Acceptance Criteria`) directly, without reaching for OpenSpec. His own observation: `aief
+status` lists OpenSpec/SpecBoot as optional adapters, and for a fresh developer that phrasing
+could raise the question of whether external tooling needs installing versus the local `spec.md`
+being sufficient — he resolved this without a hint, but names it as a real ambiguity a newer
+developer might not resolve as cleanly.
+
+**Recurring theme, now 2 of 4 sessions (Q7, §6 row 3, both mid-level):** P2 wanted `spec.md`
+inferred from a failing test; P4 wanted `evidence.md`'s test/verification output collected
+automatically rather than pasted by hand. Both "missing automation," both mid — noted, not yet
+attributable to experience level with n=2.
+
+**Q7 (reported as a summary, not verbatim — flagged, confirmed with the user):** would secure
+closing the pre-existing adoption Change before instantiating the new one; add strict typing and
+validation for invalid `status` values (already specified in `spec.md`); automate collecting test
+results into `evidence.md` to speed up the AIEF close cycle. The first point — closing the
+adoption Change first — is itself a data point on the recurring `0001-adopt-aief` interaction
+theme (§6 rows 1–2): P4 already did this cleanly in practice (phase 2 of his own breakdown) and
+names it as something to keep doing, not something he got wrong.
 
 ## P3 results (senior, Scenario A) — Scenario A now complete
 

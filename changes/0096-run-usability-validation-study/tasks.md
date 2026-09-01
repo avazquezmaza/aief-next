@@ -83,7 +83,11 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
       zero) — the exact caveat `scenarios.md` §2 names for a senior pass. **Scenario A is now
       complete (P1/P2/P3)** — the 15-minute criterion (H8) is confirmed 3/3; see
       `consolidation.md` §2. Data recorded in `consolidation.md` (§1, §1b, §2, §6, §7, §7b).
-- [ ] (human) P4 — mid, Scenario B.
+- [x] (human) P4 — mid, Scenario B. Run 2026-09-01. Reached a correct close in ~6:30, 1 low-rung
+      (1–2) hint — not an abandonment (independently re-verified — see evidence.md's "P4 results").
+      Used AIEF's native `spec.md` for the feature spec without reaching for OpenSpec — direct
+      data on the `spec.md`-vs-OpenSpec ambiguity `scenarios.md` names for this scenario. Data
+      recorded in `consolidation.md` (§1, §1b, §6, §7b).
 - [ ] (human) P5 — senior, Scenario C.
 - [ ] Restore the relevant fixture to its pristine snapshot between every session, using the same
       canonical restore recipe every time — never mixed with an ad hoc copy.
