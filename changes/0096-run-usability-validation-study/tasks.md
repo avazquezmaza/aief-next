@@ -61,7 +61,17 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
 ## Scored sessions — P1–P5
 
 - [ ] (human) Consent obtained and recorded for each, before their session.
-- [ ] (human) P1 — junior, Scenario A.
+- [x] (human) P1 — junior, Scenario A. Run 2026-09-01. Reached a correct close (independently
+      re-verified — see evidence.md's "P1 results"). One operational finding recorded (not a
+      logistics defect requiring a fixture change): the pre-existing `0001-adopt-aief`'s own
+      unchecked tasks blocked `aief close --yes` mid-session; resolved by the participant without
+      a hint. Data recorded in `consolidation.md` (§1, §6, §7b).
+      **Separate operational lesson (session-setup discipline, not the protocol's design):** an
+      earlier attempt at this session produced duplicate/nested copies of the fixture in `/tmp/`
+      (someone or something copying the working tree into a subdirectory of itself); restarted
+      clean via the canonical `git archive` recipe. Worth stating explicitly to whoever sets up
+      P2–P5: hand over the restored fixture directory as-is, and don't copy/move it once handed
+      over.
 - [ ] (human) P2 — mid, Scenario A.
 - [ ] (human) P3 — senior, Scenario A.
 - [ ] (human) P4 — mid, Scenario B.

@@ -10,18 +10,25 @@
 |---|---|---|---|---|---|---|
 | Experience | junior | mid | senior | mid | senior | — |
 | Scenario | A | A | A | B | C | — |
-| M-T1 first Change | | | | | | |
-| M-T2 first verify | | | | | | |
-| M-T3 correct close | | | | | | |
-| **M-IDLE total idle** | | | | | | |
-| Reached correct close? | | | | | | |
-| M-DOCS opened | | | | | | |
-| M-DEC decisions | | | | | | |
-| M-ERR errors | | | | | | |
-| M-ABANDON count | | | | | | |
-| M-HINT rungs (max) | | | | | | |
+| M-T1 first Change | 09:22 | | | | | |
+| M-T2 first verify | 12:00 | | | | | |
+| M-T3 correct close | 12:10 | | | | | |
+| **M-IDLE total idle** | ~05:30 | | | | | |
+| Reached correct close? | Yes | | | | | |
+| M-DOCS opened | 8 (see note¹) | | | | | |
+| M-DEC decisions | not reported | | | | | |
+| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | | | | | |
+| M-ABANDON count | 0 | | | | | |
+| M-HINT rungs (max) | 0 | | | | | |
 
 *(P0 pilot excluded from all aggregates. Five scored sessions, experience-spread per [protocol.md §2](protocol.md).)*
+
+¹ P1's M-DOCS count (8) is the moderator's reported list as given (`TASK.md`, `README.md`,
+`AGENTS.md`, `knowledge/standards/*.md`, both Changes' own files, `src/app.ts`,
+`test/executions.test.ts`) — not independently re-parsed against `metrics.md`'s strict
+"doc/README/help files only" definition (the two source files in that list are code, not docs).
+Recorded as reported; the median row should be computed once all five sessions use a
+consistently-scoped count.
 
 ## 1b. By experience level
 
@@ -106,7 +113,7 @@ CLOSE     [   ]
 
 | # | Problem (what the participant experienced) | Primary class | Sessions affected | Severity (blocked / slowed / annoyed) | Evidence (session + timestamp) |
 |---|---|---|---|---|---|
-| 1 | | | /5 | | |
+| 1 | `aief close --yes` on the pre-existing `0001-adopt-aief` was blocked by unchecked tasks in its own `tasks.md`, with no path to that file in the error message — caused initial confusion about whether the real task could even start | discoverability | 1/5 | slowed | P1, `aief close --yes --change 0001-adopt-aief` attempt |
 | 2 | | | /5 | | |
 | 3 | | | /5 | | |
 | … | | | | | |
@@ -145,7 +152,7 @@ CLOSE     [   ]
 
 | Participant | Experience | Verbatim answer | Implied friction | Primary class |
 |---|---|---|---|---|
-| P1 | junior | | | |
+| P1 | junior | **(not verbatim — moderator's paraphrase, flagged, not recorded as the participant's own words):** "indicate in the `aief close` error message the exact path of the checklist blocking it" | Error message doesn't name where to look (discoverability) | discoverability |
 | P2 | mid | | | |
 | P3 | senior | | | |
 | P4 | mid | | | |
