@@ -39,10 +39,25 @@
 
 ## Human gates
 
-- [ ] (human) Approve the map, or amend verdicts before any removal.
-- [ ] (human) Decide `## Type` → Track — the highest-risk item; it changes real CLI behavior.
-- [ ] (human) Decide the remaining five items in spec §6.
-- [ ] (review) Independent review of the DELETE column by someone other than its author.
+- [x] (human) Approve the map, or amend verdicts before any removal. **Ratified as a
+  *classification* map, not a delete authorization — ADR-014 (2026-07-17).**
+- [x] (human) Decide `## Type` → Track — the highest-risk item; it changes real CLI behavior.
+  **Decided by Change 0039 (approved, as amended, 2026-09-01): renamed to Depth, not Track —
+  `manifest.track` had independently claimed that word for the Workflow Engine.**
+- [ ] (human) Decide the remaining five items in spec §6 — status per item:
+  - [x] 2. 3 levels → 6 steps — **ADR-033** (2026-09-01): the 6-step flow is now canonical.
+  - [x] 3. ADR-006 amendment — **ADR-034** (2026-09-01): narrowed to progressive teaching.
+  - [x] 4. ADR-010 (do standards survive?) — **ADR-035** (2026-09-01): reaffirmed, unamended.
+  - [ ] 5. ADR-012 (Role model, 0 uses) — **still open**: no ADR has decided whether the Role
+    model is implemented or reconsidered.
+  - [ ] 6. `propose`/`release` removal — **partially evidenced, not human-ratified**: Change
+    0041 classified `propose` KEEP (R1, human-confirmed 2026-07-17) and `release`/`use-profile`
+    ARCHIVE (R7/R8, mechanical pass only — no explicit human confirmation on record for R7/R8
+    the way R1/R6 got one).
+- [x] (review) Independent review of the DELETE column by someone other than its author.
+  **Done by Change 0041**: second independent reader on R1–R6 (0 of 6 deletable) and a second
+  reader for R10–R14 (4 of 5 consensus DELETE, R12 → ARCHIVE). Only execution of the approved
+  DELETEs remains, and that is explicitly out of scope for this Change (see Deferred).
 
 ## Deferred
 
