@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandExists } from "../process-utils.js";
-import { detectProject, recommendSkills } from "../detect.js";
+import { detectProject, recommendSkills, loadCatalog } from "../detect.js";
 import { resolveSddProvider, sddProviderConfigPath } from "../core/domain/sdd-provider-resolver.js";
 import { getProvider } from "../sdd-providers/index.js";
 import { cwd, exists, writeFile, section, printNext, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles, promptSync } from "./shared.js";
@@ -24,24 +24,44 @@ const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), ".."
 const AGENTS_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "templates", "agents", "AGENTS.md");
 const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "testing-standards.md", "security-standards.md"];
 
-// Backend tech ids that must create knowledge/standards/backend-standards.md
-// (Change 0106). This list must cover every detector id that is a `when`
-// trigger of a skills-catalog.json Skill whose own `standardsToRead` names
-// "backend-standards.md" — otherwise bootstrap recommends a Skill (via
-// knowledge/skills.md) that points at a standards file it never created.
-// Found by reproduction: a Django-only project (python-backend-architecture
-// Skill, `when: ["django","flask","fastapi"]`) got recommended
-// backend-standards.md in knowledge/skills.md, but this function — written
-// before those detectors/Skills existed (Change 0098/0100) — never created
-// the file, leaving a dangling reference in the generated doc. Same gap for
-// aws-saas-platform (`aws`, `cognito`), payments-reviewer (`stripe`) and
-// container-deployment-reviewer (`docker`, `kubernetes`).
-const BACKEND_TECH_IDS = ["nestjs", "postgres", "cognito", "n8n", "aws", "django", "flask", "fastapi", "stripe", "docker", "kubernetes"];
+// Explicit baseline tech ids for frontend/backend-standards.md — kept for
+// ids that trigger these standards WITHOUT being a `when` trigger of any
+// catalog Skill that names the file (e.g. "react"/"tailwind" alone recommend
+// no Skill at all yet still need frontend guidance; "postgres" is only
+// mentioned in a Skill's prose, never in a `when` array). Everything else is
+// derived from the catalog itself (see idsRequiringStandard() below) —
+// Change 0106 previously hand-extended this same list one detector at a
+// time (aws/django/flask/fastapi/stripe/docker/kubernetes) to catch up with
+// Changes 0098/0100's new detectors/Skills, and immediately fell behind
+// again for "nextjs"/"multitenant" (deliberately left out of Change 0106's
+// scope for lack of a confirmed reproduction). Deriving from the catalog
+// closes that whole class of gap: any future Skill naming
+// frontend-standards.md/backend-standards.md in its `standardsToRead` is
+// picked up automatically, with no third hand-edit of this file required.
+const EXPLICIT_FRONTEND_IDS = ["nextjs", "react", "tailwind"];
+const EXPLICIT_BACKEND_IDS = ["nestjs", "postgres", "cognito", "n8n"];
 
-function standardsForProject(project) {
+// idsRequiringStandard(standardFile, catalog) -> Set<techId>
+// Every detector id that is a `when` trigger of a Skill whose own
+// `standardsToRead` names `standardFile` — the same "does this stack need
+// this standards file" question the catalog itself already answers via each
+// Skill's declared metadata, read here instead of re-encoded by hand.
+function idsRequiringStandard(standardFile, catalog) {
+  const ids = new Set();
+  for (const skill of catalog.skills) {
+    if ((skill.standardsToRead || []).includes(standardFile)) {
+      for (const id of skill.when || []) ids.add(id);
+    }
+  }
+  return ids;
+}
+
+function standardsForProject(project, catalog = loadCatalog()) {
   const files = [...BASE_STANDARDS];
-  if (project.tech.nextjs || project.tech.react || project.tech.tailwind) files.push("frontend-standards.md");
-  if (BACKEND_TECH_IDS.some((id) => project.tech[id])) files.push("backend-standards.md");
+  const frontendIds = new Set([...EXPLICIT_FRONTEND_IDS, ...idsRequiringStandard("frontend-standards.md", catalog)]);
+  const backendIds = new Set([...EXPLICIT_BACKEND_IDS, ...idsRequiringStandard("backend-standards.md", catalog)]);
+  if ([...frontendIds].some((id) => project.tech[id])) files.push("frontend-standards.md");
+  if ([...backendIds].some((id) => project.tech[id])) files.push("backend-standards.md");
   return files;
 }
 function createStandards(project) {

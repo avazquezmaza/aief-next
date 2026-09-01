@@ -162,3 +162,10 @@ Every contribution, human or assistant, follows the same rules:
 `aief release <version>` scaffolds `releases/v<version>.md`. Fill in the summary and verification
 evidence, then tag the release per your usual process — AIEF does not create commits, tags, or
 publish releases itself.
+
+Before tagging, grep the docs set for the *previous* version's number (`grep -rn "AIEF <old
+version>" README.md docs/`) and update every hit — `package.json`/`cli/package.json` are not the
+only place a version is written down. This was missed once (found and fixed in Change 0107):
+`README.md`'s own `## Status` section kept saying "AIEF 3.2" through both the 3.3.0 version-bump
+Change and the release-readiness Change that immediately preceded it, because neither one's scope
+named the README as something to check.
