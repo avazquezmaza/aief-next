@@ -31,6 +31,15 @@ test("bootstrap is idempotent", () => {
   assert.equal(adoptDirs.length, 1);
 });
 
+test("bootstrap <name> on an existing directory reports it exists, with a next step (Change 0099)", () => {
+  const dir = makeProject();
+  fs.mkdirSync(path.join(dir, "my-app"));
+  const { status, out } = aief(dir, ["bootstrap", "my-app"]);
+  assert.equal(status, 1);
+  assert.match(out, /Project already exists/);
+  assert.match(out, /choose a different name|cd into it/i);
+});
+
 test("bootstrap does not touch application files", () => {
   const dir = makeProject({ "src/app.js": "console.log('app');" });
   aief(dir, ["bootstrap"]);
