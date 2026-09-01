@@ -42,13 +42,19 @@ of disk state. `npm install` runs fresh every time. Never `cp -r` the working tr
 
 ## Pilot — P0
 
-- [ ] (human) Consent obtained and recorded (outside this repo).
-- [ ] (human) Pre-check: confirm fresh-user status in the moment, not just from prior claim.
-- [ ] (human) Run the pilot session per `protocol.md` §7 (pre-check → setup → task → debrief incl.
-      Q7 → reset). Mandi moderates; no one else present.
-- [ ] Record any **operational** issue found (recording, timing, repo prep) — cause named,
-      fix applied. The protocol's design itself is not changed (§9b rule 1).
-- [ ] Pilot data excluded from all aggregates, per `consolidation.md` §1.
+- [x] (human) Consent obtained and recorded (outside this repo). Confirmed 2026-09-01.
+- [x] (human) Pre-check: confirm fresh-user status in the moment, not just from prior claim.
+      Confirmed 2026-09-01.
+- [x] (human) Run the pilot session per `protocol.md` §7 (pre-check → setup → task → debrief incl.
+      Q7 → reset). Mandi moderates; no one else present. Run 2026-09-01 on Scenario A
+      (`fixtures/executions-service/`), restored via the canonical recipe into `/tmp/piloto-p0`.
+      Reached a correct close (independently re-verified — see evidence.md's "Pilot (P0)
+      results": tests re-run 2/2 green, `## Status / Closed` confirmed on disk).
+- [x] Record any **operational** issue found (recording, timing, repo prep) — cause named,
+      fix applied. The protocol's design itself is not changed (§9b rule 1). **None found** — the
+      session ran clean end to end; no adjustment to logistics or setup is needed before P1–P5.
+- [x] Pilot data excluded from all aggregates, per `consolidation.md` §1. Recorded in this
+      Change's own `evidence.md` only — `consolidation.md` (P1–P5's aggregates) is untouched by P0.
 - [ ] Restore the fixture to its pristine snapshot before P1, using the canonical restore recipe
       above (`git archive` + `npm install` — never `cp -r` the working tree).
 

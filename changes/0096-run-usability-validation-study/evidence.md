@@ -1,9 +1,39 @@
 # Evidence
 
-> **Partial evidence — instrument prep stage.** The assistant-doable block (build the three
-> fixture repos) is complete and verified. Everything past it — the pilot (P0), the five scored
-> sessions (P1–P5), and the consolidation — is `(human)` work not yet done. This file will be
-> completed with session numbers and outcomes once the sessions run.
+> **Partial evidence — pilot complete, scored sessions pending.** The assistant-doable block (the
+> three fixture repos) and the pilot (P0) are both done. P1–P5 and the consolidation remain
+> `(human)` work not yet done.
+
+## Pilot (P0) results
+
+Run 2026-09-01, Scenario A (`fixtures/executions-service/`), restored via the canonical recipe
+(`git archive` + `npm install`) into `/tmp/piloto-p0`. Consent and the fresh-user pre-check were
+confirmed before the session. **Per `consolidation.md` §1, this data is excluded from all
+aggregates** — recorded here only, for the pilot's actual purpose (shaking out logistics).
+
+**Metrics reported by the moderator:**
+
+| Metric | Value |
+|---|---|
+| M-T1 (time to first Change) | 00:03:29 |
+| M-T2 (time to first `verify`) | 00:03:56 |
+| M-T3 (time to correct close) | 00:10:38 |
+| M-IDLE | ~4 min 46 s (the gap between the verify pass and the close confirmation) |
+| M-HINT (rungs climbed) | 0 — no intervention needed |
+| Docs opened | `TASK.md`, `README.md`, `AGENTS.md`, `src/app.ts`, `test/executions.test.ts`, both Changes' own files (`0001-adopt-aief/`, `0002-fix-tenant-isolation/`) |
+| Commands discovered | `aief status`, `aief explain close`, `aief verify` — all real commands, confirmed against this AIEF version's own `--help` output |
+
+**Independently re-verified (not just read from the reported evidence):**
+- Diego's fix (`WHERE tenant_id = ?` added, parameterized) is technically correct — diffed against
+  the pristine fixture.
+- Re-ran `npm test` myself in `/tmp/piloto-p0`: **2/2 green**, including the test that failed
+  before the fix.
+- `## Status / Closed (2026-09-01)` confirmed present in `changes/0002-fix-tenant-isolation/change.md`
+  on disk; `aief verify` in that directory lists it `(closed)`.
+
+**Outcome: reached a correct close, autonomously, no hints.** No operational issue found — the
+fixture, the setup instructions, and the session logistics all worked as designed. No adjustment
+needed before running P1–P5.
 
 ## Summary
 
