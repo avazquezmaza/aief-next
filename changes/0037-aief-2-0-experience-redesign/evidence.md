@@ -109,8 +109,52 @@ Recorded rather than quietly fixed, for two reasons: the accepted-and-validated 
 5. **Documentation growth outran capability again**, 8:1, in the repository founded to escape exactly that. The v4 failure mode is not a phase; it is a gradient.
 6. **This study is n=1 and says so.** Its central hypothesis is refutable, and the experiment that refutes it is the first roadmap stage. Any recommendation here that survives contact with a second project has earned something; the rest have not.
 
+## Six open questions — decided (2026-09-01)
+
+Months after this study shipped, AIEF reached 3.2.0 (Changes 0043–0095) — enough real building
+happened in the meantime that three of the six questions this study left open were already
+answered **by what got built**, not by a formal decision recorded here. Checked against the
+repository directly, not assumed:
+
+1. **Redesign, not addition.** [ADR-013](../../knowledge/decisions.md) ("no capability enters the
+   core without removing an equivalent") was accepted 2026-07-17 — the same day this study's
+   design set landed. The commit `92906af "Release AIEF Core 3.0"` (2026-07-27, ten days later)
+   **executed** this study's own Stage 2 (delete): `docs/navigator/`, `starter-project/`,
+   `specs/`, `reference-implementation/` are confirmed gone from the working tree.
+2. **Track, not Profile.** `cli/src/core/domain/workflow-definition.js`'s `KNOWN_TRACKS =
+   ["lite", "standard", "governed"]` is implemented (the Workflow Engine, ADR-016 onward).
+   ADR-012's structured Profile model (`thinkingStyle` etc.) has zero matches anywhere in
+   `cli/src` — confirmed by grep.
+6. **ADR-012 not implemented; reconsidered.** Zero uses across all five of Change 0096's real
+   sessions (no participant needed a profile), consistent with Change 0033's earlier finding of
+   zero uses across the full Flux Portal migration, and zero code implementing the structured
+   model — the exact combination the audit's own "reconsidered" outcome named.
+
+The remaining three needed a fresh, explicit decision — made by the project owner 2026-09-01,
+each recorded as its own ADR rather than a line in this evidence file, since each changes what a
+future Change may build against:
+
+3. **The 6-step flow (`INTAKE → CONTEXT → PLAN → IMPLEMENT → VERIFY → CLOSE`) is now the
+   canonical user-facing model**, ADR-011's three levels demoted to the internal responsibility
+   model — [ADR-033](../../knowledge/decisions.md). A follow-up documentation Change (updating
+   `docs/workflow.md`) is still required; this ADR authorizes it, it is not the rewrite.
+4. **ADR-006 narrowed to progressive teaching** (full explanation on first use / `--help`,
+   abbreviated after) — [ADR-034](../../knowledge/decisions.md). A follow-up implementation Change
+   is required; this ADR authorizes the narrowing, it does not perform it.
+5. **ADR-010 reaffirmed, unamended** — [ADR-035](../../knowledge/decisions.md). Change 0096
+   supplied the second real adoption case ADR-010's own tension named as its gate; standards
+   *were* edited (P1, P5), unprompted — the opposite of the pattern that would have forced an
+   amendment.
+
+**The independent-review gate** (a re-check of the audit's central claim — "the CLI ran once,
+`verify` was never invoked" — by someone other than its author) is satisfied by **Change 0096's
+H6 result**: five real, independent sessions, moderated by someone disqualified from having
+authored AIEF or this study, tested exactly this claim and **refuted** it — every session ran
+`aief verify` spontaneously. The project owner confirmed this counts as the review this gate
+asked for.
+
 ## Next Change
 
-**None proposed.** The study authorizes nothing.
-
-The next action is a **human decision** on the six questions in [`11-roadmap.md`](../../docs/aief-2.0/11-roadmap.md), starting with whether AIEF 2.0 is a redesign or an addition. Stage 1 (observe one real project under the F2 gate) requires no Change — it requires a project and two weeks of patience.
+**None proposed.** The study authorizes nothing beyond what the three new ADRs above each
+separately name as their own required follow-up (a docs rewrite for ADR-033, an implementation
+Change for ADR-034). This Change's own closure does not perform either.

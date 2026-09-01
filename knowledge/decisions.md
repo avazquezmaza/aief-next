@@ -4,6 +4,115 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-035: ADR-010 (standards are contextual knowledge AIEF creates) survives unamended — Change 0096's second real adoption case closes the tension Change 0037's audit raised
+
+**Status: Accepted (2026-09-01), by the project owner.**
+
+**Decision.**
+
+> [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s audit (`03-proposed-map.md` §5.4)
+> found ADR-010's `knowledge/standards/` created and **never edited** on the one real adoption
+> then on record (Flux Portal, n=1) — an SpecBoot-residue tension it explicitly refused to resolve
+> from that alone (ADR-008): *"Gate: a second adoption that also leaves standards unedited → then
+> amend ADR-010. Until then, standards stay OPTIONAL and untouched."* [Change 0096](../changes/0096-run-usability-validation-study/)
+> supplied that second real case, across five independent sessions: **at least two participants
+> (P1, P5), unprompted, edited `knowledge/standards/*.md`'s "(adapt)" lines as a normal part of
+> their own flow** — P5 named it explicitly as advice for a colleague ("always adapt the standards
+> at the start"). The gate's condition (a second adoption *also* leaving them unedited) did not
+> occur — the opposite did. **ADR-010 is reaffirmed, unamended.**
+
+**Honest scope.** Change 0096's five sessions were run against small, purpose-built fixtures under
+a moderated study protocol, not an independent real-world adoption the way Flux Portal was. This is
+still the second real signal ADR-010's own gate asked for — real participants, real repositories,
+unprompted — and the project owner judges it sufficient to close this specific tension, not a
+claim that no future case could reopen it.
+
+**Consequences.**
+
+- `knowledge/standards/` stays exactly as ADR-010 already has it: created by `aief adopt`,
+  optional, edited when the project needs it — no new field, no new gate, no new command.
+- [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s open question 5 is answered; the
+  Change may cite this ADR when it closes.
+
+---
+
+## ADR-034: ADR-006 (the CLI must be guided and educational) is narrowed to progressive teaching — explain fully on first use and on `--help`, not on every invocation
+
+**Status: Accepted (2026-09-01), by the project owner.**
+
+**Decision.**
+
+> ADR-006 requires every command to explain purpose, inputs, outputs, an example, and the next
+> step — every time, which is why `aief prompt` and its siblings print a paragraph before doing
+> anything. [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s audit (`03-proposed-map.md`
+> §5.3) named the resulting tension plainly: *"the teaching goal is right; the mechanism competes
+> with 'must feel simple' — explaining everything every time is how a 15-command CLI feels like a
+> 15-command CLI."* This ADR adopts its proposed reconciliation: **ADR-006's intent is served by
+> progressive teaching** — a command's full explanation (purpose/reads/writes/example/next step)
+> prints in full on a user's **first invocation of that command** (or whenever `--help`/`explain`
+> is asked for explicitly) and is abbreviated on subsequent runs to the result and the next-step
+> line alone.
+
+**Why this is a narrowing, not a reversal.** ADR-006's actual requirement — a new user is never
+left without guidance — is unchanged; every command still teaches fully the first time it matters,
+and on demand. What changes is *repetition*: an experienced user running `aief verify` for the
+tenth time no longer re-reads its full paragraph unless they ask.
+
+**This ADR does not itself implement anything.** Detecting "first invocation" without new hidden
+state (ADR-009) is a real design question — e.g., derived from whether a Change/command has
+already produced output the user has seen, not a tracked usage counter — left to the Change that
+implements this narrowing, which must independently satisfy ADR-009's no-hidden-state rule.
+
+**Consequences.**
+
+- [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s open question 4 is answered; the
+  Change may cite this ADR when it closes.
+- A future implementation Change is required before any command's output actually changes — this
+  ADR authorizes the narrowing, it does not perform it.
+
+---
+
+## ADR-033: The 6-step flow (`INTAKE → CONTEXT → PLAN → IMPLEMENT → VERIFY → CLOSE`) becomes the canonical user-facing workflow model; ADR-011's three levels are demoted to the internal responsibility model
+
+**Status: Accepted (2026-09-01), by the project owner.**
+
+**Decision.**
+
+> ADR-011 established *one* canonical workflow model (Context → Feature → Governance, "the three
+> levels") specifically to end four competing phrasings of the same idea. [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s
+> study (`05-user-flow.md`) produced a fifth phrasing — the 6-step flow — and its own audit
+> (`03-proposed-map.md` §5.2) refused to let both ship as canonical without a decision: *"shipping
+> both as canonical recreates ADR-011's original problem... Required: a new ADR that makes the
+> 6-step flow the canonical user-facing model and demotes the 3 levels to the responsibility
+> model — or the flow stays a study artifact. Not this study's call."* This is that ADR. **The
+> 6-step flow is now the canonical model a user reads and is taught** — it is also what
+> [Change 0042](../changes/0042-usability-validation-protocol/)'s entire study protocol, and
+> [Change 0096](../changes/0096-run-usability-validation-study/)'s five real sessions, already
+> used as the operative mental model, independently of this ADR formalizing it.
+
+**What "demoted to the responsibility model" means, precisely.** The three levels (Context /
+Feature / Governance) answer *who owns this and at what weight* — a Track-shaped question, already
+mapped without contradiction onto the 6 steps in `05-user-flow.md` §3. They stop being the
+*user-facing* vocabulary (no longer the first thing `docs/workflow.md` teaches) and become the
+model a maintainer or an implementation reasons from internally — the same relationship a
+Track/Stage/Gate triple already has to a raw Change file today.
+
+**This ADR does not itself rewrite any documentation.** `docs/workflow.md` (ADR-011's home) and
+any other doc teaching "the three levels" as the primary model require a follow-up documentation
+Change to actually reflect this — this ADR authorizes and directs that rewrite, it is not the
+rewrite.
+
+**Consequences.**
+
+- [Change 0037](../changes/0037-aief-2-0-experience-redesign/)'s open question 3 is answered; the
+  Change may cite this ADR when it closes.
+- A follow-up Change updating `docs/workflow.md` (and any other doc still teaching the three
+  levels as primary) is required before this ADR is reflected in what a new adopter actually reads.
+- ADR-011 is not repealed — its content becomes the internal responsibility model this ADR
+  describes, not a second competing user-facing phrasing.
+
+---
+
 ## ADR-032: ADR-015's remaining freeze — DELETE/ARCHIVE candidates and Type↔Track — is thawed, by the project owner's direct decision, following Change 0096's consolidation
 
 **Status: Accepted (2026-09-01), by the project owner.**
@@ -1412,6 +1521,10 @@ Each source has a single responsibility. **The Prompt Engine is the only place w
 
 ## ADR-006: The CLI must be guided and educational
 
+**Narrowed by [ADR-034](#adr-034-adr-006-the-cli-must-be-guided-and-educational-is-narrowed-to-progressive-teaching--explain-fully-on-first-use-and-on---help-not-on-every-invocation)
+(2026-09-01)** — full explanation on first use / `--help`, abbreviated thereafter. This entry's
+original decision is unmodified below; ADR-034 is the amendment.
+
 **Decision.** Every command explains its purpose, when to use it, what it reads, what it writes, an example and the recommended next step. Messages must be honest (e.g. report when a file already existed instead of claiming it was created).
 
 **Context.** AIEF's users include people adopting an AI-assisted workflow for the first time; a terse CLI defeats the framework's teaching goal.
@@ -1432,6 +1545,11 @@ Each source has a single responsibility. **The Prompt Engine is the only place w
 
 ## ADR-011: The workflow is documented as three levels — Context, Feature, Governance
 
+**Demoted to the internal responsibility model by [ADR-033](#adr-033-the-6-step-flow-intake--context--plan--implement--verify--close-becomes-the-canonical-user-facing-workflow-model-adr-011s-three-levels-are-demoted-to-the-internal-responsibility-model)
+(2026-09-01)** — the 6-step flow is now the canonical user-facing model; this entry's three levels
+become the model a maintainer reasons from internally, not repealed. Original decision unmodified
+below.
+
 **Decision.** AIEF documents one canonical workflow model ([docs/workflow.md](../docs/workflow.md)) with three levels: **1 · AIEF Context** (`doctor → adopt → verify → analyze → prompt`), **2 · OpenSpec / Assistant Feature Workflow** (verified official OpenSpec: `Explore → Propose → Apply → Archive`, driven by assistant slash commands; extensible with Specboot-style skills like *enrich-us* or *adversarial review*, documented as examples, never as official OpenSpec), and **3 · AIEF Governance** (`verify → close`). `aief close` is explicitly not OpenSpec `/archive`: each governs its own artifact.
 
 **Context.** Four different workflow phrasings had accumulated across README, docs/Workflow.md and the OpenSpec adapter, none distinguishing what AIEF does from what the assistant/OpenSpec does. Specboot's operational clarity inspired the level separation; nothing was copied. The model is documentation-only: no CLI behavior changed, no commands added, no state introduced.
@@ -1441,6 +1559,11 @@ Each source has a single responsibility. **The Prompt Engine is the only place w
 ---
 
 ## ADR-010: Project standards and Skills are contextual knowledge; OpenSpec remains the spec workflow engine
+
+**Reaffirmed unamended by [ADR-035](#adr-035-adr-010-standards-are-contextual-knowledge-aief-creates-survives-unamended--change-0096s-second-real-adoption-case-closes-the-tension-change-0037s-audit-raised)
+(2026-09-01)** — Change 0037's audit raised a tension (standards created, never edited, on the
+only real adoption then on record) with an explicit gate for a second case; Change 0096 supplied
+one, and standards *were* edited. Original decision unmodified below.
 
 **Decision.** AIEF adopts Specboot's *concepts* — modular project standards and role/skill knowledge — as files under `knowledge/standards/` (created by `aief adopt`, never overwritten) and as operational Skill content in `cli/src/skills-catalog.json` (purpose, whenToUse, standardsToRead, promptContext, commonRisks, evidenceExpectations). `aief prompt` injects both as *context* for the assistant. AIEF does not copy Specboot files and does not reimplement OpenSpec's Proposal → Spec → Tasks workflow.
 

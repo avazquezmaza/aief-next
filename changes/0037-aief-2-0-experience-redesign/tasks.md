@@ -29,7 +29,12 @@
 ## Documentation
 
 - [x] Deliverables 1–11 under `docs/aief-2.0/`, indexed in `README.md`.
-- [ ] Link `docs/aief-2.0/` from `docs/index.md` — **deferred**: the study proposes cutting 5 of 7 entry points; adding an eighth before that decision would make the finding worse. Do it when Stage 2 is decided.
+- [-] Link `docs/aief-2.0/` from `docs/index.md` — moot as written: the deliverables live at
+      `docs/history/aief-2.0-experience-redesign/` (moved there by a later docs reorganization,
+      not `docs/aief-2.0/`), and Stage 2 (delete) already executed as part of the "Release AIEF
+      Core 3.0" commit (`92906af`, 2026-07-27) — `docs/navigator/`, `starter-project/`, `specs/`,
+      `reference-implementation/` are gone. Linking a history/ archive from the live docs index is
+      a separate, small documentation decision, not this Change's own blocking task.
 
 ## Verification
 
@@ -47,6 +52,33 @@
 
 ## Human gates
 
-- [ ] (human) Accept, reject or amend the AIEF 2.0 study.
-- [ ] (human) Decide the six open questions in `docs/aief-2.0/11-roadmap.md` — most urgently: is AIEF 2.0 a redesign or an addition?
-- [ ] (review) Independent review of the audit's central claim (the CLI ran once) by someone other than its author.
+- [x] (human) Accept, reject or amend the AIEF 2.0 study. **Accepted, as amended, 2026-09-01** —
+      the six open questions below are decided; the study's own recommended sequence (Stage 0
+      done via Change 0036, Stage 2 delete already executed via "Release AIEF Core 3.0") is
+      confirmed as the path actually taken.
+- [x] (human) Decide the six open questions in `docs/history/aief-2.0-experience-redesign/11-roadmap.md`.
+      **All six decided 2026-09-01**, three already answered by what was actually built and three
+      by fresh explicit decision:
+      1. **Redesign, not addition.** Already answered in practice: [ADR-013](../../knowledge/decisions.md)
+         ("no capability enters the core without removing an equivalent"), accepted 2026-07-17,
+         and Stage 2's deletions actually executed 10 days later.
+      2. **Track, not Profile**, as the shipped mechanism. Already answered in practice: `KNOWN_TRACKS
+         = ["lite", "standard", "governed"]` is implemented (Workflow Engine, ADR-016+); ADR-012's
+         structured Profile model (`thinkingStyle` etc.) has zero implementation anywhere in `cli/src`.
+      3. **The 6-step flow replaces the three levels as the user-facing model** — new decision,
+         [ADR-033](../../knowledge/decisions.md).
+      4. **ADR-006 amended to progressive teaching** — new decision, [ADR-034](../../knowledge/decisions.md).
+      5. **ADR-010 survives unamended** — new decision, [ADR-035](../../knowledge/decisions.md),
+         citing Change 0096's second real case (standards *were* edited, unprompted, by at least
+         two of five participants).
+      6. **ADR-012 not implemented; reconsidered.** Already answered in practice: zero uses across
+         Change 0096's five real sessions (none of the five participants needed a profile,
+         mirroring the zero uses Change 0033 already found across a full migration) plus zero
+         code implementation of the structured model — the same conclusion the audit's own
+         confirm-condition for "reconsidered" names.
+- [x] (review) Independent review of the audit's central claim (the CLI ran once) by someone other
+      than its author. **Satisfied by Change 0096's H6 result** — the exact claim this task names
+      (Flux Portal's F2: "the CLI ran once... the validator... never invoked") was tested with
+      five real, independent sessions and **REFUTED**: every participant ran `aief verify`
+      spontaneously. The project owner confirmed this counts as the review this gate required, in
+      lieu of a separate re-read of the audit document itself.
