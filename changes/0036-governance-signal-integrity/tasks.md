@@ -90,10 +90,13 @@
 
 ## Human gates
 
-- [ ] (human) Approve the F1 vocabulary decision — `COMPLETE`/`PASS` deliberately map to
+- [x] (human) Approve the F1 vocabulary decision — `COMPLETE`/`PASS` deliberately map to
       **`unknown` + loud error** rather than to `closed`. This is intent-guessing vs
-      honest failure, and Flux Portal wrote both words meaning "done".
-- [ ] (human) Approve shipping a **GitHub Actions** workflow from `aief adopt` in an
+      honest failure, and Flux Portal wrote both words meaning "done". **Approved
+      2026-09-01** — in production, unregressed, since implementation.
+- [x] (human) Approve shipping a **GitHub Actions** workflow from `aief adopt` in an
       otherwise CI-agnostic tool (documented alternative: one command, any CI).
-- [ ] (review) Independent review that F1–F3 changed **no** behaviour beyond the three
-      defects, and that F4/F5/F6 remain unimplemented.
+      **Approved 2026-09-01.**
+- [x] (review) Independent review that F1–F3 changed **no** behaviour beyond the three
+      defects, and that F4/F5/F6 remain unimplemented. **Completed 2026-09-01** — see
+      evidence.md's "Independent review" section.

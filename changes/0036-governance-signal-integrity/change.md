@@ -88,3 +88,7 @@ governance, because it is trusted.
 - [x] An untouched `evidenceTemplate()` still classifies as **placeholder**.
 - [x] `npm test` (cli) passes, with new unit tests for F1 and F3.
 - [x] No `git add` / `commit` / `push`.
+
+## Status
+
+Closed (2026-09-01)

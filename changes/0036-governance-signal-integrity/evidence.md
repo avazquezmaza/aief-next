@@ -214,6 +214,41 @@ Initiative / Parent-Child / contract hashes / traceability parser. No `git add`,
   and nothing objected for two days. Enforcement must be automatic precisely because
   discipline is not.
 
+## Independent review (2026-09-01)
+
+The three remaining gates — two `(human)` approvals and one `(review)` — closed out. F1–F3's
+implementation itself was already complete and running in production since 2026-07-17
+(45+ days, unregressed); this review is by a different session than the one that implemented it,
+performed against the current codebase (not just this evidence.md's original claims).
+
+- **F1 (`parseChangeStatus`, `cli/src/core/domain/change.js`) present and unchanged in spirit**:
+  the declaration model, tolerant normalization, `CLOSED`/open-token vocabulary, and
+  contradiction/uninterpretable → `unknown` are all in place, and `isClosedContent()` still
+  delegates to it exactly as designed.
+- **F3 (`classifyEvidence`)** present, unchanged in spirit: placeholder-dominance classification,
+  the 2x margin, `placeholder`/`partial`/`complete`.
+- **F2 (the gate)**: `cli/templates/ci/aief-verify.yml` exists; `runAdoption()`
+  (`cli/src/commands/bootstrap.js` — moved here from `cli.js` by the later modularization effort,
+  same logic) writes it and never overwrites.
+- **`node --test cli/tests/change-status.test.js cli/tests/evidence-classification.test.js`:
+  28/28 pass** (the F1/F3 fixture suites this Change added).
+- **`npm test`: 997/997 pass. `aief verify` on AIEF itself: PASS.**
+- **Gate demo, re-run independently in a fresh scratch directory**: `aief bootstrap` creates
+  `.github/workflows/aief-verify.yml`; a local edit survives a second `bootstrap` run (never
+  overwritten); `aief verify` on the resulting healthy project exits 0.
+- **F2's documentation (R2.4, "including projects not using GitHub Actions") confirmed present**:
+  `docs/configuration.md` states the gate is one command (`npx aief verify`) wireable into any CI —
+  the standalone `docs/ci-gate.md` this evidence originally named no longer exists as its own file
+  (superseded by the later docs reorganization, `docs/history/` for the rest), but the substance
+  survived under `docs/configuration.md`/`docs/cli.md`/`docs/getting-started.md`. Noted, not a
+  defect: nothing in spec.md's requirements names a specific file path, only that the mechanism be
+  documented.
+- **F4/F5/F6 confirmed still unimplemented**: no mandatory `ADR:`/`OpenSpec:` field parsing, no
+  richer status vocabulary beyond the existing `CLOSED_TOKENS`/`OPEN_TOKENS` sets, no stale-status
+  detector anywhere in `cli/src`.
+
+**Verdict: approved.** All three tasks.md gates now checked. This Change is ready to close.
+
 ## Next Change
 
 None required by this Change. Candidates, both evidence-gated:
