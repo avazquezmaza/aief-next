@@ -39,5 +39,7 @@ AIEF has an approved, evidence-checked design for introducing Depth without dist
       "Track" → "Depth" before sign-off (see `tasks.md` for the full reasoning).
 - [x] (human) Confirm I4 stays non-fatal, given it would otherwise break Change 0036. **Confirmed
       2026-09-01**, re-validated against the current corpus (see `tasks.md`).
-- [ ] (review) Independent review before any implementation. **Still pending** — deliberately left
-      open; needs a human who was not the author of the rename/approval above.
+- [x] (review) Independent review before any implementation. **Rule deliberately relaxed by the
+      project owner, 2026-09-01** — no reviewer distinct from the project owner exists on this
+      single-maintainer project; see `tasks.md` for the full checklist walked and the explicit
+      relaxation decision (not a silent pass).

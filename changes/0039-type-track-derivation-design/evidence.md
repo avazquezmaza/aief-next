@@ -102,10 +102,16 @@ Type tokens exist today** (up from 5 of 40 originally cited), including Change 0
 now as when this was designed. Confirmed non-fatal, with stronger evidence than the design
 originally had.
 
-**The `(review)` gate — independent review before implementation — is deliberately left open.**
-The rename and its approval were done by the same session working this Change; that session
-cannot certify its own work as independent, the same discipline Change 0042 applied to its pilot
-review. This Change stays open until a human who did not do this rename/approval reviews it.
+**The `(review)` gate — independent review before implementation — was deliberately relaxed,
+2026-09-01.** The rename and its approval were done by the same session working this Change; that
+session could not certify its own work as independent, the same discipline Change 0042 applied to
+its pilot review. Change 0042 had a real answer — a moderator distinct from the project owner
+(Mandi Orange). This Change does not: no reviewer distinct from the project owner exists on this
+single-maintainer project. Rather than block indefinitely on a reviewer that does not exist, the
+project owner walked the review checklist directly (design's core claims in §3/§2/§4, the
+caller-list addendum below, §12's unvalidated-in-production Enrichment gate) and explicitly chose
+to accept their own confirmation over leaving the gate open. Recorded in `tasks.md` as what it is
+— a relaxation, not an independent review.
 
 ## Addendum (2026-09-01): design.md §5's caller list is now stale — re-verify at implementation time
 

@@ -47,9 +47,27 @@
       corpus — up from the 5-of-40 the design originally cited. A strict "unknown Type ⇒ error"
       rule would break twice as many real, already-closed Changes today as when this was designed.
       I4 stays non-fatal.
-- [ ] (review) Independent review before implementation. **Still pending** — deliberately left
-      open, same discipline as Change 0042's pilot review: needs a human not the author of this
-      rename/approval. This Change stays open until that review happens.
+- [x] (review) Independent review before implementation. **Rule deliberately relaxed by the
+      project owner, 2026-09-01** — not silently passed. This gate asked for the same discipline
+      as Change 0042 (a reviewer distinct from whoever approved the work), and no such reviewer
+      exists on this single-maintainer project. Walked the review checklist below with the
+      project owner directly (§1 derivation-table/backward-compat/I4 claims, §2 the now-stale
+      §5 caller list, §3 the unvalidated-in-production Enrichment gate) and the project owner —
+      the same person who approved the rename — explicitly chose to accept their own
+      confirmation over leaving the gate open indefinitely or blocking on an external reviewer
+      that does not exist. Recorded here as what it is: a relaxation, not an independent review.
+
+      **Checklist walked:**
+      1. §3 "a declared Type always wins" — confirmed no row in the 14-combination table lets
+         Depth override an explicit Type.
+      2. §2 step 3 "both absent → `\"\"`" — confirmed the 12 legacy Changes (0001–0012) keep
+         today's exact behavior.
+      3. §4 I4 non-fatal — confirmed reasonable given ~10 non-standard tokens across ~94 Changes
+         today, including the already-accepted Change 0036.
+      4. evidence.md's caller-list addendum — confirmed as a non-blocking note for the
+         implementation Change, not a design defect.
+      5. §12's "Enrichment gate unvalidated in production" risk — confirmed accepted knowingly:
+         tests 6–8 remain the only evidence at implementation time, not proof today.
 
 ## Deferred
 
