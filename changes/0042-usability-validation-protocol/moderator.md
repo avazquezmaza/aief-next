@@ -2,6 +2,16 @@
 
 > Added by project-owner decision (2026-07-17). The study's validity rests on the moderator being independent and strictly passive. This charter defines the role; **a human must be named into it** — this document specifies *who qualifies* and *what they may do*, not a person.
 
+## 0. Designated moderator
+
+**Mandi Orange** — designated 2026-09-01 by the project owner, who confirmed all four
+independence criteria in §1 are met (no participation in AIEF's design, in Flux Portal, in
+Changes 0036–0042, or in the simplification map/DELETE review).
+
+Designation is not yet the `(review)` gate itself (tasks.md/spec.md): that gate is cleared only
+when Mandi reads all seven deliverables and confirms, in their own words, that the protocol is
+runnable as written — not by this designation alone.
+
 ## 1. Independence criteria (all mandatory)
 
 The moderator **must not have participated in**:
