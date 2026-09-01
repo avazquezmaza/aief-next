@@ -1,12 +1,12 @@
-# Design — Type ↔ Track
+# Design — Type ↔ Depth
 
-> **Design only. Nothing is implemented by this Change.** Approved direction (2026-07-17): Track and Type coexist as **different dimensions**; Track is the user-facing entry, Type stays internal and keeps its governance semantics.
+> **Design only. Nothing is implemented by this Change.** Approved direction (2026-07-17): Depth and Type coexist as **different dimensions**; Depth is the user-facing entry, Type stays internal and keeps its governance semantics.
 
 ## 1. The two dimensions
 
 > **Read §1.1 first.** The audit found that `Type`'s documented vocabulary is not the vocabulary in use. That fact changes two rules in this design, and it would have broken five real Changes had it been missed.
 
-| | **Track** | **Type** |
+| | **Depth** | **Type** |
 |---|---|---|
 | Answers | *How deep is this work?* | *What governance semantics does it carry?* |
 | Values | `Basic` · `Standard` · `Migration` | `General` · `Analysis` · `Enrichment` **(documented)** — see §1.1 |
@@ -45,7 +45,7 @@ Two facts follow, and both are load-bearing:
 
 **Consequence for this design:** a strict "unknown Type ⇒ error" rule would fail **five existing Changes**, including Change 0036 — the accepted F1/F2/F3 work. The user's instruction was that Type *preserves existing behavior*. Existing behavior is tolerant. So the design stays tolerant (§4, I4).
 
-*This is why the rule that Track never overrides a declared Type matters more than it first appears: for 5 of 40 Changes, the declared Type is a sentence, and the only safe thing to do with a sentence is leave it alone.*
+*This is why the rule that Depth never overrides a declared Type matters more than it first appears: for 5 of 40 Changes, the declared Type is a sentence, and the only safe thing to do with a sentence is leave it alone.*
 
 ## 2. The derivation
 
@@ -59,8 +59,8 @@ Enrichment → never derived. Declared explicitly, always.
 ### The resolution order (normative)
 
 ```text
-1. Type declared in change.md?        → use it. Stop. (Track never overrides a declared Type.)
-2. Type absent, Track declared?       → derive Type from Track.
+1. Type declared in change.md?        → use it. Stop. (Depth never overrides a declared Type.)
+2. Type absent, Depth declared?       → derive Type from Depth.
 3. Both absent?                       → "" (today's exact behavior — unchanged).
 ```
 
@@ -70,10 +70,10 @@ Enrichment → never derived. Declared explicitly, always.
 
 > *"No mantengas dos preguntas obligatorias para el usuario nuevo."*
 
-Resolved as: **the human answers Track; the CLI writes both lines.**
+Resolved as: **the human answers Depth; the CLI writes both lines.**
 
 ```markdown
-Track: Standard
+Depth: Standard
 Type: General
 ```
 
@@ -81,9 +81,9 @@ Type: General
 
 ## 3. Valid combinations
 
-All nine Track × Type pairs are **semantically valid** — the dimensions are orthogonal by decision, so no pair is forbidden on meaning alone.
+All nine Depth × Type pairs are **semantically valid** — the dimensions are orthogonal by decision, so no pair is forbidden on meaning alone.
 
-| Track | Type in file | Resolved Type | Valid | Note |
+| Depth | Type in file | Resolved Type | Valid | Note |
 |---|---|---|:-:|---|
 | `Basic` | *(absent)* | `General` | ✓ | derived |
 | `Basic` | `General` | `General` | ✓ | explicit, matches derivation |
@@ -100,7 +100,7 @@ All nine Track × Type pairs are **semantically valid** — the dimensions are o
 | *(absent)* | *(absent)* | `""` | ✓ | **legacy — today's behavior, untouched** |
 | *(absent)* | any | as declared | ✓ | **legacy — every existing Change** |
 
-**A declared Type always wins.** Track never overrides, weakens or reinterprets it. That single rule is what makes "Track cannot remove, weaken or hide a gate" mechanically true rather than a promise.
+**A declared Type always wins.** Depth never overrides, weakens or reinterprets it. That single rule is what makes "Depth cannot remove, weaken or hide a gate" mechanically true rather than a promise.
 
 ## 4. Invalid cases — fail loudly
 
@@ -110,16 +110,16 @@ Incompatibility is **never about semantics** (all pairs are valid). It is about 
 |---|---|---|---|
 | **I1** | `Type: Enrichment` **without** a `## Requirement Source` section | Enrichment's semantics *are* an external source. Without one, the human-review gate guards nothing | **Error, exit 1** |
 | **I2** | A `## Requirement Source` section present **but** resolved Type ≠ `Enrichment` | **Gate evasion.** A Change with an external source that is not an Enrichment skips the Human Review gate | **Error, exit 1** |
-| **I3** | Unknown `Track` token (`Track: Quick`) | A misread Track silently derives the wrong Type. Track is **new**, so strictness costs no existing Change | **Error, exit 1** — list valid values |
+| **I3** | Unknown `Depth` token (`Depth: Quick`) | A misread Depth silently derives the wrong Type. Depth is **new**, so strictness costs no existing Change | **Error, exit 1** — list valid values |
 | **I4** | Unknown `Type` token (`Implementation`, `Documentation / Product Architecture`) | **Not an error — see below** | **Resolves to general. Reported, never fatal** |
-| **I5** | Two contradictory `Track:` declarations | Ambiguity | **Error, exit 1** ([Law 5](../../docs/aief-2.0/01-vision.md)) |
-| **I6** | `Track:` declared but uninterpretable (empty; decoy like `Track (orig):`) | The exact F1 shape | **Error, exit 1**. Never guess |
+| **I5** | Two contradictory `Depth:` declarations | Ambiguity | **Error, exit 1** ([Law 5](../../docs/aief-2.0/01-vision.md)) |
+| **I6** | `Depth:` declared but uninterpretable (empty; decoy like `Depth (orig):`) | The exact F1 shape | **Error, exit 1**. Never guess |
 
 ### Why I4 is not an error
 
 The obvious rule — *unknown Type ⇒ fail loudly* — is wrong here, and the evidence says so: it would fail **5 of 40 existing Changes**, including **Change 0036**, the accepted F1/F2/F3 work (`Type: Implementation`). The approved instruction is that Type **preserves existing behavior**; existing behavior tolerates any token and defaults to general (§1.1).
 
-Strictness is affordable on `Track` (I3) precisely because Track is new — there is no legacy to break. It is not affordable on `Type`. **Loud failure is for what a tool cannot interpret, not for what it has always interpreted one way.**
+Strictness is affordable on `Depth` (I3) precisely because Depth is new — there is no legacy to break. It is not affordable on `Type`. **Loud failure is for what a tool cannot interpret, not for what it has always interpreted one way.**
 
 ### I2's detector must match a declaration, not a mention
 
@@ -131,7 +131,7 @@ Strictness is affordable on `Track` (I3) precisely because Track is new — ther
 
 **Verified against the corpus:** zero of 40 Changes here, and zero of 13 in `trk-orchestrator-portal`, declare a `## Requirement Source` section. **I2 breaks nothing today** — the risk flagged in §12 is measured and closed.
 
-**I2 still matters most**, because it is the only rule that closes a hole open right now: nothing currently prevents a Change from carrying a Requirement Source while declaring `Type: General`, and that Change would skip the Human Review gate entirely. Track's arrival is what forces the check into existence.
+**I2 still matters most**, because it is the only rule that closes a hole open right now: nothing currently prevents a Change from carrying a Requirement Source while declaring `Type: General`, and that Change would skip the Human Review gate entirely. Depth's arrival is what forces the check into existence.
 
 ## 5. Impact on `changeType()`
 
@@ -146,7 +146,7 @@ export function changeTypeFromContent(changeMd) {
 
 Proposed shape (not implemented):
 
-- `trackFromContent(changeMd)` — a **new, tolerant reader**: accepts `Track: X`, `## Track` + value, bold, blockquote; rejects decoys; **errors on declared-but-uninterpretable** (Law 2 + Law 5, the F1 contract already built for status).
+- `depthFromContent(changeMd)` — a **new, tolerant reader**: accepts `Depth: X`, `## Depth` + value, bold, blockquote; rejects decoys; **errors on declared-but-uninterpretable** (Law 2 + Law 5, the F1 contract already built for status).
 - `changeTypeFromContent(changeMd)` — **unchanged signature and unchanged behavior when `## Type` is present.**
 - `resolveChangeType(changeMd)` — **new**: applies §2's resolution order. Every current caller of `changeType()` moves here.
 
@@ -158,9 +158,9 @@ Proposed shape (not implemented):
 
 **None, by construction.** `prompt` branches on `isAnalysis` / `isEnrichment`, which come from the resolved Type. Because a declared Type always wins and every CLI-created Change carries one, composition is unchanged for every existing Change.
 
-The only new path: a **hand-written** Change with `Track: Migration` and no Type now composes as Analysis instead of `""`. This is new behavior, it is intended, and it is the point — Flux Portal's 11 hand-written Changes had no Type at all and got the generic prompt.
+The only new path: a **hand-written** Change with `Depth: Migration` and no Type now composes as Analysis instead of `""`. This is new behavior, it is intended, and it is the point — Flux Portal's 11 hand-written Changes had no Type at all and got the generic prompt.
 
-**Track itself is not injected into the prompt** in this design. Adding a Track block would grow the prompt, and Change 0024 flagged prompt growth as a watch item. Track governs *artifacts and gates*, not reasoning. Revisit only with evidence.
+**Depth itself is not injected into the prompt** in this design. Adding a Depth block would grow the prompt, and Change 0024 flagged prompt growth as a watch item. Depth governs *artifacts and gates*, not reasoning. Revisit only with evidence.
 
 ## 7. Impact on Enrichment gates
 
@@ -176,7 +176,7 @@ The only new path: a **hand-written** Change with `Track: Migration` and no Type
 
 Plus **one gate gained**: I2 makes source-without-Enrichment a loud error.
 
-**Any Track may carry Enrichment, and the gates do not soften.** `Track: Basic` + `Type: Enrichment` gets the full human-review gate. Track decides how many artifacts; Type decides who must approve. They never trade.
+**Any Depth may carry Enrichment, and the gates do not soften.** `Depth: Basic` + `Type: Enrichment` gets the full human-review gate. Depth decides how many artifacts; Type decides who must approve. They never trade.
 
 ## 8. Backward compatibility
 
@@ -186,17 +186,17 @@ Plus **one gate gained**: I2 makes source-without-Enrichment a loud error.
 | 12 Changes without `## Type` (0001–0012) | `""` | `""` (step 3) | **none** |
 | Flux Portal's 13 hand-written Changes | `""` | `""` | **none** |
 | Enrichment Changes | gated | gated | **none** |
-| New Changes | — | `Track:` + `Type:` written | new |
+| New Changes | — | `Depth:` + `Type:` written | new |
 
-**No existing Change requires migration.** `Track` is additive; its absence resolves to today's behavior. This is the single most important property of the design and the reason it can ship without touching a file.
+**No existing Change requires migration.** `Depth` is additive; its absence resolves to today's behavior. This is the single most important property of the design and the reason it can ship without touching a file.
 
 ## 9. Metadata migration
 
 **None required.** Deliberately.
 
-- Existing Changes are **not** back-filled with `Track:`. Rewriting 40 change.md files to add a field nobody read would be a migration whose only purpose is tidiness — and it would rewrite closed Changes, which [Change 0038](../0038-framework-simplification-map/spec.md) forbids.
-- Legacy Changes resolve to `""` forever. That is correct: they were created before the dimension existed, and inventing a Track for them retroactively would be fabricating a fact.
-- **Optional, later, off by default:** `aief verify` may *report* Changes with no Track as an informational note. Never an error, never a fix-up.
+- Existing Changes are **not** back-filled with `Depth:`. Rewriting 40 change.md files to add a field nobody read would be a migration whose only purpose is tidiness — and it would rewrite closed Changes, which [Change 0038](../0038-framework-simplification-map/spec.md) forbids.
+- Legacy Changes resolve to `""` forever. That is correct: they were created before the dimension existed, and inventing a Depth for them retroactively would be fabricating a fact.
+- **Optional, later, off by default:** `aief verify` may *report* Changes with no Depth as an informational note. Never an error, never a fix-up.
 
 ## 10. Reversibility
 
@@ -204,11 +204,11 @@ Reversible at every stage, because the design is additive and Type remains the a
 
 | To roll back | Do | Data to undo |
 |---|---|---|
-| Stop writing `Track:` at creation | Revert `createChange` | none |
-| Ignore `Track:` entirely | `resolveChangeType` → `changeTypeFromContent` | none |
-| Remove the reader | Delete `trackFromContent` | none |
+| Stop writing `Depth:` at creation | Revert `createChange` | none |
+| Ignore `Depth:` entirely | `resolveChangeType` → `changeTypeFromContent` | none |
+| Remove the reader | Delete `depthFromContent` | none |
 
-Existing `Track:` lines become inert text in a Markdown file. **Nothing to migrate back**, no state to rebuild, no format to downgrade — because there is no state (ADR-009). Rollback is a code revert, full stop.
+Existing `Depth:` lines become inert text in a Markdown file. **Nothing to migrate back**, no state to rebuild, no format to downgrade — because there is no state (ADR-009). Rollback is a code revert, full stop.
 
 ## 11. Tests required
 
@@ -216,23 +216,23 @@ Existing `Track:` lines become inert text in a Markdown file. **Nothing to migra
 1. `Basic` no Type → `general`; `Standard` no Type → `general`; `Migration` no Type → `analysis`.
 2. Declared Type always wins over derivation, for all nine pairs.
 3. Both absent → `""` (**not** `"general"`).
-4. `Enrichment` is never produced by derivation from any Track.
+4. `Enrichment` is never produced by derivation from any Depth.
 
 **Invalid cases** (each exits 1 with a message naming the file and the valid values)
 5. I1 · I2 · I3 · I4 · I5 · I6.
 
 **Gates**
-6. `Track: Basic` + `Type: Enrichment` → every Human Review gate still fires; `close` still refuses.
-7. `close` on an Enrichment with unchecked Human Review still exits 1, for all three Tracks.
-8. No Track value permits `close` to pass a gate it fails today.
+6. `Depth: Basic` + `Type: Enrichment` → every Human Review gate still fires; `close` still refuses.
+7. `close` on an Enrichment with unchecked Human Review still exits 1, for all three Depth values.
+8. No Depth value permits `close` to pass a gate it fails today.
 
 **Regression (the load-bearing one)**
 9. For **all 40 Changes in this repo** and **all 13 in `trk-orchestrator-portal`**: `resolveChangeType() === changeTypeFromContent()`. Zero drift.
 10. `prompt` output is byte-identical for every existing Change, before and after.
 
 **Reader tolerance (F1 contract)**
-11. `Track: Standard`, `**Track:** Standard`, `> Track: Standard`, `## Track\n\nStandard` all parse.
-12. `Track (orig): Basic` is a decoy → not a declaration.
+11. `Depth: Standard`, `**Depth:** Standard`, `> Depth: Standard`, `## Depth\n\nStandard` all parse.
+12. `Depth (orig): Basic` is a decoy → not a declaration.
 13. Declared-but-uninterpretable → loud error, never a guess.
 
 ## 12. Risks
@@ -243,7 +243,7 @@ Existing `Track:` lines become inert text in a Markdown file. **Nothing to migra
 | ~~**I2 breaks an existing Change**~~ | ~~High~~ | **Closed by measurement.** Zero of 40 Changes here and zero of 13 in `trk-orchestrator-portal` declare a `## Requirement Source` section. No grandfather clause needed — provided the detector is heading-anchored (§4) |
 | **A strict Type rule breaks Change 0036 and four others** | **High** | **Found during design, not implementation.** `Type` is free text in practice (§1.1): `Implementation`, `Documentation / Product Architecture`, prose suffixes. I4 is therefore non-fatal |
 | **`Enrichment` has never been used** — the gate this design protects has never fired | Med | Recorded, not resolved. It means the Enrichment gate is **unvalidated in production**, so tests 6–8 are the only evidence it works. Do not treat "preserved" as "proven" |
-| Track becomes a second mandatory question | Med | The CLI writes Type; the user is asked once (§2) |
+| Depth becomes a second mandatory question | Med | The CLI writes Type; the user is asked once (§2) |
 | Unknown-token errors annoy on legacy files | Med | I3/I4 fire only on a **declared** token, never on absence |
-| Derivation grows into "Track configures gates" | **High** | Design rule: **a declared Type always wins**. Track never touches a gate |
-| Prompt bloat if Track is injected later | Low | Not injected (§6) |
+| Derivation grows into "Depth configures gates" | **High** | Design rule: **a declared Type always wins**. Depth never touches a gate |
+| Prompt bloat if Depth is injected later | Low | Not injected (§6) |

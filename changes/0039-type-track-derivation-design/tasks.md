@@ -2,9 +2,9 @@
 
 ## Design
 
-- [x] Define Track and Type as distinct dimensions with distinct audiences.
+- [x] Define Depth and Type as distinct dimensions with distinct audiences.
 - [x] Define the derivation and the resolution order.
-- [x] Resolve "one question" (human declares Track; CLI writes Type).
+- [x] Resolve "one question" (human declares Depth; CLI writes Type).
 - [x] Valid-combination table, including both legacy populations.
 - [x] Invalid cases, each protecting a gate or a parser.
 - [x] Impact: `changeType()`, prompt composition, Enrichment gates.
@@ -32,9 +32,24 @@
 
 ## Human gates
 
-- [ ] (human) Approve or amend the design.
-- [ ] (human) Confirm I4 stays non-fatal.
-- [ ] (review) Independent review before implementation.
+- [x] (human) Approve or amend the design. **Approved, as amended, 2026-09-01**: renamed "Track" →
+      **Depth** throughout this Change (`change.md`, `spec.md`, `design.md`, `tasks.md`) before
+      approval — the Workflow Engine (ADR-016 onward, shipped after this design was drafted)
+      independently claimed `manifest.track` (`lite`/`standard`/`governed`) for stage/gate
+      progression, a different purpose than this design's own concept (`Basic`/`Standard`/
+      `Migration`, deriving `## Type`). Same word, two unrelated concepts, overlapping vocabulary
+      (`Standard` in both) — flagged and fixed before sign-off, not shipped as a collision. The
+      rest of the design (derivation table, resolution order, invalid cases) is approved unchanged.
+- [x] (human) Confirm I4 stays non-fatal. **Confirmed 2026-09-01**, re-validated against the
+      current corpus (not just the design's original 2026-07-17 numbers): `for f in changes/*/change.md;
+      do sed -n '/^## Type/,+2p' "$f" | sed -n '3p'; done | sort | uniq -c` shows **~10 non-standard
+      Type tokens today** (incl. 3× `Implementation`, one of them Change 0036) across a ~94-Change
+      corpus — up from the 5-of-40 the design originally cited. A strict "unknown Type ⇒ error"
+      rule would break twice as many real, already-closed Changes today as when this was designed.
+      I4 stays non-fatal.
+- [ ] (review) Independent review before implementation. **Still pending** — deliberately left
+      open, same discipline as Change 0042's pilot review: needs a human not the author of this
+      rename/approval. This Change stays open until that review happens.
 
 ## Deferred
 
