@@ -89,6 +89,6 @@
 ## 6. Repository preparation (identical guarantees for all)
 
 - The target repos are prepared **once**, snapshotted, and restored byte-for-byte between sessions.
-- Each has AIEF already adopted, so the test is *using* AIEF, not installing it — **except** one variant of Scenario A that starts un-adopted, to measure the adopt step itself (assign only if a 5th scored session is available).
+- Each has AIEF already adopted, so the test is *using* AIEF, not installing it. **The un-adopted variant (measuring the adopt/install step itself) has no slot in this 5-participant cohort:** §5's assignment table already commits all five scored sessions (P1–P5) to specific experience levels and scenarios, with no unassigned "5th session" left over, as an earlier draft assumed. Running it would mean either adding a 6th scored participant or replacing one of P1–P3's adopted Scenario-A runs — both are scope decisions for the project owner, not resolved here. **Deferred to a future cohort**, the same way §5 already defers inverting the B/C weighting.
 - TASK.md contains **zero** AIEF vocabulary. A reviewer who is a fresh user checks each TASK.md for leaked jargon before the study.
 - No AIEF cheat-sheet, README shortcut, or pinned command exists in the repo beyond what a real adopted project has.

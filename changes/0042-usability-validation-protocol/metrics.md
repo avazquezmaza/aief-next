@@ -20,6 +20,8 @@
 
 `M-T3` is the headline: it is the 15-minute criterion made measurable. For B and C, `M-T3` is reported without a target (those tasks are not the 15-minute claim).
 
+**M-T2 has no dedicated hypothesis.** It is a diagnostic, reported alongside M-T3 to localize *where* time goes (before vs. after the first `verify`) when M-T3/H8 misses its target — not an independently confirmed/refuted claim of its own.
+
 **M-IDLE is the purest discoverability number.** Time lost to *not knowing the next step* — distinct from time spent thinking, reading, or doing the work — is exactly what the main flow is supposed to eliminate. A high M-IDLE with a low error count means the participant wasn't wrong, just lost. Idle spells are not interrupted before the hard-block threshold ([protocol.md §6](protocol.md)); the idle is the measurement.
 
 ## Count metrics (per session)

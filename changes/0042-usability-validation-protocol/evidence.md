@@ -123,6 +123,49 @@ yet the `(review)` gate itself: the gate clears only when Mandi reads the seven 
 (protocol.md, scenarios.md, metrics.md, observation-sheet.md, consolidation.md, hypotheses.md,
 moderator.md) and confirms, in their own words, that the protocol is runnable as written.
 
+## Independent review found 3 real ambiguities (2026-09-01)
+
+Mandi Orange read all seven deliverables and reported the protocol is **well-built and
+consistent** overall, but found three real, consistency-class (not design-class) ambiguities a
+moderator would hit running it, plus two cosmetic gaps. Fixed here, in the deliverables
+themselves — this is instrument maintenance, not a redesign, and does not touch AIEF's product
+surface (ADR-015's freeze is unaffected):
+
+1. **Contradictory participant numbering.** `protocol.md`, `observation-sheet.md` both said
+   pseudonyms run "P0–P4"; `scenarios.md`/`consolidation.md` already used P0 (pilot) + P1–P5
+   (scored) — the correct, current numbering per the 2026-07-17 extension to ≥5 scored
+   participants. Fixed both stragglers to match.
+2. **Stale "n=4" / mis-scoped H8.** `hypotheses.md` (twice) and `consolidation.md` §9 still said
+   "n=4" from before the same-day extension to 5 scored participants — fixed to n=5. **H8**
+   additionally said "≥3 of 4 scored participants (Scenario A)," but Scenario A is only run by
+   three participants (P1–P3, per `scenarios.md` §5) — fixed to "3 of 3," naming which
+   participants explicitly rather than repeating a bare denominator. **Second pass (same day):**
+   Mandi caught one more spot the first pass missed — `consolidation.md` §6's Problem ledger
+   table still had "/4" as the Sessions-affected denominator in all three example rows (a bare
+   `/4`, not the string "n=4", so the first pass's grep didn't catch it). Fixed to "/5".
+3. **The non-adopted Scenario-A variant has no slot.** `scenarios.md` §6 promised it "if a 5th
+   scored session is available," but §5's assignment table already commits all five scored slots
+   (P1–P5) to specific experience levels and scenarios — there never was a spare 5th session.
+   **Not silently resolved**: assigning it would mean either a 6th scored participant or replacing
+   one of P1–P3's adopted-repo runs, both scope decisions for the project owner. Recorded as
+   deferred to a future cohort, the same way §5 already defers inverting the B/C weighting.
+
+Two cosmetic gaps, also fixed:
+
+- **M-T2** (`metrics.md`) had a target (< 12 min) but no hypothesis anywhere. Added a note: it is
+  a diagnostic for M-T3/H8, not an independently tested claim of its own.
+- **`spec.md`** said "eleven required metrics"; `metrics.md` actually defines twenty (verified by
+  counting every `**M-...**` id). Fixed to the correct count.
+
+**Not changed:** the historical "n=4"/"eleven+" mentions in this evidence.md's own Findings/Risks/
+Activities sections above, dated 2026-07-09–17 — they describe that day's iteration honestly and
+predate the same-day extension explained lower in this same document; rewriting them would blur
+what was true when written.
+
+**The `(review)` gate is not yet cleared.** These were genuine findings, which is exactly what the
+gate exists to catch — it is not "runnable as written" until Mandi confirms the *corrected*
+version. Re-review of this diff is the next step, not a formality.
+
 ## Next Change
 
 **None proposed.** This Change delivers the instrument only.

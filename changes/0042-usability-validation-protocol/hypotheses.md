@@ -62,7 +62,7 @@
 
 ### H8 — A correct close happens in under 15 minutes
 
-- **Confirmed if:** ≥ 3 of 4 scored participants (Scenario A) reach a correct close within 15 min, main flow only.
+- **Confirmed if:** ≥ 3 of 3 scored participants running Scenario A (P1–P3 — the only participants assigned it, [scenarios.md §5](scenarios.md)) reach a correct close within 15 min, main flow only.
 - **Refuted if:** the majority exceed 15 min or fail to close correctly.
 - **Source:** **the success criterion of AIEF 2.0 itself.**
 - **If refuted:** AIEF 2.0's stated goal is unmet at the current design — the headline result, whichever way it falls.
@@ -93,4 +93,4 @@ This hypothesis reframes documentation from a help to a **symptom**: every time 
 
 ## What a "good" result looks like
 
-Not "all confirmed." A study where every hypothesis is confirmed on n=4 is more likely a rigged setup than a great product. **A good result is a clear, evidenced split** — the confirmed claims tell the redesign what to keep; the refuted ones, with their problem classes, tell it where to look. The failure mode to avoid is *inconclusive*: vague timings, unlogged hints, unclassified problems. The protocol's rigor exists to make each hypothesis land on confirmed or refuted, not in between.
+Not "all confirmed." A study where every hypothesis is confirmed on n=5 is more likely a rigged setup than a great product. **A good result is a clear, evidenced split** — the confirmed claims tell the redesign what to keep; the refuted ones, with their problem classes, tell it where to look. The failure mode to avoid is *inconclusive*: vague timings, unlogged hints, unclassified problems. The protocol's rigor exists to make each hypothesis land on confirmed or refuted, not in between.

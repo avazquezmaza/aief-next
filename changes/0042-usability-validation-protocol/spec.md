@@ -31,7 +31,7 @@ A ready-to-run protocol that produces objective evidence about whether a fresh d
 - [x] Received / may-consult / must-discover / must-decide all specified (protocol §4–6).
 - [x] Main-flow abandonment is defined and has a metric (M-ABANDON) and a hint ladder (protocol §6).
 - [x] Concepts-needed vs concepts-never-used are metrics (M-CON-USED / M-CON-UNUSED) with an inventory.
-- [x] All eleven required metrics defined with method and, where applicable, target (metrics.md).
+- [x] All twenty required metrics defined with method and, where applicable, target (metrics.md).
 - [x] Per-session observation sheet exists and is copy-per-participant (observation-sheet.md).
 - [x] Cross-session consolidation format exists (consolidation.md).
 - [x] The seven-class problem taxonomy is applied, with a one-primary-class rule (metrics.md, observation-sheet.md).

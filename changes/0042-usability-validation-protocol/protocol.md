@@ -89,7 +89,7 @@ Three scenarios (bug / feature / migration) are **not** all run by every partici
 - Screen recording + audio (think-aloud) + the moderator's live observation sheet.
 - The **final state of the repo** (their Changes, evidence, whatever they produced) is captured as an artifact per session.
 - Terminal history is saved (which commands they actually typed — ground truth for M-CMD).
-- Data is pseudonymous (P0–P4). No participant is named in the consolidation.
+- Data is pseudonymous (P0 pilot, P1–P5 scored). No participant is named in the consolidation.
 
 ## 9. Ethics and validity guards
 

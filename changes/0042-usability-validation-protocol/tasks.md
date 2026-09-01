@@ -60,9 +60,10 @@
       observation-sheet.md, consolidation.md, hypotheses.md, moderator.md), unchanged.
 - [ ] (review) An independent moderator confirms the protocol is runnable as written.
       **Moderator designated 2026-09-01: Mandi Orange** (moderator.md §0) — independence
-      criteria confirmed by the project owner. Still pending: Mandi's own confirmation, after
-      reading all seven deliverables, that the protocol is runnable as written. Designation
-      alone does not clear this gate.
+      criteria confirmed by the project owner. **First-pass review completed 2026-09-01**:
+      found 3 real consistency ambiguities + 2 cosmetic gaps (see evidence.md's "Independent
+      review found 3 real ambiguities") — all fixed in this same commit. Still pending: Mandi's
+      confirmation on the *corrected* version. Gate stays unchecked until that re-confirmation.
 
 ## Deferred (next stage, not this Change)
 

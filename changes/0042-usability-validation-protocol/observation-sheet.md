@@ -1,6 +1,6 @@
 # Deliverable 4 — Observation sheet (per session)
 
-> One copy per participant. The moderator fills it **live** during the session and completes it in the debrief. Pseudonym only (P0–P4). Copy the whole file for each run.
+> One copy per participant. The moderator fills it **live** during the session and completes it in the debrief. Pseudonym only (P0 pilot, P1–P5 scored). Copy the whole file for each run.
 
 ---
 

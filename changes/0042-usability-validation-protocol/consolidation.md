@@ -106,9 +106,9 @@ CLOSE     [   ]
 
 | # | Problem (what the participant experienced) | Primary class | Sessions affected | Severity (blocked / slowed / annoyed) | Evidence (session + timestamp) |
 |---|---|---|---|---|---|
-| 1 | | | /4 | | |
-| 2 | | | /4 | | |
-| 3 | | | /4 | | |
+| 1 | | | /5 | | |
+| 2 | | | /5 | | |
+| 3 | | | /5 | | |
 | … | | | | | |
 
 **Class tally:**
@@ -160,7 +160,7 @@ CLOSE     [   ]
 
 ## 9. Threats to validity (stated honestly)
 
-- n = 4 scored sessions. Small. Systematic problems surface; rates are indicative, not precise.
+- n = 5 scored sessions (+ 1 discarded pilot). Small. Systematic problems surface; rates are indicative, not precise.
 - Think-aloud slows timings; treat absolute minutes as generous, comparisons as sound.
 - Scenario mix is bug-heavy by design; B and C are n=1 probes.
 - Moderator/author independence: note whether the moderator was independent of the protocol author.
