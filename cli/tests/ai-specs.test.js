@@ -274,6 +274,20 @@ test("resolveSkillRecommendations: a project-only skill is added, tagged as proj
   assert.equal(added.path, path.join(cwd, "ai-specs", "skills", "pair-programming.md"));
 });
 
+// Change 0107: a folder skill's `because` must name the real discovered
+// "<id>/SKILL.md" path, not a fabricated flat "<id>.md" one that doesn't
+// exist on disk — it used to claim the latter while `path` (right below it)
+// already reported the former, a contradiction visible in `doctor --verbose`.
+test("resolveSkillRecommendations: a folder skill's because names the real <id>/SKILL.md path, not a fabricated <id>.md", () => {
+  const cwd = tempCwd();
+  writeFile(path.join(cwd, "ai-specs", "skills", "adversarial-review", "SKILL.md"), "# Adversarial Review\n\nReview independently.");
+  const { items } = resolveSkillRecommendations([], cwd);
+  const added = items.find((i) => i.id === "adversarial-review");
+  assert.equal(added.source, "project");
+  assert.deepEqual(added.because, ["ai-specs/skills/adversarial-review/SKILL.md present in project"]);
+  assert.equal(added.path, path.join(cwd, "ai-specs", "skills", "adversarial-review", "SKILL.md"));
+});
+
 test("resolveSkillRecommendations: a project skill overrides a matching built-in id", () => {
   const cwd = tempCwd();
   writeFile(path.join(cwd, "ai-specs", "skills", "code-review.md"), "# Team Code Review\n\nOur own checklist.");
