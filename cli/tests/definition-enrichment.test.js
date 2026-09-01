@@ -71,6 +71,24 @@ test("(human) marks an item as requiring human approval, reusing the existing co
   assert.equal(result.humanApprovalRequired.length, 1);
 });
 
+// Change 0107: "*" and "+" are valid CommonMark unordered-list bullets too —
+// change.js's countOpenTasks() already accepts all three for tasks.md
+// (Change 0075); this module previously only recognized "-", silently
+// dropping any marker on a "*"/"+" line.
+test("(decision required) marks an item the same way with a '*' bullet as with '-'", () => {
+  const md = scaffold({ "Decisions Required": "* Multi-tenancy model: shared schema vs. schema-per-tenant. (decision required)" });
+  const result = analyzeDefinitionSections(md);
+  assert.equal(result.decisionRequired.length, 1);
+  assert.match(result.decisionRequired[0], /Multi-tenancy model/);
+});
+
+test("(human) marks an item the same way with a '+' bullet as with '-'", () => {
+  const md = scaffold({ "Recommendation": "+ Adopt schema-per-tenant for stronger isolation. (human)" });
+  const result = analyzeDefinitionSections(md);
+  assert.equal(result.humanApprovalRequired.length, 1);
+  assert.match(result.humanApprovalRequired[0], /schema-per-tenant/);
+});
+
 test("markers never invent a category from prose alone — an unmarked line is not classified", () => {
   const md = scaffold({ "Open Questions": "- This question might be ambiguous but was not marked." });
   const result = analyzeDefinitionSections(md);

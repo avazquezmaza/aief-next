@@ -188,7 +188,7 @@ an issue before major changes ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Status
 
-AIEF 3.2 is implemented and validated on real projects: Change management, prompt composition,
+AIEF 3.3 is implemented and validated on real projects: Change management, prompt composition,
 structural and requirement verification, staged Workflow tracks, opt-in Harness/Hooks visibility,
 Loop retry tracking, the Change dependency Graph, Smart Workflow's `status --next`, and
 pre-implementation Definition governance (project maturity detection, Definition Changes, human

@@ -197,10 +197,21 @@ function resolveResourceRecommendations(builtins, projectResources, resourceDirL
         overridesBuiltin: false
       };
     }
+    // Change 0107: `because` must name the file actually discovered, not
+    // assume the flat "<id>.md" convention — discoverResourceDir() also
+    // supports "<id>/SKILL.md" (folder skills, the real LIDR/specboot
+    // layout), and a folder resource's `because` used to claim a flat
+    // "<id>.md" path that does not exist on disk, contradicting the correct
+    // `path` field returned right below it. Both conventions only ever
+    // differ in their basename ("<id>.md" vs "SKILL.md"), so deriving the
+    // suffix from the actual discovered path's basename covers both without
+    // needing `cwd` here to compute a full relative path.
+    const baseName = path.basename(entry.value.path || "");
+    const suffix = baseName.toLowerCase() === "skill.md" ? `${entry.id}/${baseName}` : baseName || `${entry.id}.md`;
     return {
       id: entry.id,
       description: deriveResourceDescription(entry.value.content),
-      because: [`ai-specs/${resourceDirLabel}/${entry.id}.md present in project`],
+      because: [`ai-specs/${resourceDirLabel}/${suffix} present in project`],
       source: "project",
       path: entry.value.path,
       overridesBuiltin: builtinIds.has(entry.id)
