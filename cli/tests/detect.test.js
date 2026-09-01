@@ -239,3 +239,45 @@ test("docker and kubernetes both recommend the container-deployment-reviewer ski
   const k8sSkills = recommendSkills(detectProject(k8sOnly));
   assert.ok(k8sSkills.some((s) => s.id === "container-deployment-reviewer"));
 });
+
+// --- Change 0100: specialize the python detector into django/flask/fastapi ---
+
+test("manage.py is a strong signal for django", () => {
+  const dir = makeProject({ "manage.py": "#!/usr/bin/env python\n" });
+  const project = detectProject(dir);
+  const django = project.signals.find((s) => s.id === "django");
+  assert.ok(django, "django signal expected");
+  assert.equal(django.signal, "strong");
+  assert.match(django.reasons[0], /manage\.py/);
+});
+
+test("flask and fastapi are weak, keyword-in-requirements.txt signals", () => {
+  const dir = makeProject({ "requirements.txt": "flask==3.0.0\nfastapi==0.109.0\n" });
+  const project = detectProject(dir);
+  const flask = project.signals.find((s) => s.id === "flask");
+  const fastapi = project.signals.find((s) => s.id === "fastapi");
+  assert.ok(flask && fastapi, "flask and fastapi signals expected");
+  assert.equal(flask.signal, "weak");
+  assert.equal(fastapi.signal, "weak");
+});
+
+test("a plain Python project with no framework does not trigger django/flask/fastapi", () => {
+  const dir = makeProject({ "requirements.txt": "requests==2.31.0\n" });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  assert.ok(ids.includes("python"));
+  for (const id of ["django", "flask", "fastapi"]) assert.ok(!ids.includes(id));
+});
+
+test("django, flask and fastapi each recommend python-backend-architecture", () => {
+  for (const [files, expectStrong] of [
+    [{ "manage.py": "" }, true],
+    [{ "requirements.txt": "flask==3.0.0\n" }, false],
+    [{ "pyproject.toml": "fastapi = \"^0.109\"\n" }, false]
+  ]) {
+    const dir = makeProject(files);
+    const skills = recommendSkills(detectProject(dir));
+    const match = skills.find((s) => s.id === "python-backend-architecture");
+    assert.ok(match, `expected python-backend-architecture for ${JSON.stringify(files)}`);
+    assert.equal(match.confidence, expectStrong ? "strong" : "weak");
+  }
+});

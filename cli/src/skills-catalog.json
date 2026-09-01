@@ -96,6 +96,28 @@
       "files": ["requirements.txt", "pyproject.toml", "Pipfile", "manage.py"]
     },
     {
+      "id": "django",
+      "description": "Django web framework",
+      "signal": "strong",
+      "files": ["manage.py"],
+      "keywords": ["django"],
+      "searchFiles": ["requirements.txt", "pyproject.toml"]
+    },
+    {
+      "id": "flask",
+      "description": "Flask web framework",
+      "signal": "weak",
+      "keywords": ["flask"],
+      "searchFiles": ["requirements.txt", "pyproject.toml"]
+    },
+    {
+      "id": "fastapi",
+      "description": "FastAPI web framework",
+      "signal": "weak",
+      "keywords": ["fastapi"],
+      "searchFiles": ["requirements.txt", "pyproject.toml"]
+    },
+    {
       "id": "go",
       "description": "Go application",
       "signal": "strong",
@@ -288,6 +310,17 @@
       "promptContext": "Build architecture/dependency understanding with a hybrid rule: if GEMINI_API_KEY is available to you, use the Graphify Skill to produce the enriched semantic graph; if it is not, read the codebase statically (imports, module boundaries, call sites) to build the same understanding offline, at $0. Either way, persist findings under graphify-out/ (already gitignored — never a hidden .aief/ directory, ADR-009) and summarize the result in knowledge/architecture-graph.md.",
       "commonRisks": ["treating the static fallback as lower-confidence without saying so in evidence", "AIEF's own CLI never calls Gemini or holds the API key — that stays entirely on the assistant side"],
       "evidenceExpectations": "Evidence should state which mode was used (semantic or static) and where the resulting summary was written."
+    },
+    {
+      "id": "python-backend-architecture",
+      "name": "Python Backend Architecture",
+      "description": "Django/Flask/FastAPI: input validation at the boundary, async/blocking-call safety, settings and secret hygiene.",
+      "when": ["django", "flask", "fastapi"],
+      "whenToUse": "Changes that add or modify routes/views, models, background tasks, or settings in a Django, Flask or FastAPI project.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "Validate all external input at the boundary (serializers/schemas, not raw request dicts), never run blocking synchronous I/O inside an async handler (FastAPI's async def, Django's async views), and keep secrets and DEBUG flags out of settings.py/config — read them from the environment.",
+      "commonRisks": ["raw SQL string interpolation instead of the ORM or parameterized queries", "DEBUG=True or a hardcoded SECRET_KEY reaching a production settings file", "blocking synchronous I/O (a sync DB driver, requests.get) inside an async endpoint, stalling the event loop for every other request"],
+      "evidenceExpectations": "Evidence should state how the affected routes/views were exercised and confirm DEBUG/secret settings were not touched or exposed."
     },
     {
       "id": "payments-reviewer",
