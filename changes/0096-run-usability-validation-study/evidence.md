@@ -1,8 +1,45 @@
 # Evidence
 
-> **Partial evidence — pilot + P1 complete, P2–P5 and consolidation pending.** The assistant-doable
-> block, the pilot (P0), and P1 are done. P2–P5 and the consolidation remain `(human)` work not
-> yet done.
+> **Partial evidence — pilot + P1 + P2 complete, P3–P5 and consolidation pending.** The
+> assistant-doable block, the pilot (P0), P1, and P2 are done. P3–P5 and the consolidation remain
+> `(human)` work not yet done.
+
+## P2 results (mid, Scenario A)
+
+Run 2026-09-01, restored via the canonical recipe into `/tmp/sesion-p2`. Recorded in
+`consolidation.md` (§1 Sessions summary, §7b Q7 table).
+
+**Metrics reported by the moderator** (phase breakdown, not checkpoint-based — see
+`consolidation.md`'s note² for why M-T1/M-T2 are recorded as not-reported rather than forced):
+
+| Phase | Duration |
+|---|---|
+| Diagnóstico (read `TASK.md`, ran `npm test`, found the bug) | 0:30 |
+| Implementación (SQL fix + own extra test) | 1:30 |
+| Verificación y AIEF (tests, `evidence.md`, `aief verify`, close) | 1:45 |
+| **Total (M-T3)** | **3:45** |
+
+M-HINT: 0. Reached a correct close.
+
+**Independently re-verified (not just transcribed):**
+- Diffed the final `src/app.ts` against the pristine fixture: same `WHERE tenant_id = ?`,
+  parameterized fix shape as P0 and P1.
+- The participant added his own test (`GET /executions for non-existent tenant returns empty
+  array`) — self-initiated, not required by the fixture's own suite.
+- Re-ran `npm test` myself: **3/3 green**. Ran `npm run build`: succeeds (participant's own
+  reported check, confirmed).
+- Confirmed on disk: `changes/0002-filter-executions-by-tenant/` created and `## Status / Closed`;
+  `changes/0001-adopt-aief/` also closed. `aief verify`: PASS, "no open Change".
+
+**Notable, compared to P1:** the same pre-existing `0001-adopt-aief` (2 unchecked tasks by
+default, confirmed present in every fresh restore of this fixture — not something P1's session
+caused) did **not** produce a reported blocked-close friction here. One data point is not enough
+to call this inconsistent or resolved; it means the same starting condition doesn't guarantee the
+same friction for every participant — exactly the kind of experience-level/individual variation
+`consolidation.md` §1b exists to segment, once all five sessions are in.
+
+**Q7 (verbatim, confirmed):** *"Sería genial que `aief new-change` pudiera inferir o autocompletar
+parte del `spec.md` directo desde el test que está fallando para escribir aún menos boilerplate."*
 
 ## P1 results (junior, Scenario A)
 

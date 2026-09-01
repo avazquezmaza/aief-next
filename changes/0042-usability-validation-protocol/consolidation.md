@@ -10,16 +10,16 @@
 |---|---|---|---|---|---|---|
 | Experience | junior | mid | senior | mid | senior | — |
 | Scenario | A | A | A | B | C | — |
-| M-T1 first Change | 09:22 | | | | | |
-| M-T2 first verify | 12:00 | | | | | |
-| M-T3 correct close | 12:10 | | | | | |
-| **M-IDLE total idle** | ~05:30 | | | | | |
-| Reached correct close? | Yes | | | | | |
-| M-DOCS opened | 8 (see note¹) | | | | | |
-| M-DEC decisions | not reported | | | | | |
-| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | | | | | |
-| M-ABANDON count | 0 | | | | | |
-| M-HINT rungs (max) | 0 | | | | | |
+| M-T1 first Change | 09:22 | not reported (see note²) | | | | |
+| M-T2 first verify | 12:00 | not reported (see note²) | | | | |
+| M-T3 correct close | 12:10 | 03:45 | | | | |
+| **M-IDLE total idle** | ~05:30 | not reported | | | | |
+| Reached correct close? | Yes | Yes | | | | |
+| M-DOCS opened | 8 (see note¹) | not reported | | | | |
+| M-DEC decisions | not reported | not reported | | | | |
+| M-ERR errors | 1 (blocked `aief close` on `0001-adopt-aief`, unchecked tasks) | not reported | | | | |
+| M-ABANDON count | 0 | 0 | | | | |
+| M-HINT rungs (max) | 0 | 0 | | | | |
 
 *(P0 pilot excluded from all aggregates. Five scored sessions, experience-spread per [protocol.md §2](protocol.md).)*
 
@@ -29,6 +29,12 @@
 "doc/README/help files only" definition (the two source files in that list are code, not docs).
 Recorded as reported; the median row should be computed once all five sessions use a
 consistently-scoped count.
+
+² P2's moderator report gave a 3-phase breakdown (Diagnóstico 0:30, Implementación 1:30,
+Verificación y AIEF 1:45 = 3:45 total) rather than the checkpoint-based M-T1/M-T2 the metric
+definitions call for (time to first Change existing on disk; time to first `verify`) — recorded
+as `not reported` rather than forced into checkpoints that weren't actually measured that way.
+Only the total (mapped to M-T3, the headline metric) is reported with confidence.
 
 ## 1b. By experience level
 
@@ -153,7 +159,7 @@ CLOSE     [   ]
 | Participant | Experience | Verbatim answer | Implied friction | Primary class |
 |---|---|---|---|---|
 | P1 | junior | **(not verbatim — moderator's paraphrase, flagged, not recorded as the participant's own words):** "indicate in the `aief close` error message the exact path of the checklist blocking it" | Error message doesn't name where to look (discoverability) | discoverability |
-| P2 | mid | | | |
+| P2 | mid | (verbatim, confirmed) "Sería genial que `aief new-change` pudiera inferir o autocompletar parte del `spec.md` directo desde el test que está fallando para escribir aún menos boilerplate." | Manual spec/boilerplate writing when a failing test already implies the fix | missing automation |
 | P3 | senior | | | |
 | P4 | mid | | | |
 | P5 | senior | | | |
