@@ -77,3 +77,7 @@ causes (a tooling failure, a scheduling change, a disqualified participant).
   hypothesis in `hypotheses.md` marked confirmed / refuted / inconclusive, evidence-backed.
 - No real participant name appears in any file this Change writes.
 - No AIEF product surface (commands, templates, docs, Type/Track) is touched.
+
+## Status
+
+Closed (2026-09-01)
