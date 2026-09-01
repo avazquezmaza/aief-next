@@ -96,11 +96,13 @@ Every shipped Skill is instructions-only: it hands the assistant guidance to fol
 writes a file, runs a command, or calls the network on its own — following the instructions is not
 by itself evidence the described work happened.
 
-Four Skills ship this release: `change-context`, `requirements-analysis-instructions`, and two
-expert Definition Skills, `architecture-definition` (Change 0091) and `data-definition` (Change
-0094) — validated together as a domain-coexistence pilot, not a framework. Each applies only to a
-Definition Change (`## Type: Definition`) whose own content carries its own domain-relevant
-signal — `architecture-definition`: authentication, tenancy, integration, persistence,
+Five Skills ship this release: `change-context` (Change composition context for any assistant),
+`requirements-analysis-instructions`, `adversarial-review` (instructions for an independent,
+failure-hunting review before a Change is closed), and two expert Definition Skills,
+`architecture-definition` (Change 0091) and `data-definition` (Change 0094) — the last two
+validated together as a domain-coexistence pilot, not a framework. Each of the two Definition
+Skills applies only to a Definition Change (`## Type: Definition`) whose own content carries its
+own domain-relevant signal — `architecture-definition`: authentication, tenancy, integration, persistence,
 availability, scalability, ...; `data-definition`: PII, personal/sensitive/customer data,
 retention, residency, classification, deletion, archival, ... (deliberately excluding bare
 "data"/"database"/"schema"/"storage", which would collide with `architecture-definition`'s own
