@@ -33,3 +33,7 @@ Improve the initial AIEF repository experience so a new user can understand and 
 - A new user can create a Change using the templates.
 - AI assistants have clear universal rules.
 - Claude, Gemini, Codex, and Cursor have adapter files.
+
+## Status
+
+Closed (2026-09-01)

@@ -29,3 +29,7 @@ Add a lightweight OpenSpec adapter that explains how AIEF Changes map to OpenSpe
 - Users understand that OpenSpec is optional.
 - Users can map an AIEF Change to OpenSpec files.
 - Users can use AIEF alone or with OpenSpec.
+
+## Status
+
+Closed (2026-09-01)

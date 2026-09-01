@@ -10,3 +10,7 @@ Align the roadmap around validation before adding new features.
 - Document the next roadmap.
 - Prioritize README 2.0, CLI v2 and first public release.
 - Define validation on an existing project.
+
+## Status
+
+Closed (2026-09-01)

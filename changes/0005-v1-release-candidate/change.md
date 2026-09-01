@@ -31,3 +31,7 @@ Complete the AIEF v1 MVP by adding agent profiles, Specboot adapter, practical d
 - AIEF v1 has enough structure to be usable.
 - Users can understand how to start, how to use roles, and how to align with Specboot.
 - The repository has basic open-source project files.
+
+## Status
+
+Closed (2026-09-01)

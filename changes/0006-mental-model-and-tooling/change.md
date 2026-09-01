@@ -14,3 +14,7 @@ Improve the developer experience by documenting the AIEF mental model and how AI
 Out of scope:
 - CLI
 - New adapters
+
+## Status
+
+Closed (2026-09-01)

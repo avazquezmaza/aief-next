@@ -30,3 +30,7 @@ Improve the CLI experience for adopting AIEF in existing projects by making comm
 - Interactive prompts.
 - Full OpenSpec API integration.
 - GitHub release automation.
+
+## Status
+
+Closed (2026-09-01)

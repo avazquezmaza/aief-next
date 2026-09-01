@@ -24,3 +24,7 @@ Clean up the repository before the first public release.
 - CLI redesign.
 - New adapters.
 - README rewrite.
+
+## Status
+
+Closed (2026-09-01)

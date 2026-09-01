@@ -24,3 +24,7 @@ Add AIEF Navigator: a guided entry point that helps users decide what to read, w
 - Automated installer.
 - Website generation.
 - Changes to current templates.
+
+## Status
+
+Closed (2026-09-01)
