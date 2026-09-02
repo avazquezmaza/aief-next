@@ -64,3 +64,7 @@ repository's own workflow end to end.
 - The Skill still never self-approves opening a Change: creating one stays a human decision.
 - `npm test` and `node cli/bin/aief.js verify --change 0113-skill-no-open-change-path --strict`
   both pass; `git diff --check` is clean.
+
+## Status
+
+Closed (2026-09-02)
