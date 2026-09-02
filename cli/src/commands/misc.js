@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { slugify, writeFile } from "./shared.js";
+import { assistantIds } from "../core/domain/assistant-resolver.js";
 
 const COMMAND_HELP = {
   doctor: {
@@ -136,7 +137,7 @@ function printCommandHelp(command) {
 }
 export function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [claude|gemini|codex|cursor] [--profile architect] [--change change-id]
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [${assistantIds().join("|")}] [--profile architect] [--change change-id]
               (long form: --assistant gemini; no name given: resolves automatically)
               (aief prompt --set-assistant <name> | --show-assistant | --clear-assistant)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }

@@ -399,14 +399,37 @@ test("prompt separates project evidence from AIEF feedback and clarifies tasks o
   assert.match(out, /complete or amend/);
 });
 
-test("prompt accepts the assistant as a positional argument for all four assistants", () => {
-  const dir = makeProject({ "CLAUDE.md": "#c", "GEMINI.md": "#g", "CODEX.md": "#x", "CURSOR.md": "#u" });
+test("prompt accepts the assistant as a positional argument for all five assistants", () => {
+  const dir = makeProject({ "CLAUDE.md": "#c", "GEMINI.md": "#g", "CODEX.md": "#x", "CURSOR.md": "#u", ".kiro/skills/aief-change/SKILL.md": "---\nname: aief-change\n---\n" });
   aief(dir, ["new-change", "thing"]);
-  for (const [name, file] of [["gemini", "GEMINI.md"], ["claude", "CLAUDE.md"], ["codex", "CODEX.md"], ["cursor", "CURSOR.md"]]) {
+  for (const [name, file] of [["gemini", "GEMINI.md"], ["claude", "CLAUDE.md"], ["codex", "CODEX.md"], ["cursor", "CURSOR.md"], ["kiro", ".kiro/skills/aief-change/SKILL.md"]]) {
     const r = aief(dir, ["prompt", name]);
     assert.equal(r.status, 0, `prompt ${name} must succeed`);
-    assert.match(r.out, new RegExp(`- ${file}`), `prompt ${name} must include ${file}`);
+    assert.match(r.out, new RegExp(`- ${file.replace(/[.\/]/g, "\\$&")}`), `prompt ${name} must include ${file}`);
   }
+});
+
+// Change 0112: prompt.js previously fell back to CLAUDE.md whenever the
+// resolved/requested assistant had no native file of its own and CLAUDE.md
+// happened to exist — real, reproducible behavior that docs/cli.md never
+// actually documented (it claimed "falls back to AGENTS.md-only"). Fixed for
+// every assistant, not only Kiro, since Kiro would otherwise inherit it.
+test("prompt never substitutes CLAUDE.md for another assistant's missing native file", () => {
+  const dir = makeProject({ "CLAUDE.md": "# Claude rules" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt", "gemini"]);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.out, /- CLAUDE\.md/);
+  assert.match(r.out, /Note: GEMINI\.md not found in this project; using the generic, AGENTS\.md-only prompt instead\./);
+});
+
+test("prompt kiro succeeds even without .kiro/skills/aief-change/SKILL.md present, with no CLAUDE.md fallback", () => {
+  const dir = makeProject({ "CLAUDE.md": "# Claude rules" });
+  aief(dir, ["new-change", "thing"]);
+  const r = aief(dir, ["prompt", "kiro"]);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.out, /- CLAUDE\.md/);
+  assert.doesNotMatch(r.out, /- \.kiro\/skills/);
 });
 
 test("--assistant wins over the positional argument", () => {
