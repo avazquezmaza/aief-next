@@ -154,6 +154,7 @@ read first, generated identically regardless of which assistant (if any) you nam
 | Gemini CLI | Native target | `aief prompt gemini` |
 | Codex CLI | Native target | `aief prompt codex` |
 | Cursor | Native target | `aief prompt cursor` |
+| Kiro | Native target | `aief prompt kiro` |
 | OpenCode | Generic prompt compatible | `aief prompt` |
 | Other prompt-driven assistants | Generic prompt compatible | `aief prompt` |
 

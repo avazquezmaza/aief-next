@@ -97,12 +97,14 @@ an unknown or ambiguous selector is a loud, actionable error, never "last match 
 
 ## Assistants
 
-`aief prompt [claude|gemini|codex|cursor]` (positional) or `aief prompt --assistant gemini` select
-which instruction file (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md`) is included; the explicit
-flag wins if both are given. An unknown assistant name (e.g. `opencode`, `chatgpt`) fails with the
-list of known ones — never a silent fallback. No assistant is required and none is treated
-specially by the engine: `AGENTS.md` is the one instruction file every prompt tells the assistant
-to read first, generated identically no matter which (if any) assistant name is passed.
+`aief prompt [claude|gemini|codex|cursor|kiro]` (positional) or `aief prompt --assistant gemini`
+select which native file is included — `CLAUDE.md`/`GEMINI.md`/`CODEX.md`/`CURSOR.md` for the
+first four, `.kiro/skills/aief-change/SKILL.md` for Kiro (a workspace Skill, not a root
+instructions file — Kiro has no equivalent of `CLAUDE.md`; it discovers `AGENTS.md` on its own).
+The explicit flag wins if both are given. An unknown assistant name (e.g. `opencode`, `chatgpt`)
+fails with the list of known ones — never a silent fallback. No assistant is required and none is
+treated specially by the engine: `AGENTS.md` is the one instruction file every prompt tells the
+assistant to read first, generated identically no matter which (if any) assistant name is passed.
 
 ### Resolving the assistant automatically (Change 0061/ADR-031)
 
@@ -145,6 +147,7 @@ Compatibility levels, verified live against a from-scratch scratch project (evid
 | Gemini CLI | Native target | `aief prompt gemini` includes the assistant file when present | `GEMINI.md` | Same fallback |
 | Codex CLI | Native target | `aief prompt codex` includes the assistant file when present | `CODEX.md` | Same fallback |
 | Cursor | Native target | `aief prompt cursor` includes the assistant file when present | `CURSOR.md` | Same fallback |
+| Kiro | Native target | `aief prompt kiro` includes the Skill file when present (Change 0112) | `.kiro/skills/aief-change/SKILL.md` | Same fallback — never `CLAUDE.md` or another assistant's file; the Skill must be added to the project first, `aief bootstrap` does not create it |
 | OpenCode | Generic prompt compatible | `opencode` is not a recognized positional value; use `aief prompt` (no assistant name) | `AGENTS.md` only | No dedicated `OPENCODE.md` adapter yet |
 | Continue, GitHub Copilot Chat, other prompt-driven assistants | Generic prompt compatible, not validated natively | Same generic `aief prompt` output, pasted manually | `AGENTS.md` only | Not exercised against these tools in this repository's evidence |
 

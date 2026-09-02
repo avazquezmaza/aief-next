@@ -10,7 +10,12 @@ function tempCwd() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "aief-assistant-resolver-"));
 }
 function writeAssistantFile(cwd, id) {
-  fs.writeFileSync(path.join(cwd, ASSISTANT_FILES[id]), "# instructions\n", "utf8");
+  // Change 0112: kiro's native file lives under .kiro/skills/aief-change/ —
+  // mkdir recursive so a nested-path assistant file works the same as a
+  // flat one, no special-casing per assistant.
+  const filePath = path.join(cwd, ASSISTANT_FILES[id]);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, "# instructions\n", "utf8");
 }
 function writeConfig(cwd, content) {
   fs.mkdirSync(path.join(cwd, "knowledge"), { recursive: true });
@@ -18,10 +23,14 @@ function writeConfig(cwd, content) {
 }
 
 test("registry: ASSISTANT_FILES is the single source of truth for known assistants", () => {
-  assert.deepEqual(assistantIds().sort(), ["claude", "codex", "cursor", "gemini"]);
+  assert.deepEqual(assistantIds().sort(), ["claude", "codex", "cursor", "gemini", "kiro"]);
   assert.equal(hasAssistant("claude"), true);
+  assert.equal(hasAssistant("kiro"), true);
   assert.equal(hasAssistant("bogus"), false);
   assert.equal(ASSISTANT_FILES.gemini, "GEMINI.md");
+  // Change 0112: Kiro has no root instruction file like the other four —
+  // its native artifact is a workspace Skill package.
+  assert.equal(ASSISTANT_FILES.kiro, ".kiro/skills/aief-change/SKILL.md");
 });
 
 test("resolveAssistant: no signal at all resolves to 'none' — the valid generic-prompt case, not an error", () => {
@@ -88,7 +97,7 @@ test("resolveAssistant: malformed knowledge/assistant.json is reported, never th
   assert.match(result.error, /not valid JSON/);
 });
 
-for (const id of ["claude", "gemini", "codex", "cursor"]) {
+for (const id of ["claude", "gemini", "codex", "cursor", "kiro"]) {
   test(`resolveAssistant: passive detection finds a single ${id.toUpperCase()} file symmetrically`, () => {
     const cwd = tempCwd();
     writeAssistantFile(cwd, id);

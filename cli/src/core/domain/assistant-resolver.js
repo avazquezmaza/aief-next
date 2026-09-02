@@ -22,7 +22,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md" };
+// Kiro (Change 0112) has no root instruction file the way Claude/Gemini/Codex/Cursor do — Kiro
+// discovers every AGENTS.md in the workspace on its own (confirmed against a real installation,
+// see changes/0112-*/evidence.md) and its own native artifact is a workspace Skill package
+// (.kiro/skills/<id>/SKILL.md). Registering it here means every existing precedence rule
+// (explicit/env/project-config/passive detection) and prompt.js's assistant-file inclusion apply
+// unchanged — no new code path, same discipline as the other four.
+export const ASSISTANT_FILES = { claude: "CLAUDE.md", gemini: "GEMINI.md", codex: "CODEX.md", cursor: "CURSOR.md", kiro: ".kiro/skills/aief-change/SKILL.md" };
 
 export function hasAssistant(id) {
   return Boolean(ASSISTANT_FILES[id]);

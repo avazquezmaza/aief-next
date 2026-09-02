@@ -89,7 +89,11 @@ export function prompt(args) {
     process.exitCode = 1;
     return;
   }
-  if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project${exists("CLAUDE.md") ? "; including CLAUDE.md instead" : ""}.`);
+  // Change 0112: an assistant with no native file present gets the generic,
+  // AGENTS.md-only prompt — never another assistant's file (previously this
+  // silently substituted CLAUDE.md when it existed, which docs/cli.md never
+  // actually documented and which would have been flatly wrong for Kiro).
+  if (assistant && !exists(ASSISTANT_FILES[assistant])) console.warn(`Note: ${ASSISTANT_FILES[assistant]} not found in this project; using the generic, AGENTS.md-only prompt instead.`);
   // Change 0061: with no explicit override, resolve symmetrically through
   // AIEF_ASSISTANT -> knowledge/assistant.json -> passive detection (every
   // registered assistant's native file checked the same way — no assistant
@@ -127,7 +131,12 @@ export function prompt(args) {
       assistant = resolution.assistantId || "";
     }
   }
-  const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : (exists("CLAUDE.md") ? "CLAUDE.md" : "");
+  // Change 0112: no cross-assistant fallback — an assistant with no native
+  // file present gets no assistant-file line at all (generic, AGENTS.md-only
+  // prompt), matching the warning above and docs/cli.md's documented
+  // behavior for every registered assistant, not just the ones that predate
+  // this fix.
+  const assistantFile = ASSISTANT_FILES[assistant] && exists(ASSISTANT_FILES[assistant]) ? ASSISTANT_FILES[assistant] : "";
   section("AIEF Prompt"); console.log(`Purpose: generate a ready-to-paste prompt for your AI assistant. Writes nothing.\n${resolutionNote}`);
   // Entrega 5 (Change 0047, ADR-019) — Skills Runtime, additive flag, no new
   // command verb (ADR-015). A static registry listing: no Change is

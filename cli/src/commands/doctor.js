@@ -9,6 +9,7 @@ import { resolveSkillRecommendations, resolveStandardRecommendations, resolveAge
 import { describeHarnessRegistry } from "../core/services/harness-service.js";
 import { resolveLoopConfig, countPreviousAttempts } from "../core/services/loop-service.js";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
+import { assistantIds } from "../core/domain/assistant-resolver.js";
 import { statusOverview } from "./status.js";
 import { exists, read, section, parseArgs, printNext, openChangeDirs, builtinStandardsList } from "./shared.js";
 
@@ -173,12 +174,11 @@ const DOCTOR_GROUPS = [
     { name: "gradle", noVersion: true },
     { name: "docker", noVersion: true }
   ] },
-  { title: "Assistants (optional)", level: "optional", tools: [
-    { name: "claude", noVersion: true },
-    { name: "gemini", noVersion: true },
-    { name: "cursor", noVersion: true },
-    { name: "codex", noVersion: true }
-  ] }
+  // Change 0112: derived from assistant-resolver.js's own registry — the
+  // single source of truth for known assistants — instead of a second,
+  // separately maintained list that a new assistant (Kiro included) would
+  // otherwise need this file touched for.
+  { title: "Assistants (optional)", level: "optional", tools: assistantIds().map((name) => ({ name, noVersion: true })) }
 ];
 function doctorEnvironment() {
   const missingRequired = [];
