@@ -156,6 +156,9 @@ Every contribution, human or assistant, follows the same rules:
   confirmation.
 - Run the full suite, `aief verify`, and `git diff --check` — all three — before every commit;
   fix failures rather than skipping hooks or gates.
+- Prefer opening a PR over pushing directly to `main`/`dev` once a Change is done, unless told
+  otherwise.
+- Commits in this repository do not carry a `Co-Authored-By` trailer for AI-authored work.
 
 ## Releasing
 
