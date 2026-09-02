@@ -248,6 +248,30 @@ test("deriveSkillDescription: never throws and never returns empty, even for bla
   assert.equal(deriveSkillDescription(undefined), "Project-defined resource");
 });
 
+// Change 0110: Claude Code / Kiro-style SKILL.md files lead with a YAML
+// frontmatter block (---\nname: ...\ndescription: ...\n---). Before this
+// fix, the first non-empty line of such a file was the opening "---"
+// delimiter itself, surfaced verbatim as the description.
+test("deriveSkillDescription: prefers a leading frontmatter block's own description: field", () => {
+  const content = "---\nname: camel-quarkus\ndescription: Write and review Camel-on-Quarkus integration services.\nlicense: Apache-2.0\n---\n\n# Camel on Quarkus\n\nBody text.";
+  assert.equal(deriveSkillDescription(content), "Write and review Camel-on-Quarkus integration services.");
+});
+
+test("deriveSkillDescription: strips quotes around a quoted frontmatter description", () => {
+  const content = '---\nname: x\ndescription: "A quoted one-liner."\n---\n\nBody.';
+  assert.equal(deriveSkillDescription(content), "A quoted one-liner.");
+});
+
+test("deriveSkillDescription: falls back to the first body line when frontmatter has no description field", () => {
+  const content = "---\nname: x\nlicense: Apache-2.0\n---\n\n# Heading Instead\n\nBody.";
+  assert.equal(deriveSkillDescription(content), "Heading Instead");
+});
+
+test("deriveSkillDescription: a mid-document '---' (a Markdown thematic break) is not mistaken for frontmatter", () => {
+  const content = "# Real Heading\n\nSome text.\n\n---\n\nMore text.";
+  assert.equal(deriveSkillDescription(content), "Real Heading");
+});
+
 test("resolveSkillRecommendations: no ai-specs/skills/ is a strict pass-through of builtins", () => {
   const cwd = tempCwd();
   const builtins = [{ id: "a", description: "A", because: ["reason a"] }, { id: "b", description: "B", because: ["reason b"] }];

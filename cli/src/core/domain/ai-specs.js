@@ -148,13 +148,44 @@ export function resolveResources(builtins, projectResources) {
   return { resources: [...resolved.values()], warnings };
 }
 
+// A leading YAML frontmatter block (`---\n...\n---`), the convention
+// Claude Code / Kiro-style SKILL.md files use for id/description/license/
+// compatibility metadata — a real, external shape (Change 0110: found
+// integrating a project's own camel-quarkus/camel-spring-boot Skills). Only
+// ever a delimiter at the very start of the file, never mid-document (a
+// Markdown thematic break `---` elsewhere is not frontmatter and is left
+// alone by requiring the match to start at string position 0).
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+// stripFrontmatter(content) -> { description, body }
+// `description` is the frontmatter's own `description:` field when present
+// (a single-line YAML scalar — block scalars `>`/`|` are not parsed; falls
+// through to `body` in that case, same as no frontmatter at all) — the
+// exact human-authored summary this module exists to surface, more useful
+// than re-deriving one from whatever text happens to follow. `body` is the
+// content after the frontmatter block, or the original content unchanged
+// when there is none.
+function stripFrontmatter(content) {
+  const text = String(content || "");
+  const match = text.match(FRONTMATTER_RE);
+  if (!match) return { description: null, body: text };
+  const descMatch = match[1].match(/^description:[ \t]*(.+)$/m);
+  return { description: descMatch ? descMatch[1].trim().replace(/^["']|["']$/g, "") : null, body: text.slice(match[0].length) };
+}
+
 // deriveResourceDescription(content) -> a short, human-readable description
 // for a project-sourced resource file (Skill or Standard alike; AIEF 3.1,
-// Change 0054/ADR-024, generalized in Change 0055/ADR-025). The file's first
-// non-empty line, with a leading Markdown heading marker stripped — never
-// throws, never returns empty.
+// Change 0054/ADR-024, generalized in Change 0055/ADR-025). Prefers a
+// leading frontmatter block's own `description:` field (Change 0110); falls
+// back to the file's first non-empty line after any frontmatter, with a
+// leading Markdown heading marker stripped — never throws, never returns
+// empty. Before Change 0110, a frontmatter-led file's first non-empty line
+// was the opening `---` delimiter itself, surfaced verbatim as the
+// description in `doctor`/`bootstrap` output.
 export function deriveResourceDescription(content) {
-  const lines = String(content || "").split(/\r?\n/);
+  const { description, body } = stripFrontmatter(content);
+  if (description) return description;
+  const lines = String(body || "").split(/\r?\n/);
   const firstNonEmpty = lines.find((line) => line.trim().length > 0);
   if (!firstNonEmpty) return "Project-defined resource";
   const stripped = firstNonEmpty.replace(/^#+\s*/, "").trim();
