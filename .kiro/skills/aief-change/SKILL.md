@@ -17,7 +17,11 @@ files.
 
 1. **Select the Change.** Run `aief status --next` (or `aief status` to see every open Change) to
    find which one to work on. Never guess or pick the most recently modified directory — with
-   multiple open Changes, ask which one if it isn't already clear from the request.
+   multiple open Changes, ask which one if it isn't already clear from the request. This step has
+   two valid outcomes, and only the first one continues down this procedure:
+   - **A Change is selected** → go to step 2.
+   - **No open Change** (`aief status --next` says so) → stop here; there is nothing to implement
+     yet. Go to "When something doesn't fit" below — don't start working without a Change.
 
 2. **Read, don't assume.** Before touching anything, read exactly these three files in the
    selected `changes/<id>-<slug>/`:
@@ -51,8 +55,9 @@ files.
 
 ## When something doesn't fit
 
-- No open Change matches the request → say so and suggest `aief new-change <name>` or
-  `aief status --next`, don't invent scope.
+- No open Change matches the request (including step 1 finding none at all) → say so and propose
+  `aief new-change <name>`, don't invent scope. Opening the Change is the human's call, not
+  something to do unilaterally.
 - The task is ambiguous → ask, per `AGENTS.md` rule 5 ("Ask when requirements are ambiguous").
 - The Change is an Analysis or Definition Change (check `change.md`'s `## Type`) → different rules
   apply (no application code, no self-approved decisions) — read `AGENTS.md`'s workflow section
