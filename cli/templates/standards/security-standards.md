@@ -23,7 +23,8 @@ these during Definition, with explicit human approval for anything architectural
 ### Secrets
 
 - Secrets live in the environment or a secret manager — never in the repository, prompts or
-  evidence files.
+  evidence files. This includes API tokens, cloud/provider keys (e.g. AWS), bot tokens (e.g.
+  Telegram), and PINs — any value that grants access on its own.
 - `.env*` files are gitignored; a documented `.env.example` carries no real values.
 
 ### Inputs and outputs

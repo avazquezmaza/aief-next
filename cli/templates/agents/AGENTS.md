@@ -174,3 +174,21 @@ Humans must approve:
 - release readiness.
 
 AI may propose, draft, implement, review, and summarize, but it does not approve final outcomes.
+
+---
+
+## Operational Guardrails
+
+These apply to every assistant, on every project, regardless of what the current Change is about:
+
+- **No secrets in tracked files.** API tokens, cloud keys, bot tokens, PINs, and any other
+  credential never go into a file Git tracks — not in code, not in prompts, not in evidence files.
+  They come from the environment or a gitignored local file. See `security-standards.md`'s Secrets
+  section for the detail.
+- **No `Co-Authored-By` trailer on AI-authored commits**, unless the project explicitly asks for
+  one.
+- **Confirm before outward-facing or hard-to-reverse actions** — deploys, production changes,
+  pushes, writes to external systems (e.g. Confluence) — unless already durably authorized for that
+  specific action. This is the Prime Directive applied concretely, not a separate rule.
+- **Prefer opening a PR over pushing directly to `main`/`dev`** when a change is finished, unless
+  told otherwise.
