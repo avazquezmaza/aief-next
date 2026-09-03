@@ -43,3 +43,7 @@ or script cannot opt out of the switch for those two commands.
 - `aief enrich ... --no-branch`, `aief analyze ... --no-branch`, and `aief propose ... --no-branch`
   all opt out, mirroring `new-change --no-branch`.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
