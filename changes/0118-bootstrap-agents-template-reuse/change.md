@@ -39,3 +39,7 @@ class of gap Change 0040 already fixed once for the adopt-in-place path.
 - `aief bootstrap <name>` writes an `AGENTS.md` byte-identical to `cli/templates/agents/AGENTS.md`,
   same as `aief bootstrap` (no name) already does.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
