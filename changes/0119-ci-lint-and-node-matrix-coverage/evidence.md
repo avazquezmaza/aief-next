@@ -50,8 +50,21 @@ genuine (if minor) bugs rather than pure style issues.
   needed; existing coverage already exercises every touched function).
 - `node cli/bin/aief.js verify --strict --change 0119`: PASS.
 - `git diff --check`: no whitespace errors.
+- **Post-close correction**: local verification above ran against a `cli/node_modules` already
+  populated by an earlier `npm install`, which masked a real gap — the CI workflow itself never had
+  an install step (the CLI was zero-dependency until this Change added `eslint` as a
+  `devDependency`). PR #63's actual CI run failed on all three matrix entries with `eslint: not
+  found` (exit 127) — `npm run lint` ran before any `npm ci`. Fixed by adding an explicit
+  `Install CLI devDependencies (eslint)` step (`npm ci`, `working-directory: cli`) before the Lint
+  step. Re-verified locally by running `npm ci` (matching CI's use of the committed
+  `cli/package-lock.json` exactly, not `npm install`) followed by `npm run lint`: clean.
 
 ## Findings
+
+- The initial implementation of this Change never added an `npm ci`/`npm install` step to
+  `.github/workflows/ci.yml` — masked locally because `cli/node_modules` was already populated from
+  developing the fix. PR #63's real CI run failed on `eslint: not found` (all 3 matrix entries).
+  Fixed before merge; see Verification above.
 
 The duplicate-key pattern in `hook-service.js`/`skill-service.js`/`verification-service.js` worked
 correctly (JS object literals resolve duplicate keys left-to-right, last wins) but was fragile:
