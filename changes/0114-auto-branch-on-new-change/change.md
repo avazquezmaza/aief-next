@@ -47,3 +47,7 @@ Gemini reads mentioned it, and the CLI itself did not enforce it either. Every a
 - Running from a non-protected branch, or outside a git repo, leaves the branch untouched.
 - `--no-branch` opts out.
 - Full suite and `aief verify` pass.
+
+## Status
+
+Closed (2026-09-03)

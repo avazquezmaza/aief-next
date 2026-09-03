@@ -14,6 +14,14 @@ import { run } from "../../process-utils.js";
 
 export const PROTECTED_BRANCHES = ["main", "dev"];
 
+// A dedicated error type so createChange() can tell "the checkout failed
+// while we were still on a protected branch" apart from every no-op case
+// below (no git repo, already on a feature branch, --no-branch) — all of
+// which return null and are fine to fall through to writing the Change.
+// This one case is not: it must abort before any file is written, per this
+// module's own contract (see ensureChangeBranch()'s doc comment).
+export class ChangeBranchError extends Error {}
+
 export function currentBranch(cwd = process.cwd()) {
   const result = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd });
   return result.status === 0 ? result.stdout.trim() : null;
@@ -34,6 +42,9 @@ export function changeBranchName(type, id, slug) {
 // Called by createChange() before any Change file is written. Returns the
 // branch name it switched to, or null if it left the branch untouched (no
 // git repo, already on a non-protected branch, or --no-branch was passed).
+// Throws ChangeBranchError if it needed to switch (we were on a protected
+// branch) but the checkout itself failed — the caller must not proceed to
+// write the Change on the protected branch in that case.
 export function ensureChangeBranch(id, slug, type, options = {}) {
   const cwd = options.cwd || process.cwd();
   if (options.skip) return null;
@@ -43,8 +54,7 @@ export function ensureChangeBranch(id, slug, type, options = {}) {
   const name = changeBranchName(type, id, slug);
   const result = run("git", ["checkout", "-b", name], { cwd });
   if (result.status !== 0) {
-    console.error(`Could not create branch ${name} (staying on ${branch}): ${result.stderr.trim()}`);
-    return null;
+    throw new ChangeBranchError(`Could not create branch ${name} (staying on ${branch}): ${result.stderr.trim()}`);
   }
   console.log(`Created and switched to branch ${name}`);
   return name;

@@ -70,6 +70,20 @@ test("new-change outside a git repo is a no-op, not a crash", () => {
   assert.equal(fs.existsSync(path.join(dir, "changes", "0001-add-login")), true);
 });
 
+test("new-change on main aborts (no scaffolding written) when the checkout itself fails", () => {
+  const dir = makeGitProject();
+  // Pre-create the exact branch name new-change would try to check out —
+  // `git checkout -b` then fails ("branch already exists"), which used to
+  // be silently swallowed: createChange() ignored ensureChangeBranch()'s
+  // failure and wrote the Change to `main` anyway.
+  git(dir, ["branch", "general/0001-add-login"]);
+  const { status, out } = aief(dir, ["new-change", "Add login"]);
+  assert.notEqual(status, 0);
+  assert.match(out, /Could not create branch general\/0001-add-login/);
+  assert.equal(currentBranch(dir), "main");
+  assert.equal(fs.existsSync(path.join(dir, "changes", "0001-add-login")), false);
+});
+
 test("analyze also switches branch — createChange() is shared, not new-change-only", () => {
   const dir = makeGitProject();
   aief(dir, ["analyze", "Legacy app"]);
