@@ -71,7 +71,24 @@ export function retrieve(sourceId, options = {}) {
   }
 
   if (fs.existsSync(filePath)) {
-    const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const relative = path.relative(projectRoot, filePath);
+    // Change 0116: a malformed/truncated export used to crash with an
+    // uncaught SyntaxError and a raw stack trace — every other error path
+    // in this function already degrades to the same clean placeholder
+    // shape (path-outside-project-root above, not-found below); a parse
+    // failure gets the same treatment instead of propagating.
+    let raw;
+    try {
+      raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    } catch (err) {
+      return {
+        requirement: emptyRequirement("jira", sourceId),
+        retrieved: false,
+        openQuestions: [`- \`${relative}\` is not valid JSON (${err.message}). Fix or replace the export, or answer: is this requirement still only a placeholder?`],
+        riskNotes: [`- \`${relative}\` could not be parsed as JSON; this Change is a placeholder until a valid export is provided.`],
+        consoleNotes: [`${relative} is not valid JSON (${err.message}) — creating a placeholder Change. See docs/configuration.md, "Requirement Source providers".`]
+      };
+    }
     return { requirement: normalizeJira(raw, sourceId), retrieved: true, openQuestions: [], riskNotes: [], consoleNotes: [] };
   }
 
