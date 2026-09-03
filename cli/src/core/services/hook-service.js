@@ -36,13 +36,13 @@ function baseResult(mod, event, overrides) {
     evidence: [],
     errors: [],
     effects: [],
-    ...overrides,
-    // Re-asserted after the spread — never taken from a Hook's own return
-    // value, however it was produced (HK-R32).
-    hook: mod.id,
-    event: event.id,
-    effects: []
+    ...overrides
   };
+  // Re-asserted after the spread — never taken from a Hook's own return
+  // value, however it was produced (HK-R32).
+  result.hook = mod.id;
+  result.event = event.id;
+  result.effects = [];
   if (!STATUS_VALUES.includes(result.status)) {
     result.status = "invalid";
     result.errors = [...result.errors, "internal: unrecognized status was discarded"];

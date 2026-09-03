@@ -35,13 +35,13 @@ function baseResult(mod, requirement, overrides) {
     warnings: [],
     errors: [],
     effects: [],
-    ...overrides,
-    // Re-asserted after the spread — never taken from a rule's own return
-    // value, however it was produced (VR-R31).
-    rule: mod.id,
-    requirement: requirement.id,
-    effects: []
+    ...overrides
   };
+  // Re-asserted after the spread — never taken from a rule's own return
+  // value, however it was produced (VR-R31).
+  result.rule = mod.id;
+  result.requirement = requirement.id;
+  result.effects = [];
   if (!STATUS_VALUES.includes(result.status)) {
     result.status = "invalid";
     result.errors = [...result.errors, "internal: unrecognized status was discarded"];

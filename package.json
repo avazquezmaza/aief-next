@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node cli/bin/aief.js",
-    "test": "npm --prefix cli test"
+    "test": "npm --prefix cli test",
+    "lint": "npm --prefix cli run lint"
   },
   "engines": {
     "node": ">=18"
