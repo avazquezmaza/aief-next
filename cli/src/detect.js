@@ -53,7 +53,7 @@ function evaluateDetector(detector, context) {
 }
 
 export function detectProject(rootDir = process.cwd(), catalog = loadCatalog()) {
-  let packageJson = {};
+  let packageJson;
   try {
     packageJson = JSON.parse(fs.readFileSync(path.resolve(rootDir, "package.json"), "utf8"));
   } catch {

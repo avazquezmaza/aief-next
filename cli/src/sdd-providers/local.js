@@ -33,11 +33,6 @@ export const CAPABILITIES = {
 // here rather than left open).
 const OPTIONAL_FILES = ["proposal.md", "design.md", "verification.md", "adr.md", "notes.md"];
 
-function artifactState(fileResult) {
-  if (!fileResult) return "missing";
-  return fileResult.state;
-}
-
 // detect()/resolveChange(): the local provider is always available and
 // always resolves — the AIEF Change directory *is* the SDD Change, there is
 // no separate id to look up (design.md §3/§6).
@@ -55,7 +50,7 @@ export function resolveChange(change) {
 // empty/read_error classification via readArtifactFile(), never a second,
 // divergent set of rules.
 export function getArtifacts(change) {
-  const { files, missing, empty } = readChangeFiles(change.dir);
+  const { missing, empty } = readChangeFiles(change.dir);
   const requiredArtifacts = {};
   for (const file of CHANGE_FILES) {
     const filePath = path.join(change.dir, file);

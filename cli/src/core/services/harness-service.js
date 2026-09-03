@@ -126,7 +126,7 @@ export function describeFailingHooks(results) {
 // never raw context, never a Skill result's full content, never anything
 // resembling a credential or command output (Hooks structurally cannot
 // produce either, per ADR-020's FORBIDDEN_CAPABILITIES).
-export function formatHookLogSection({ timestamp, operation, changeId, event, passed, entries }) {
+export function formatHookLogSection({ timestamp, operation, changeId, event: _event, passed, entries }) {
   const lines = [
     `## ${timestamp} — ${operation}`,
     "",

@@ -57,14 +57,14 @@ function baseResult(mod, overrides) {
     warnings: [],
     errors: [],
     effects: [],
-    ...overrides,
-    // Re-asserted after the spread so no `overrides` value (however it was
-    // produced) can override the Skill's own real id/version or reintroduce
-    // a non-empty `effects` array — this Entrega authorizes none (SK-R7).
-    skill: mod.id,
-    version: mod.version,
-    effects: []
+    ...overrides
   };
+  // Re-asserted after the spread so no `overrides` value (however it was
+  // produced) can override the Skill's own real id/version or reintroduce
+  // a non-empty `effects` array — this Entrega authorizes none (SK-R7).
+  result.skill = mod.id;
+  result.version = mod.version;
+  result.effects = [];
   if (!STATUS_VALUES.includes(result.status)) {
     result.status = "invalid";
     result.errors = [...result.errors, `internal: unrecognized status was discarded`];

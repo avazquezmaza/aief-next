@@ -32,7 +32,7 @@ function isPathWithin(parent, child) {
 // or a dotted extension, no whitespace. Matches this project's own actual
 // verification.md prose style (e.g. `cli/src/core/services/hook-service.js`)
 // — not a general Markdown-intent parser.
-const PATH_TOKEN_RE = /`([A-Za-z0-9_.\-]+(?:\/[A-Za-z0-9_.\-]+)+|[A-Za-z0-9_.\-]+\.[A-Za-z0-9]+)`/g;
+const PATH_TOKEN_RE = /`([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+|[A-Za-z0-9_.-]+\.[A-Za-z0-9]+)`/g;
 
 // A requirement id cited as a table cell or inline token: word-boundary
 // matched so "VR-R1" never matches inside "VR-R10" (design.md §6.1's own

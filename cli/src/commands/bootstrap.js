@@ -9,7 +9,7 @@ import { commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills, loadCatalog } from "../detect.js";
 import { resolveSddProvider, sddProviderConfigPath } from "../core/domain/sdd-provider-resolver.js";
 import { getProvider } from "../sdd-providers/index.js";
-import { cwd, exists, writeFile, section, printNext, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles, promptSync } from "./shared.js";
+import { cwd, exists, writeFile, section, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles, promptSync } from "./shared.js";
 import { analyze } from "./analyze.js";
 import { newChange } from "./new-change.js";
 
@@ -308,7 +308,7 @@ function makeLineReader() {
     process.stdout.write(question);
     while (!buffered.includes("\n")) {
       const chunk = Buffer.alloc(2048);
-      let bytesRead = 0;
+      let bytesRead;
       try { bytesRead = fs.readSync(0, chunk, 0, chunk.length, null); } catch { bytesRead = 0; }
       if (bytesRead === 0) break; // EOF — return whatever was buffered, if anything.
       buffered += chunk.toString("utf8", 0, bytesRead);

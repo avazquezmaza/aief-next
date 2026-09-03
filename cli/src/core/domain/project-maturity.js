@@ -97,7 +97,7 @@ function findSourceFiles(rootDir) {
       const ext = path.extname(filePath);
       if (!CODE_EXTENSIONS.has(ext)) return;
       if (CONFIG_FILENAME.test(path.basename(filePath))) return;
-      let size = 0;
+      let size;
       try {
         size = fs.statSync(filePath).size;
       } catch {
@@ -111,7 +111,7 @@ function findSourceFiles(rootDir) {
 }
 
 function wordCountOf(filePath) {
-  let text = "";
+  let text;
   try {
     text = fs.readFileSync(filePath, "utf8");
   } catch {

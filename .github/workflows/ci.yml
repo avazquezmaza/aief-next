@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 22]
+        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,6 +18,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Install SVG renderer
         run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - name: Lint
+        run: npm run lint
+        working-directory: cli
       - name: CLI tests
         run: npm test
         working-directory: cli

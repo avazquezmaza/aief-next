@@ -417,7 +417,7 @@ export function builtinStandardsList() {
 export function promptSync(question) {
   process.stdout.write(question);
   const buffer = Buffer.alloc(2048);
-  let bytesRead = 0;
+  let bytesRead;
   try { bytesRead = fs.readSync(0, buffer, 0, buffer.length, null); } catch { bytesRead = 0; }
   return buffer.toString("utf8", 0, bytesRead).trim();
 }
