@@ -89,3 +89,43 @@ test("analyze also switches branch — createChange() is shared, not new-change-
   aief(dir, ["analyze", "Legacy app"]);
   assert.match(currentBranch(dir), /^analysis\/0001-legacy-app$/);
 });
+
+// Change 0117: enrich() writes its own file templates instead of going
+// through createChange(), so it needed its own ensureChangeBranch() call —
+// these tests cover that it actually got wired the same way new-change was.
+
+test("enrich on main creates and switches to a dedicated enrichment branch", () => {
+  const dir = makeGitProject();
+  const { out } = aief(dir, ["enrich", "manual", "TEST-001"]);
+  assert.match(out, /Created and switched to branch enrichment\/0001-manual-test-001/);
+  assert.equal(currentBranch(dir), "enrichment/0001-manual-test-001");
+});
+
+test("enrich --no-branch opts out even on main", () => {
+  const dir = makeGitProject();
+  const { out } = aief(dir, ["enrich", "manual", "TEST-001", "--no-branch"]);
+  assert.doesNotMatch(out, /Created and switched to branch/);
+  assert.equal(currentBranch(dir), "main");
+});
+
+test("enrich on main aborts (no scaffolding written) when the checkout itself fails", () => {
+  const dir = makeGitProject();
+  git(dir, ["branch", "enrichment/0001-manual-test-001"]);
+  const { status, out } = aief(dir, ["enrich", "manual", "TEST-001"]);
+  assert.notEqual(status, 0);
+  assert.match(out, /Could not create branch enrichment\/0001-manual-test-001/);
+  assert.equal(currentBranch(dir), "main");
+  assert.equal(fs.existsSync(path.join(dir, "changes", "0001-manual-test-001")), false);
+});
+
+test("analyze --no-branch opts out even on main", () => {
+  const dir = makeGitProject();
+  aief(dir, ["analyze", "Legacy app", "--no-branch"]);
+  assert.equal(currentBranch(dir), "main");
+});
+
+test("propose --no-branch opts out even on main", () => {
+  const dir = makeGitProject();
+  aief(dir, ["propose", "Add login", "--no-branch"]);
+  assert.equal(currentBranch(dir), "main");
+});

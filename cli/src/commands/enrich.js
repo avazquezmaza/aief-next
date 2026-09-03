@@ -5,6 +5,7 @@ import path from "node:path";
 import { PROVIDERS, providerList } from "../requirement.js";
 import { retrieveRequirement, hasAdapter, implementedProviders } from "../requirement-providers/index.js";
 import { getChangeDirs, slugify, cwd, writeFile, nextChangeId, parseArgs, section, printNext } from "./shared.js";
+import { ensureChangeBranch, ChangeBranchError } from "../core/services/git-branch.js";
 
 // Requirement Sources / Enrichment: real work starts in Jira, Notion, GitHub
 // Issues or a document, not in `aief new-change`. Every provider is read-only
@@ -79,6 +80,19 @@ export function enrich(args) {
   const { requirement, retrieved, openQuestions, riskNotes, consoleNotes } = retrieveRequirement(provider, sourceId, parsed);
   for (const note of consoleNotes) console.log(note);
   const id = nextChangeId();
+  // Change 0117: enrich() writes its own file templates instead of going
+  // through createChange() (they don't fit its generic/analysis/definition
+  // set), so it needs its own call to the same branch-isolation guard
+  // createChange() uses — same abort-on-failure contract Change 0114 gave
+  // createChange() itself.
+  try {
+    ensureChangeBranch(id, slug, "enrichment", { skip: parsed["no-branch"] });
+  } catch (err) {
+    if (!(err instanceof ChangeBranchError)) throw err;
+    console.error(err.message);
+    process.exitCode = 1;
+    return;
+  }
   const changeDir = cwd("changes", `${id}-${slug}`);
   const files = enrichmentChangeFiles(id, slug, provider, sourceId, requirement, retrieved, { openQuestions, riskNotes });
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);

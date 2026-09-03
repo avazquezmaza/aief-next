@@ -40,7 +40,7 @@ export function propose(args) {
     if (r.status === 0) return;
     console.error(`OpenSpec delegation failed (exit code ${r.status}). Falling back to local Change generation.`);
   }
-  const dir = createChange(idea);
+  const dir = createChange(idea, { noBranch: parsed["no-branch"] });
   if (dir) {
     writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`);
     console.log("Created local proposal.md.");

@@ -231,13 +231,18 @@ export const KNOWN_FLAGS = {
   // --no-branch (Change 0114): opt-out of the automatic branch-per-Change
   // switch createChange() otherwise does when run from `main`/`dev`.
   "new-change": { type: { type: "string" }, "no-branch": { type: "boolean" } },
-  enrich: { file: { type: "string" } },
+  // --no-branch on enrich (Change 0117): same escape hatch new-change has —
+  // enrich auto-branches too now (see ensureChangeBranch() call in enrich.js).
+  enrich: { file: { type: "string" }, "no-branch": { type: "boolean" } },
   // --maturity (Change 0080): explicit override for classifyMaturity()'s
   // routing — lets a human force "definition"/"implemented" instead of
   // accepting the detected value, the same "explicit over implicit" escape
   // hatch --type already gives new-change. Never required for normal use.
-  analyze: { maturity: { type: "string" } },
-  propose: { change: { type: "string" } },
+  // --no-branch (Change 0117): analyze already auto-branches via
+  // createChange() — it just never got the opt-out new-change has.
+  analyze: { maturity: { type: "string" }, "no-branch": { type: "boolean" } },
+  // --no-branch (Change 0117): same reasoning as analyze above.
+  propose: { change: { type: "string" }, "no-branch": { type: "boolean" } },
   prompt: {
     assistant: { type: "string" },
     profile: { type: "string" },
