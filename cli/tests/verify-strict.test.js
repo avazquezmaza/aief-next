@@ -94,3 +94,21 @@ test("an unchecked (human) task is reported as an unresolved required human deci
   assert.equal(problems.length, 1);
   assert.match(problems[0], /unresolved required human decision: Approve the recommendation\./);
 });
+
+// Change 0115: "-" was the only bullet marker this regex ever recognized,
+// even though CommonMark also allows "*" and "+" — the same tolerance
+// countOpenTasks() (Change 0075) and the Acceptance Criteria check above
+// (Change 0109) already apply.
+test("an unchecked (human) task written with * or + is also reported", () => {
+  const tasksMd = "# Tasks\n\n## Human Approval\n\n* [ ] (human) Approve the star item.\n+ [ ] (human) Approve the plus item.\n";
+  const problems = checkStrictCompleteness(change({ tasksMd }));
+  assert.equal(problems.length, 2);
+  assert.match(problems[0], /unresolved required human decision: Approve the star item\./);
+  assert.match(problems[1], /unresolved required human decision: Approve the plus item\./);
+});
+
+test("a checked (human) task written with * or + is not flagged", () => {
+  const tasksMd = "# Tasks\n\n## Human Approval\n\n* [x] (human) Already approved (star).\n+ [x] (human) Already approved (plus).\n";
+  const problems = checkStrictCompleteness(change({ tasksMd }));
+  assert.equal(problems.length, 0);
+});
