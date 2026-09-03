@@ -3,4 +3,4 @@
 import path from "node:path";
 import { parseArgs, createChange, printNext } from "./shared.js";
 
-export function newChange(args) { const parsed = parseArgs("new-change", args); if (!parsed) return; const dir = createChange(parsed._.join(" "), { type: parsed.type || "general" }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
+export function newChange(args) { const parsed = parseArgs("new-change", args); if (!parsed) return; const dir = createChange(parsed._.join(" "), { type: parsed.type || "general", noBranch: parsed["no-branch"] }); if (dir) printNext("edit change.md and spec.md", `aief prompt --change ${path.basename(dir)}`); }
