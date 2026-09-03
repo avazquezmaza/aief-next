@@ -38,3 +38,7 @@ in this same function already returns (path-outside-project-root, file-not-found
 - `aief enrich jira <id> --file <malformed.json>` exits cleanly with a placeholder Change and a
   readable error note — no uncaught exception, no stack trace.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
