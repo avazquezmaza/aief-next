@@ -109,11 +109,32 @@ test("bootstrap never overwrites an existing AGENTS.md (idempotence, ADR-005)", 
 test("no adoption path produces a divergent AGENTS.md (bootstrap with vs without a name)", () => {
   const a = makeProject({ "package.json": '{"name":"x"}' });
   aief(a, ["bootstrap"]);
-  const b = makeProject({ "package.json": '{"name":"x"}' });
-  aief(b, ["bootstrap"]);
+  const b = makeProject();
+  aief(b, ["bootstrap", "my-project"]);
   assert.equal(
     fs.readFileSync(path.join(a, "AGENTS.md"), "utf8"),
-    fs.readFileSync(path.join(b, "AGENTS.md"), "utf8"),
-    "bootstrap produced different AGENTS.md across runs"
+    fs.readFileSync(path.join(b, "my-project", "AGENTS.md"), "utf8"),
+    "bootstrap <name> produced a different AGENTS.md than bootstrap with no name"
   );
+});
+
+// Change 0118: initProject() (bootstrap <name>) used to write a hardcoded
+// two-line stub instead of the canonical template runAdoption() (bootstrap,
+// no name) already used — the exact class of gap Change 0040 fixed once for
+// the adopt-in-place path, reintroduced for the new-project-by-name path.
+test("bootstrap <name> writes AGENTS.md byte-identical to the canonical template", () => {
+  const dir = makeProject();
+  aief(dir, ["bootstrap", "my-project"]);
+  const generated = fs.readFileSync(path.join(dir, "my-project", "AGENTS.md"), "utf8");
+  const canonical = fs.readFileSync(CANONICAL, "utf8");
+  assert.equal(generated, canonical, "bootstrap <name> produced an AGENTS.md that differs from the canonical");
+});
+
+test("bootstrap <name>'s AGENTS.md contains 100% of the canonical normative rules", () => {
+  const dir = makeProject();
+  aief(dir, ["bootstrap", "my-project"]);
+  const generated = fs.readFileSync(path.join(dir, "my-project", "AGENTS.md"), "utf8");
+  for (const rule of CANONICAL_RULES) {
+    assert.ok(generated.includes(rule), `bootstrap <name>'s AGENTS.md is missing the rule: "${rule}"`);
+  }
 });
