@@ -112,7 +112,12 @@ export function checkStrictCompleteness(change) {
   if (definitionProblem) problems.push(definitionProblem);
 
   for (const line of tasksMd.split(/\r?\n/)) {
-    const match = line.match(/^\s*-\s*\[\s\]\s*\(human\)\s*(.+)$/i);
+    // "[-*+]" tolerance (Change 0115) — the same CommonMark-bullet gap
+    // countOpenTasks() (change.js, Change 0075) and the Acceptance Criteria
+    // check above (Change 0109) already close: this regex only ever
+    // recognized "-", so a "* [ ] (human) ..." or "+ [ ] (human) ..." task
+    // was silently invisible to --strict.
+    const match = line.match(/^\s*[-*+]\s*\[\s\]\s*\(human\)\s*(.+)$/i);
     if (match) problems.push(`unresolved required human decision: ${match[1].trim()}`);
   }
 
