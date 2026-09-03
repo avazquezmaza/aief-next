@@ -39,3 +39,7 @@ governance can pass while a real open decision sits unflagged.
 - `verify --strict` flags an unresolved `(human)` task regardless of whether it's written with
   `-`, `*`, or `+`.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
