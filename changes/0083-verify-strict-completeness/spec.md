@@ -33,8 +33,8 @@ with zero change to default `verify`'s behavior.
 ## Acceptance Criteria
 
 - [ ] `checkStrictCompleteness()` unit tests cover: untouched generic scaffold (all 5 checks
-      fire), a filled-in Change (zero problems), TODO/TBD in each of the three files, a heading
-      absent from a scaffold never flagged, TODO/TBD inside a backtick span never flagged, a
+      fire), a filled-in Change (zero problems), `TODO`/`TBD` in each of the three files, a heading
+      absent from a scaffold never flagged, `TODO`/`TBD` inside a backtick span never flagged, a
       Definition Change with an unresolved vs. an approved `Decision (human)`, and an unchecked
       `(human)` task.
 - [ ] `aief verify` (no `--strict`) on an objectively incomplete Change is unaffected — same

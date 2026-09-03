@@ -11,7 +11,7 @@ General
 ## Objective
 
 Add an optional `aief verify --strict` that detects objective, deterministic incompleteness
-(unresolved TODO/TBD, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a
+(unresolved `TODO`/`TBD`, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a
 Definition decision recorded with no outcome, an unresolved required human decision) on top of
 default `aief verify`'s structural checks — without changing default `aief verify`'s behavior or
 exit semantics in any way, and without any subjective quality scoring.
@@ -40,7 +40,7 @@ exit semantics in any way, and without any subjective quality scoring.
 
 ### In scope
 
-- `checkStrictCompleteness(change)` (`change-verifier.js`): TODO/TBD (excluding inline code
+- `checkStrictCompleteness(change)` (`change-verifier.js`): `TODO`/`TBD` (excluding inline code
   spans), untouched `change.md` Scope/Success Criteria placeholders, empty `spec.md`
   Requirements/Acceptance Criteria (only when those headings exist in the scaffold), a Definition
   Change's `Decisions Required` with no `Decision (human)` outcome, unresolved `(human)` tasks.

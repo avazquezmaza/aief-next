@@ -75,7 +75,7 @@ the one invariant the bypass was found in.
 
 ### Out of scope
 
-- Any other `checkStrictCompleteness()` check (TODO/TBD, scaffold placeholders, empty Requirements/
+- Any other `checkStrictCompleteness()` check (`TODO`/`TBD`, scaffold placeholders, empty Requirements/
   Acceptance Criteria) — these remain `--strict`-only, not close-blocking, per the review's
   explicit instruction not to make the whole of strict verification mandatory at close.
 - Any change to default `aief verify`'s output.
