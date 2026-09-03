@@ -77,6 +77,27 @@ test("jira adapter normalizes a local export file with --file", () => {
   }
 });
 
+// Change 0116: a malformed export used to crash with an uncaught SyntaxError
+// instead of degrading to the same placeholder shape every other error path
+// in jira.js's retrieve() already returns.
+test("jira adapter: a --file with malformed JSON is a clean placeholder, not a crash", () => {
+  const dir = tmp();
+  const exportPath = path.join(dir, "broken.json");
+  fs.writeFileSync(exportPath, "{ invalid", "utf8");
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    const { requirement, retrieved, openQuestions, riskNotes, consoleNotes } = retrieveRequirement("jira", "ISSUE-9", { file: "broken.json" });
+    assert.equal(retrieved, false);
+    assert.equal(requirement.provider, "jira");
+    assert.ok(openQuestions.some((q) => /not valid JSON/.test(q)));
+    assert.ok(riskNotes.length > 0);
+    assert.ok(consoleNotes.length > 0);
+  } finally {
+    process.chdir(cwd);
+  }
+});
+
 test("retrieveRequirement throws for an unregistered provider (cli.js must check hasAdapter first)", () => {
   assert.throws(() => retrieveRequirement("notion", "X-1", {}), /No requirement provider adapter registered/);
 });
