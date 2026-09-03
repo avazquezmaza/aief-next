@@ -35,7 +35,7 @@ AIEF 3.2.0 is fourteen Changes since 3.1.0 (0073–0086), each already closed wi
   `security-standards.md` split into "Applies now" (Definition-stage) and "Applies once
   implementation starts" sections.
 - **0083 — `aief verify --strict`**: opt-in, additive, deterministic objective-completeness checks
-  (unresolved TODO/TBD, untouched placeholders, unresolved Decisions Required, unresolved `(human)`
+  (unresolved `TODO`/`TBD`, untouched placeholders, unresolved Decisions Required, unresolved `(human)`
   tasks) layered on top of unchanged default `verify`.
 - **0084 — End-to-end pre-implementation initialization**: the full bootstrap → analyze → Definition
   → decide → verify --strict → close flow, validated live.

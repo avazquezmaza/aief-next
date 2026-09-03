@@ -8,12 +8,12 @@
       `addChangeLines()`, defaulting to `false`.
 - [x] Add `--strict` to `verify`'s `KNOWN_FLAGS` and wire it in `cli.js`'s `verify()`.
 - [x] Document `--strict` in `aief help verify`.
-- [x] Exclude inline-code-span TODO/TBD false positives (found via real-repo validation).
+- [x] Exclude inline-code-span `TODO`/`TBD` false positives (found via real-repo validation).
 
 ## Tests
 
-- [x] `checkStrictCompleteness()` unit tests (untouched scaffold, filled-in Change, TODO/TBD ×3
-      files, absent-heading never flagged, backtick-span TODO/TBD never flagged, Definition
+- [x] `checkStrictCompleteness()` unit tests (untouched scaffold, filled-in Change, `TODO`/`TBD` ×3
+      files, absent-heading never flagged, backtick-span `TODO`/`TBD` never flagged, Definition
       decision unresolved vs. approved, unchecked human task).
 - [x] `aief verify` default output/exit unaffected by an objectively incomplete Change.
 - [x] `aief verify --strict` fails on the same Change, with `[strict]` lines.
