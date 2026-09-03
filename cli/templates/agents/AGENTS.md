@@ -81,7 +81,7 @@ Update:
 
 Every meaningful implementation belongs to one Change.
 
-`aief new-change` (and `analyze`/`propose`, which scaffold Changes the same way) switches off
+`aief new-change` (and `analyze`/`propose`/`enrich`, which all scaffold Changes) switches off
 `main`/`dev` onto a dedicated branch (`<type>/<id>-<slug>`) automatically before writing any Change
 file — one branch per Change is enforced by the CLI itself, not by an assistant remembering a rule
 written in prose. Don't re-implement this per assistant; `--no-branch` opts out when a Change

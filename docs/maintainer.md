@@ -36,9 +36,9 @@ convention to remember.
    idea that needs a spec). `new-change`, `analyze` and `propose` all scaffold through the shared
    `createChange()`, which switches off `main`/`dev` onto `<type>/<id>-<slug>` automatically
    (`cli/src/core/services/git-branch.js`, Change 0114) — don't reimplement branch creation
-   elsewhere; `--no-branch` opts out on `new-change` when that's actually wanted. `enrich` writes
-   its Change files directly rather than through `createChange()` and does not yet get this —
-   tracked as follow-up in Change 0114's evidence.
+   elsewhere; `--no-branch` opts out on any of the four commands when that's actually wanted.
+   `enrich` writes its Change files directly rather than through `createChange()`, so it calls
+   `ensureChangeBranch()` itself instead (Change 0117) — same contract, different call site.
 2. Fill `change.md` and `spec.md` before implementing.
 3. Implement, then run `npm test` (from the repo root) and `node cli/bin/aief.js verify`.
 4. Update `evidence.md` with what was actually done and verified — not a template.

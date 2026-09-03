@@ -47,7 +47,7 @@ export function analyze(args) {
   if (maturity === "definition") {
     console.log("Purpose: create a Definition Change — this repository looks pre-implementation (requirements/context present, no application source found).\nWrites only under changes/<id>-<name>/.\n");
     console.log(`Detected maturity: Definition${maturityOverride ? " (forced via --maturity)" : ""}.\n${detected.reasons.map((r) => `- ${r}`).join("\n")}\n`);
-    const dir = createChange(name, { type: "definition" });
+    const dir = createChange(name, { type: "definition", noBranch: parsed["no-branch"] });
     printNext(dir ? `aief prompt --change ${path.basename(dir)}` : "aief prompt", "See docs/getting-started.md for the pre-implementation Definition workflow.");
     return;
   }
@@ -58,7 +58,7 @@ export function analyze(args) {
   }
   const project = detectProject();
   const context = { project, skills: recommendSkills(project), standards: listStandards(), skillsDocPresent: exists("knowledge/skills.md") };
-  const dir = createChange(name, { type: "analysis", context });
+  const dir = createChange(name, { type: "analysis", context, noBranch: parsed["no-branch"] });
   if (context.project.signals.length) console.log(`Seeded change.md with ${context.project.signals.length} detected signal(s), ${context.skills.length} skill(s) and ${context.standards.length} standard(s).`);
   // Explicit selection in the hint: after adoption there are typically two
   // open Changes (adopt-aief + this Analysis), so the suggested command must
