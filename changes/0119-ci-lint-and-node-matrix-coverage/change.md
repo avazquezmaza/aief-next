@@ -46,3 +46,7 @@ independent audit review.
 - CI fails on a genuine lint violation (e.g. an unused variable) introduced on a branch.
 - CI's Node matrix is `[18, 20, 22]`.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
