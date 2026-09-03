@@ -22,7 +22,7 @@ import { deriveResourceDescription } from "../core/domain/ai-specs.js";
 import { buildGraph } from "../core/domain/change-graph.js";
 import { formatHookLogSection } from "../core/services/harness-service.js";
 import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
-import { ensureChangeBranch } from "../core/services/git-branch.js";
+import { ensureChangeBranch, ChangeBranchError } from "../core/services/git-branch.js";
 
 // --- fs/string primitives ---
 
@@ -362,8 +362,17 @@ export function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error('Change name is required.\n\nExample: aief new-change "Add login"'); process.exitCode = 1; return null; }
   const id = nextChangeId();
   // Change 0114: switch off `main`/`dev` before any Change file exists, so a
-  // failed checkout never leaves scaffolding behind on a protected branch.
-  ensureChangeBranch(id, slug, options.type, { skip: options.noBranch });
+  // failed checkout never leaves scaffolding behind on a protected branch —
+  // ensureChangeBranch() throws ChangeBranchError precisely when it needed
+  // to switch but couldn't, and that must stop scaffolding cold.
+  try {
+    ensureChangeBranch(id, slug, options.type, { skip: options.noBranch });
+  } catch (err) {
+    if (!(err instanceof ChangeBranchError)) throw err;
+    console.error(err.message);
+    process.exitCode = 1;
+    return null;
+  }
   const changeDir = cwd("changes", `${id}-${slug}`);
   const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)

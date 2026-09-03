@@ -13,6 +13,15 @@ by the CLI itself, which every assistant target invokes identically.
 
 - Added `cli/src/core/services/git-branch.js`: `currentBranch()`, `changeBranchName()`,
   `ensureChangeBranch()`.
+- Follow-up fix (post-review, before close): `ensureChangeBranch()` originally logged and returned
+  `null` when `git checkout -b` itself failed — indistinguishable, at the call site, from every
+  benign no-op (no git repo, already on a feature branch, `--no-branch`). `createChange()` ignored
+  the return value entirely, so a failed checkout on `main`/`dev` (e.g. the target branch name
+  already existed) silently wrote the Change's scaffolding onto the protected branch anyway —
+  exactly the outcome this Change's own spec.md promises never happens. Fixed by adding
+  `ChangeBranchError` (thrown only for that one case) and wrapping the call in `createChange()`
+  (`commands/shared.js`) to abort — print the error, set `process.exitCode = 1`, write nothing —
+  before any Change file exists.
 - Extended `process-utils.js`'s `run()` to forward `options.cwd` (needed for tests to target a temp
   repo; every existing caller is unaffected since none of them pass `cwd`).
 - Wired `ensureChangeBranch()` into `createChange()` in `commands/shared.js`, before file writes —
@@ -21,21 +30,25 @@ by the CLI itself, which every assistant target invokes identically.
 - Documented once, at the point every assistant already reads: `AGENTS.md` (and its byte-identical
   template copy `cli/templates/agents/AGENTS.md` — a pre-existing test enforces they match),
   `docs/maintainer.md`, and `.kiro/skills/aief-change/SKILL.md`.
-- Added `cli/tests/git-branch.test.js` (6 tests): main→branch, dev→branch, existing branch left
-  untouched, `--no-branch`, no-git no-op, `analyze` shares the behavior.
+- Added `cli/tests/git-branch.test.js` (now 7 tests): main→branch, dev→branch, existing branch left
+  untouched, `--no-branch`, no-git no-op, failed-checkout-aborts-with-no-scaffolding (added in the
+  follow-up fix above), `analyze` shares the behavior.
 
 ## Verification
 
-- `npm test`: 1032/1032 pass (was 1026 before this Change; +6 new tests, zero regressions). One
-  transient failure ("root AGENTS.md is byte-identical to the canonical template") caught the
-  template drift immediately — fixed by copying `AGENTS.md` to
+- `npm test`: 1033/1033 pass (1026 before this Change; +6 from the original slice, +1 from the
+  follow-up fix; zero regressions). One transient failure ("root AGENTS.md is byte-identical to the
+  canonical template") caught the template drift immediately — fixed by copying `AGENTS.md` to
   `cli/templates/agents/AGENTS.md`; suite passed clean afterward.
-- `node cli/bin/aief.js verify`: PASS.
+- `node cli/bin/aief.js verify --strict --change 0114`: PASS.
 - `git diff --check`: no whitespace errors.
 
 ## Findings
 
-None beyond the pre-existing gap this Change addresses.
+- Independent audit review (2026-09-03) flagged that `createChange()` ignored
+  `ensureChangeBranch()`'s failure return, letting a failed checkout write scaffolding onto a
+  protected branch — a direct contradiction of this Change's own spec.md acceptance criteria.
+  Confirmed and fixed before close (see Activities Performed).
 
 ## Risks
 

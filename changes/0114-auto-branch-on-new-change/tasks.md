@@ -8,6 +8,8 @@
 - [x] Wire `ensureChangeBranch()` into `createChange()` in `commands/shared.js`, before any file
       write.
 - [x] Add `--no-branch` to `new-change`'s `KNOWN_FLAGS` and thread it through `new-change.js`.
+- [x] Follow-up fix: `createChange()` aborts (writes nothing) when `ensureChangeBranch()`'s checkout
+      itself fails on a protected branch, instead of silently proceeding.
 
 ## Documentation
 
@@ -18,7 +20,8 @@
 ## Verification
 
 - [x] `cli/tests/git-branch.test.js`: main→branch, dev→branch, existing branch untouched,
-      `--no-branch`, no-git no-op, `analyze` shares the behavior.
+      `--no-branch`, no-git no-op, failed-checkout-aborts-with-no-scaffolding, `analyze` shares the
+      behavior.
 - [x] `npm test` (full suite).
 - [x] `node cli/bin/aief.js verify`.
 - [x] `git diff --check`.
