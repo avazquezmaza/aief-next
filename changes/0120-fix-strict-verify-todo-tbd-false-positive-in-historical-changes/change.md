@@ -37,3 +37,7 @@ individually backtick-quoted. Found while auditing the repo after Changes 0114â€
 
 - `node cli/bin/aief.js verify --strict` (no `--change` filter) passes with zero `[strict]` lines.
 - `npm test`, `node cli/bin/aief.js verify --strict`, and `git diff --check` all pass.
+
+## Status
+
+Closed (2026-09-03)
