@@ -22,6 +22,7 @@ import { deriveResourceDescription } from "../core/domain/ai-specs.js";
 import { buildGraph } from "../core/domain/change-graph.js";
 import { formatHookLogSection } from "../core/services/harness-service.js";
 import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
+import { ensureChangeBranch } from "../core/services/git-branch.js";
 
 // --- fs/string primitives ---
 
@@ -227,7 +228,9 @@ export function parseCommandArgs(command, args, optionsSchema = {}) {
 // Every command's exact current flag set, enumerated from its existing
 // parsed.<flag>/parsed["<flag>"] reads — no flag added, none removed.
 export const KNOWN_FLAGS = {
-  "new-change": { type: { type: "string" } },
+  // --no-branch (Change 0114): opt-out of the automatic branch-per-Change
+  // switch createChange() otherwise does when run from `main`/`dev`.
+  "new-change": { type: { type: "string" }, "no-branch": { type: "boolean" } },
   enrich: { file: { type: "string" } },
   // --maturity (Change 0080): explicit override for classifyMaturity()'s
   // routing — lets a human force "definition"/"implemented" instead of
@@ -357,7 +360,11 @@ export function genericChangeFiles(id, slug, title = "") {
 }
 export function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error('Change name is required.\n\nExample: aief new-change "Add login"'); process.exitCode = 1; return null; }
-  const id = nextChangeId(); const changeDir = cwd("changes", `${id}-${slug}`);
+  const id = nextChangeId();
+  // Change 0114: switch off `main`/`dev` before any Change file exists, so a
+  // failed checkout never leaves scaffolding behind on a protected branch.
+  ensureChangeBranch(id, slug, options.type, { skip: options.noBranch });
+  const changeDir = cwd("changes", `${id}-${slug}`);
   const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)
       : genericChangeFiles(id, slug, name);

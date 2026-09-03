@@ -57,7 +57,8 @@ files.
 
 - No open Change matches the request (including step 1 finding none at all) → say so and propose
   `aief new-change <name>`, don't invent scope. Opening the Change is the human's call, not
-  something to do unilaterally.
+  something to do unilaterally. `new-change` itself switches off `main`/`dev` onto a dedicated
+  branch before writing anything — nothing else to do here for that.
 - The task is ambiguous → ask, per `AGENTS.md` rule 5 ("Ask when requirements are ambiguous").
 - The Change is an Analysis or Definition Change (check `change.md`'s `## Type`) → different rules
   apply (no application code, no self-approved decisions) — read `AGENTS.md`'s workflow section
