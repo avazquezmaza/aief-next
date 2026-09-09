@@ -4,6 +4,58 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-037: Workflow Gates become enforceable by `aief close`, opt-in by declared track, resolved by explicit per-gate task labels
+
+**Status: Accepted (2026-09-09), by the project owner. Decided in [Change 0124](../changes/0124-workflow-gate-authority/).**
+
+**Decision.**
+
+> `aief close` (`cli/src/commands/close.js`) never consulted the Workflow Engine
+> (`evaluateGates()`/`resolveState()`) — it only ran `checkChangeReadiness()`, the same
+> structural check used for a Change with no `track` at all. `review`/`approval`/
+> `security_review` gates were, by `gate-evaluator.js`'s own explicit design, permanently
+> `pending`/`blocking: true` (no evaluator built). The combination meant a `governed` Change
+> could show `Stage: approval` / blocked in `aief status`, and still close successfully via
+> `aief close --yes` the moment its files/tasks were structurally complete.
+>
+> Four decisions, all approved as recommended:
+>
+> - **D1 — Gates become enforceable, opt-in by declared `track`.** A Change that declares
+>   `track: standard` or `track: governed` in its manifest gets real enforcement at `close`
+>   time; a Change with no `track` (100% of Changes closed to date) is completely unaffected —
+>   no implicit default track, no retroactive obligation.
+> - **D2 — Resolution mechanism: explicit per-gate task labels.** Rather than overloading the
+>   existing generic `(human)`/`(review)` `tasks.md` labels (ambiguous once a `governed` Change
+>   can have three gates needing separate sign-off), a new label convention —
+>   `(gate:approval)`, `(gate:security_review)`, `(gate:review)` — resolves each gate from its
+>   own unambiguous, git-tracked, human-checked task line. No new file format, no daemon, no
+>   database (ADR-021's execution boundary unchanged).
+> - **D3 — Scope: settled by D1 itself** (opt-in by declared track; no separate mechanism
+>   needed).
+> - **D4 — The `(review)`-task enforcement gap is deferred, not fixed in isolation.**
+>   Independently discovered while researching this decision: `AGENTS.md` documents that
+>   unchecked `(review)` tasks block `close`, exactly like `(human)` ones — but
+>   `change-verifier.js` only ever implemented the `(human)` check. Fixing this gap is deferred
+>   into the same follow-up implementation Change as D1–D3, since both touch the same
+>   `tasks.md`-scanning code path in `checkChangeReadiness()`.
+
+**Context.** Raised by an external audit (ChatGPT, cross-checked against the actual code in
+`gate-evaluator.js`, `close.js`, `transition-engine.js`, and the shipped `workflows/*.json`
+before this Change was opened) alongside the Change 0123 Graph cycle-membership bug from the
+same audit pass. This is a Definition Change (per `AGENTS.md`): it resolves the decision before
+any implementation proceeds, and the recommendation was not self-approved — it was written,
+then explicitly approved by the project owner in `changes/0124-workflow-gate-authority/change.md`'s
+`## Decision (human)` section.
+
+**Consequences.** A follow-up implementation Change (`implement-workflow-gate-authority`,
+provisional name) is required before this decision has any runtime effect: it wires `close.js`
+to `evaluateGates()`/`resolveState()` for tracked Changes, adds `(gate:<id>)` label parsing to
+`change-verifier.js`, fixes the `(review)`-task gap (D4), and updates `AGENTS.md`/`docs/`
+accordingly. Until that Change lands, `aief close`'s behavior is unchanged for every Change,
+tracked or not — this Change records the decision, not the implementation.
+
+---
+
 ## ADR-036: ADR-012's structured Profile model is amended down to what actually shipped — a named role selector, not a `goal`/`thinkingStyle`/`priorities`/`expectedOutputs`/`avoid` schema
 
 **Status: Accepted (2026-09-01), by the project owner.**
