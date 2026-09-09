@@ -74,6 +74,18 @@ test("loadChange: pending tasks are counted and surfaced by close's readiness ch
   assert.ok(checkChangeReadiness(change).includes("2 unchecked task(s) in tasks.md"));
 });
 
+// ADR-037/D4 (Change 0125): verified while researching the ADR — an
+// unchecked (review) task already blocked close via this exact generic
+// mechanism, before Change 0125 added a specific --strict message for it.
+// This regression test pins that: the generic block is independent of, and
+// unaffected by, the new named message.
+test("loadChange: an unchecked (review) task already blocks close's readiness check, via the generic unchecked-task count", () => {
+  const dir = makeChangeDir({ ...VALID_CHANGE, "tasks.md": "# Tasks\n\n- [ ] (review) Independent review completed.\n" });
+  const change = loadChange(dir);
+  assert.equal(change.openTasksCount, 1);
+  assert.ok(checkChangeReadiness(change).includes("1 unchecked task(s) in tasks.md"));
+});
+
 // --- F1: standard Markdown unordered-list bullets ('-', '*', '+') --------
 
 test("loadChange: an unchecked task using a '*' bullet blocks readiness, same as '-' (Change 0075)", () => {

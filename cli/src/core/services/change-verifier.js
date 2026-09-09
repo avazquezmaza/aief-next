@@ -119,6 +119,14 @@ export function checkStrictCompleteness(change) {
     // was silently invisible to --strict.
     const match = line.match(/^\s*[-*+]\s*\[\s\]\s*\(human\)\s*(.+)$/i);
     if (match) problems.push(`unresolved required human decision: ${match[1].trim()}`);
+    // ADR-037/D4 (Change 0125): mirrors the (human) check above — a
+    // specific, named message for an unresolved (review) task, closing the
+    // message-quality gap found while researching ADR-037 (the generic
+    // openTasksCount check in checkChangeReadiness() already blocked close
+    // on this exact line; this only makes --strict name it specifically,
+    // same as it already does for (human)).
+    const reviewMatch = line.match(/^\s*[-*+]\s*\[\s\]\s*\(review\)\s*(.+)$/i);
+    if (reviewMatch) problems.push(`unresolved required independent review: ${reviewMatch[1].trim()}`);
   }
 
   return problems;

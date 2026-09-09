@@ -186,10 +186,10 @@ test("status shows a Lite Change resolving to close when readiness passes", () =
   assert.doesNotMatch(out, /Blockers:/);
 });
 
-// Standard can never show "Next: close" through this Entrega's engine — the
-// review gate has no automated evaluator yet (WF-R14), even when every other
-// gate passes.
-test("status never shows Standard resolving to close — review has no evaluator yet", () => {
+// Standard cannot show "Next: close" while its review gate has no matching
+// (gate:review) task (ADR-037/D2, Change 0125) — replaces this test's
+// pre-0125 assertion that review had no evaluator at all.
+test("status never shows Standard resolving to close — review has no (gate:review) task yet", () => {
   const dir = makeProject();
   aief(dir, ["new-change", "standard-thing"]);
   const changeDir = path.join(dir, "changes", "0001-standard-thing");
@@ -201,7 +201,7 @@ test("status never shows Standard resolving to close — review has no evaluator
   const { out } = aief(dir, ["status"]);
   assert.match(out, /Stage: review/);
   assert.doesNotMatch(out, /Next: close/);
-  assert.match(out, /No automated evaluator yet \(planned for Entrega 7\)/);
+  assert.match(out, /no "\(gate:review\)" task found/);
 });
 
 // Governed represents approval/security_review/review as pending
@@ -254,7 +254,12 @@ test("status shows a warning (identity mismatch) without blocking Lite from reac
 // (commissioning instruction: "no intentes corregir ese límite
 // indirectamente"), not an oversight. This test documents the boundary so a
 // future Entrega that changes it does so as a visible, deliberate decision.
-test("close succeeds on a Governed Change even though its 'approval' workflow gate is permanently pending — close stays blind to the Workflow Engine by design", () => {
+// ADR-037/Change 0125: close no longer stays blind to the Workflow Engine
+// for a tracked Change — this test used to assert the opposite (close
+// succeeding despite a pending, blocking 'approval' gate) as the then-
+// current, deliberate boundary. That boundary is exactly what ADR-037
+// decided to close; this test now asserts the corrected behavior.
+test("close refuses a Governed Change while its 'approval' workflow gate is unresolved (ADR-037, Change 0125)", () => {
   const dir = makeProject();
   aief(dir, ["new-change", "governed-close-boundary"]);
   const changeDir = path.join(dir, "changes", "0001-governed-close-boundary");
@@ -270,11 +275,14 @@ test("close succeeds on a Governed Change even though its 'approval' workflow ga
   assert.match(preClose.out, /Blockers:/);
 
   const closed = aief(dir, ["close", "--yes"]);
-  assert.equal(closed.status, 0);
-  assert.match(closed.out, /✓ Closed changes\/0001-governed-close-boundary/);
+  assert.equal(closed.status, 1);
+  assert.match(closed.out, /approval/);
+  assert.match(closed.out, /Not closed: resolve the items above first\./);
   // manifest.json is never touched by close (B1 non-repetition, extended to
   // the Workflow Engine's own fields) — still "open", still "governed".
   assert.equal(fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8"), manifestBefore);
+  const changeMd = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
+  assert.doesNotMatch(changeMd, /## Status\s*\n\s*Closed/, "close must not have written a Closed status");
 });
 
 // AIEF Core 3.0, Entrega 3 (Change 0045) — SDD Provider, status integration.

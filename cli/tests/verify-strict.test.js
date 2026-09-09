@@ -112,3 +112,28 @@ test("a checked (human) task written with * or + is not flagged", () => {
   const problems = checkStrictCompleteness(change({ tasksMd }));
   assert.equal(problems.length, 0);
 });
+
+// ADR-037/D4 (Change 0125): mirrors the (human) checks above — closes the
+// message-quality gap found while researching ADR-037 (AGENTS.md already
+// documented (review) as blocking, but --strict had no specific message
+// for it, unlike (human)).
+test("an unchecked (review) task is reported as an unresolved required independent review", () => {
+  const tasksMd = "# Tasks\n\n## Review\n\n- [ ] (review) Independent review completed.\n- [x] (review) Already reviewed this one.\n";
+  const problems = checkStrictCompleteness(change({ tasksMd }));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /unresolved required independent review: Independent review completed\./);
+});
+
+test("an unchecked (review) task written with * or + is also reported", () => {
+  const tasksMd = "# Tasks\n\n## Review\n\n* [ ] (review) Review the star item.\n+ [ ] (review) Review the plus item.\n";
+  const problems = checkStrictCompleteness(change({ tasksMd }));
+  assert.equal(problems.length, 2);
+  assert.match(problems[0], /unresolved required independent review: Review the star item\./);
+  assert.match(problems[1], /unresolved required independent review: Review the plus item\./);
+});
+
+test("a checked (review) task written with * or + is not flagged", () => {
+  const tasksMd = "# Tasks\n\n## Review\n\n* [x] (review) Already reviewed (star).\n+ [x] (review) Already reviewed (plus).\n";
+  const problems = checkStrictCompleteness(change({ tasksMd }));
+  assert.equal(problems.length, 0);
+});
