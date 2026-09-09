@@ -83,9 +83,10 @@ Every meaningful implementation belongs to one Change.
 
 `aief new-change` (and `analyze`/`propose`/`enrich`, which all scaffold Changes) switches off
 `main`/`dev` onto a dedicated branch (`<type>/<id>-<slug>`) automatically before writing any Change
-file — one branch per Change is enforced by the CLI itself, not by an assistant remembering a rule
-written in prose. Don't re-implement this per assistant; `--no-branch` opts out when a Change
-genuinely belongs on the current branch.
+file. On an existing feature branch (including a worktree), the CLI preserves the current branch;
+it does not enforce a one-to-one mapping between Changes and branches. Select the intended
+checkout before scaffolding a Change. `--no-branch` opts out of the main/dev switch when the
+Change belongs on the current branch. Do not reimplement this switch per assistant.
 
 A Change should contain:
 

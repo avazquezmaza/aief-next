@@ -1,6 +1,8 @@
 # Gemini Instructions
 
-Follow all rules in `AGENTS.md`.
+@AGENTS.md
+
+Follow the imported project rules.
 
 Gemini-specific guidance:
 
@@ -9,3 +11,5 @@ Gemini-specific guidance:
 - Prefer structured comparisons when evaluating alternatives.
 - Keep responses practical and implementation-oriented.
 - Do not duplicate `AGENTS.md`; treat it as the source of truth.
+
+For Change work, read [the shared procedure](docs/assistant-workflow.md).

@@ -8,6 +8,12 @@ sandbox/
 node_modules/
 npm-debug.log
 
+# Local environment secrets; examples remain shareable
+.env
+.env.*
+!.env.example
+!.env.*.example
+
 # IDE
 .vscode/
 .idea/

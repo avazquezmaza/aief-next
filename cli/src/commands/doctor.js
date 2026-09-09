@@ -16,8 +16,8 @@ import { exists, read, section, parseArgs, printNext, openChangeDirs, builtinSta
 function printGraphEngineStatus() {
   const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
   console.log(hasGeminiKey
-    ? "[✓] Graphify Semantic Engine available (GEMINI_API_KEY set)"
-    : "[✓] AST Engine active (no GEMINI_API_KEY — static, offline, $0)");
+    ? "[i] GEMINI_API_KEY set; Graphify tool availability and external-processing authorization are not verified"
+    : "[i] GEMINI_API_KEY absent; local static analysis is available (no engine executed)");
 }
 // analyze/prompt all call recommendSkills() directly and are unaffected by
 // options.verbose or by a project's ai-specs/skills/*.md.

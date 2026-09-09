@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -120,20 +121,31 @@ test("generators write only into docs/images/ (no stray output files)", () => {
 });
 
 test(
-  "regenerating every diagram is a no-op (deterministic output) — skipped if python3 is unavailable",
+  "regenerating diagrams in isolation matches tracked SVGs and produces PNGs — skipped if python3 is unavailable",
   { skip: spawnSync("python3", ["--version"]).status !== 0 },
-  () => {
+  (t) => {
     const before = {};
+    const beforePng = {};
     for (const name of DIAGRAMS) {
       before[name] = readSvg(name);
+      beforePng[name] = fs.readFileSync(path.join(IMAGES_DIR, `${name}.png`));
     }
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aief-diagrams-"));
+    t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+    fs.cpSync(path.join(REPO_ROOT, "scripts"), path.join(temporaryRoot, "scripts"), { recursive: true });
+    fs.mkdirSync(path.join(temporaryRoot, "docs", "images"), { recursive: true });
     const result = spawnSync("python3", ["scripts/diagrams/generate_all.py"], {
-      cwd: REPO_ROOT,
+      cwd: temporaryRoot,
       encoding: "utf8",
     });
     assert.equal(result.status, 0, `generate_all.py failed:\n${result.stdout}\n${result.stderr}`);
     for (const name of DIAGRAMS) {
-      assert.equal(readSvg(name), before[name], `${name}.svg changed after regenerating — not deterministic`);
+      const generated = path.join(temporaryRoot, "docs", "images", name);
+      assert.equal(fs.readFileSync(`${generated}.svg`, "utf8"), before[name], `${name}.svg is not deterministic`);
+      assert.equal(readSvg(name), before[name], `${name}.svg in the repository was modified`);
+      assert.ok(fs.readFileSync(path.join(IMAGES_DIR, `${name}.png`)).equals(beforePng[name]), `${name}.png in the repository was modified`);
+      const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      assert.ok(fs.readFileSync(`${generated}.png`).subarray(0, 8).equals(pngMagic), `${name}.png is invalid`);
     }
   }
 );

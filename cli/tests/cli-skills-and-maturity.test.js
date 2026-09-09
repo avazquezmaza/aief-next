@@ -20,21 +20,21 @@ test("doctor does not recommend graphify-ast-architecture for unrelated projects
   assert.doesNotMatch(out, /graphify-ast-architecture/);
 });
 
-test("doctor reports the semantic engine when GEMINI_API_KEY is set, never both lines", () => {
+test("doctor reports credential presence without claiming Graphify availability", () => {
   const dir = makeProject({ "README.md": "x" });
   const { out } = aief(dir, ["doctor"], { GEMINI_API_KEY: "fake-key-for-test" });
-  assert.match(out, /\[✓\] Graphify Semantic Engine available \(GEMINI_API_KEY set\)/);
+  assert.match(out, /GEMINI_API_KEY set; Graphify tool availability and external-processing authorization are not verified/);
   assert.doesNotMatch(out, /AST Engine active/);
 });
 
-test("doctor reports the AST engine when GEMINI_API_KEY is absent or empty", () => {
+test("doctor offers local static analysis when GEMINI_API_KEY is absent or empty", () => {
   const dir = makeProject({ "README.md": "x" });
   const unset = aief(dir, ["doctor"], { GEMINI_API_KEY: undefined });
-  assert.match(unset.out, /\[✓\] AST Engine active \(no GEMINI_API_KEY — static, offline, \$0\)/);
+  assert.match(unset.out, /GEMINI_API_KEY absent; local static analysis is available \(no engine executed\)/);
   assert.doesNotMatch(unset.out, /Semantic Engine/);
 
   const empty = aief(dir, ["doctor"], { GEMINI_API_KEY: "" });
-  assert.match(empty.out, /\[✓\] AST Engine active/);
+  assert.match(empty.out, /GEMINI_API_KEY absent/);
   assert.doesNotMatch(empty.out, /Semantic Engine/);
 });
 
