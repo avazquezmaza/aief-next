@@ -35,6 +35,20 @@ rule; all three are exercised by an automated test file, not a manual check.
 
 ## Findings
 
+- **Post-close CI fix (same PR, before merge):** the first push to CI failed —
+  `tests/architecture-fitness.test.js` throws `ERR_MODULE_NOT_FOUND` for `"eslint"` in the
+  `test` job. Root cause: `docs/maintainer.md` already documents, and the `test` job's own
+  steps already implement, a deliberate invariant this Change didn't check against —
+  `.github/workflows/ci.yml`'s `test` job never runs `npm ci` in `cli/` (only the separate
+  `lint` job does), specifically so the dependency-free CLI's tests never require a
+  devDependency to be installed. My test imported the `eslint` devDependency unconditionally,
+  breaking that invariant. Fixed by wrapping the import in try/catch and passing
+  `{ skip: <reason> }` to every `test()` call in the file when `eslint` cannot be resolved —
+  verified locally both ways (`node_modules/` present: 8/8 pass; `node_modules/` renamed away,
+  simulating the `test` job exactly: 8/8 skip, 0 fail). The rules themselves remain fully
+  enforced on every push regardless — the separate `lint` job (which does run `npm ci`) lints
+  the whole tree including these three rules, so no real CI coverage is lost by skipping the
+  dedicated unit tests where devDependencies aren't installed.
 - The Registries/Providers layer (Hooks, Verification rules) does **not** cleanly follow the
   diagram's strict one-directional arrow: `hooks/post-verify-next-action.js` imports
   `deriveNextAction` from `core/services/workflow-service.js`, and
@@ -66,6 +80,11 @@ rule; all three are exercised by an automated test file, not a manual check.
 
 ## Lessons Learned
 
+- This repository's CI has two jobs with deliberately different dependency footprints (`lint`
+  runs `npm ci`, `test` does not) as a live proof of "dependency-free at runtime" — a test file
+  that imports a devDependency needs to check both, not just run locally where `node_modules`
+  already happens to exist from earlier work. `docs/maintainer.md` already stated this; reading
+  it before writing a test that imports a devDependency would have caught this before pushing.
 - Verifying zero violations before writing a fitness rule — rather than writing the rule and
   seeing what breaks — meant this Change touched no application code at all, keeping it exactly
   as small as "add a guardrail" should be.
