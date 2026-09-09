@@ -108,6 +108,35 @@ test("selectNextChange: a cycle member is never eligible, even with an individua
   }
 });
 
+// Change 0123: a Change that only depends on a cyclic Change is blocked,
+// but must not be reported as itself being a cycle member.
+test("selectNextChange: a Change blocked by a cyclic dependency is ineligible for the dependency reason, not misreported as a cycle member", () => {
+  const changes = [
+    { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
+    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] },
+    { id: "0003-c", closed: false, manifestError: false, workflowBlockers: [] }
+  ];
+  const graph = buildGraph([
+    { id: "0001-a", dependsOn: ["0002-b"] },
+    { id: "0002-b", dependsOn: ["0001-a"] },
+    { id: "0003-c", dependsOn: ["0002-b"] }
+  ]);
+  const result = selectNextChange(changes, graph);
+  assert.equal(result.recommended, null);
+
+  const a = result.evaluations.find((e) => e.id === "0001-a");
+  const b = result.evaluations.find((e) => e.id === "0002-b");
+  const c = result.evaluations.find((e) => e.id === "0003-c");
+
+  assert.ok(a.reasons.some((r) => r.includes("graph: cycle")));
+  assert.ok(b.reasons.some((r) => r.includes("graph: cycle")));
+
+  assert.equal(c.eligible, false);
+  assert.equal(c.reasons.some((r) => r.includes("graph: cycle")), false, "0003-c is not a cycle member");
+  assert.ok(c.reasons.some((r) => r.includes("graph: blocked_by_cycle")), "0003-c is blocked by the cycle instead");
+  assert.ok(c.reasons.some((r) => r.includes("dependencies not closed: 0002-b")));
+});
+
 test("selectNextChange: an unsatisfied Workflow gate blocker makes the Change ineligible", () => {
   const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: ["approval: pending — needs human sign-off"] }];
   const result = selectNextChange(changes, buildGraph([{ id: "0001-a", dependsOn: [] }]));
