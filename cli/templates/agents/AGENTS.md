@@ -28,6 +28,9 @@ Never treat AI output as automatically approved. The human owner is responsible 
 8. Update documentation when behavior changes.
 9. Generate evidence before considering work complete.
 10. Prefer simple solutions over clever ones.
+11. Once a Change's acceptance criteria are satisfied, stop. Do not opportunistically extend
+    scope into adjacent code or additional artifacts, even when the extra work seems clearly
+    beneficial — propose it as a follow-up Change instead.
 
 ---
 

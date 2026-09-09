@@ -43,6 +43,7 @@ const CANONICAL_RULES = [
   "Update documentation when behavior changes.",
   "Prefer simple solutions over clever ones.",
   "Do not implement without a specification.",
+  "Once a Change's acceptance criteria are satisfied, stop.",
   "(human) Human-only approval",
   "(review) Independent review",
   "Both stay blocking for `aief close`",

@@ -156,6 +156,18 @@ test("bootstrap/analyze are unaffected by ai-specs/skills/ (Change 0054 touches 
   assert.doesNotMatch(skillsDoc, /pair-programming/);
 });
 
+// --- Change 0127: STOP-on-scope-complete directive (usability study finding, §6 row 4 of
+// Change 0096's consolidation — a participant continued unprompted well past the scoped task,
+// with nothing in the flow signaling it was already done) ---
+
+test("prompt: the generated prompt tells the assistant to stop once acceptance criteria are satisfied, for every Change type", () => {
+  const dir = makeProject({ "README.md": "x" });
+  aief(dir, ["bootstrap"]);
+  const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
+  assert.match(out, /Once those acceptance criteria are satisfied, stop/);
+  assert.match(out, /Propose it as a follow-up Change instead/);
+});
+
 // --- Change 0069/ADR-023 follow-up: ai-specs/skills/ wired into `aief prompt` too ---
 
 test("prompt: with no ai-specs/skills/, the Skill context is byte-identical to before this Change", () => {
