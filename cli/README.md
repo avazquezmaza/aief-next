@@ -8,7 +8,7 @@ Commands cover levels 1 (context: doctor/adopt/analyze/prompt) and 3 (governance
 
 ## Install
 
-Requires Node >= 18. No dependencies.
+Requires Node >= 22. No dependencies.
 
 From the repository root (the root `package.json` exposes the same binary):
 
@@ -76,4 +76,4 @@ Profiles define the role. Skills define specialized knowledge. Standards define 
 npm test
 ```
 
-Runs the CLI suite with `node --test` (Node >= 18, no dependencies). Covers Change ID safety, adoption idempotence, detection, skill reasons, Analysis Changes, CRLF handling, verify, help coverage and the OpenSpec fallback paths.
+Runs the CLI suite with `node --test` (Node >= 22, no dependencies). Covers Change ID safety, adoption idempotence, detection, skill reasons, Analysis Changes, CRLF handling, verify, help coverage and the OpenSpec fallback paths.
