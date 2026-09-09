@@ -116,6 +116,20 @@ Ordinary `- [ ]` tasks in `tasks.md` may be checked by whoever does the work. Tw
 
 Both stay blocking for `aief close` while unchecked. Full conventions (deferred work, increments, checkpoints, OpenSpec↔AIEF): [governance conventions](https://github.com/avazquezmaza/aief-next/blob/main/docs/history/governance-conventions.md).
 
+A Change that declares a `track` (`standard`/`governed`) additionally resolves its
+`review`/`approval`/`security_review` Workflow Gates from their own explicit label:
+
+```markdown
+- [ ] (gate:approval) Architecture approved
+- [ ] (gate:security_review) Security review completed
+- [ ] (gate:review) Independent review completed
+```
+
+Only a human may check one of these, exactly like `(human)`/`(review)` above. `aief close`
+refuses while a gate the Change's track declares has no matching `(gate:<id>)` line, or has one
+still unchecked (ADR-037). A Change with no `track` is unaffected by this — its readiness is
+`(human)`/`(review)`/ordinary-task checks only, as above.
+
 ---
 
 ## Required Completion Checklist

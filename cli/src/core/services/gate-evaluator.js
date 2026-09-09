@@ -1,13 +1,15 @@
-// Gate evaluator (AIEF Core 3.0, Entrega 2 — Workflow Engine, Change 0044).
+// Gate evaluator (AIEF Core 3.0, Entrega 2 — Workflow Engine, Change 0044;
+// review/approval/security_review wired, ADR-037, Change 0125).
 //
 // Answers "is this one condition satisfied" for a Change, as a structured
 // GateResult: { id, status, blocking, reason, evidence }. Reuses existing
 // rules rather than reimplementing them (design.md §5 of Change 0044):
 // the "readiness" gate is a thin wrapper over checkChangeReadiness(), the
-// exact function `close` already calls. Gates with no evaluator built yet
-// (review/approval/security_review) are constants that can never resolve to
-// "passed" (WF-R8) — there is no code path here that computes that verdict
-// for them, because no function computing it exists yet.
+// exact function `close` already calls. review/approval/security_review
+// resolve from an explicit `(gate:<id>)` tasks.md label (taskLabelGate(),
+// ADR-037/D2) — never fabricated as "passed" for lack of a matching task
+// (WF-R8): an unconfigured gate is "pending", the same discipline the
+// permanently-unbuilt placeholder this replaces already followed.
 import { loadChange, readChangeFiles, parseChangeStatus } from "../domain/change.js";
 import { checkChangeReadiness } from "./change-verifier.js";
 import { resolveSddProvider } from "../domain/sdd-provider-resolver.js";
@@ -39,16 +41,45 @@ function readinessGate(changeDir) {
   };
 }
 
-// A gate with no automated evaluator yet. Always "pending", always
-// "blocking: true" (it cannot be silently bypassed), and always names why —
-// never fabricated as "passed" for lack of an evaluator, evidence, or
-// integration (WF-R8, explicitly required by the commissioning instruction).
-function notYetBuiltGate(id, note) {
+// ADR-037/D2 (Change 0125): review/approval/security_review resolve from an
+// explicit `(gate:<id>)` tasks.md label — a repository-visible, human-
+// checked fact, never runtime/environment state (ADR-021). Reuses the exact
+// `[-*+]` bullet tolerance and `[ xX]` checkbox pattern change.js's
+// countOpenTasks() and change-verifier.js's `(human)` check already
+// established, so a "* [x] (gate:approval) ..." line is recognized exactly
+// like a "- [x] (gate:approval) ..." one.
+//
+// Zero matching lines: the gate is unconfigured, not satisfied — "pending",
+// blocking, naming what's missing (WF-R8: never fabricate "passed" for an
+// absent task, the same discipline the permanently-unbuilt gate this
+// replaces already followed). One or more matches, any unchecked: "failed",
+// naming the unresolved task(s). Every match checked: "passed".
+function taskLabelGate(id, changeDir) {
+  const { files } = readChangeFiles(changeDir);
+  const tasksMd = files["tasks.md"] || "";
+  const regex = new RegExp(`^\\s*[-*+]\\s*\\[([ xX])\\]\\s*\\(gate:${id}\\)\\s*(.+)$`, "i");
+  const matches = [];
+  for (const line of tasksMd.split(/\r?\n/)) {
+    const match = line.match(regex);
+    if (match) matches.push({ checked: match[1].toLowerCase() === "x", text: match[2].trim() });
+  }
+  if (!matches.length) {
+    return {
+      id,
+      status: "pending",
+      blocking: true,
+      reason: `no "(gate:${id})" task found in tasks.md — add one and check it once ${id} is complete`,
+      evidence: []
+    };
+  }
+  const unchecked = matches.filter((m) => !m.checked);
   return {
     id,
-    status: "pending",
+    status: unchecked.length ? "failed" : "passed",
     blocking: true,
-    reason: `No automated evaluator yet${note ? ` (${note})` : ""}. A human must confirm this manually.`,
+    reason: unchecked.length
+      ? `unresolved (gate:${id}) task(s): ${unchecked.map((m) => m.text).join("; ")}`
+      : `(gate:${id}) task(s) checked: ${matches.map((m) => m.text).join("; ")}`,
     evidence: []
   };
 }
@@ -135,9 +166,9 @@ export function evaluateGates(change, workflowDefinition, cwd = process.cwd()) {
   const results = [];
 
   if (applicableIds.has("readiness")) results.push(readinessGate(change.dir));
-  if (applicableIds.has("review")) results.push(notYetBuiltGate("review", "planned for Entrega 7"));
-  if (applicableIds.has("approval")) results.push(notYetBuiltGate("approval", "Governed track hardening, not yet built"));
-  if (applicableIds.has("security_review")) results.push(notYetBuiltGate("security_review", "Governed track hardening, not yet built"));
+  if (applicableIds.has("review")) results.push(taskLabelGate("review", change.dir));
+  if (applicableIds.has("approval")) results.push(taskLabelGate("approval", change.dir));
+  if (applicableIds.has("security_review")) results.push(taskLabelGate("security_review", change.dir));
   if (applicableIds.has("specification")) results.push(specificationGate(change, cwd));
 
   results.push(statusConsistencyGate(change));

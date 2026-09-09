@@ -56,14 +56,17 @@ test("evaluateGates: readiness fails for an incomplete Change, reusing checkChan
   assert.match(readiness.reason, /spec\.md/);
 });
 
-test("evaluateGates: review/approval/security_review are always pending, never passed, and always name why (standard/governed)", () => {
+// ADR-037/D2 (Change 0125): review/approval/security_review resolve from an
+// explicit `(gate:<id>)` tasks.md label — replaces the pre-0125 "always
+// pending, no evaluator" placeholder this test used to assert.
+test("evaluateGates: review/approval/security_review are 'pending' when no (gate:<id>) task exists at all (standard/governed)", () => {
   const dirStandard = makeChangeDir({ ...COMPLETE_LEGACY_FILES, "manifest.json": manifestFor("standard") });
   const changeStandard = loadChangeUnified(dirStandard);
   const defStandard = loadWorkflowDefinition("standard").value;
   const reviewGate = evaluateGates(changeStandard, defStandard).find((g) => g.id === "review");
   assert.equal(reviewGate.status, "pending");
   assert.equal(reviewGate.blocking, true);
-  assert.match(reviewGate.reason, /No automated evaluator yet/);
+  assert.match(reviewGate.reason, /no "\(gate:review\)" task found/);
 
   const dirGoverned = makeChangeDir({ ...COMPLETE_LEGACY_FILES, "manifest.json": manifestFor("governed") });
   const changeGoverned = loadChangeUnified(dirGoverned);
@@ -71,9 +74,48 @@ test("evaluateGates: review/approval/security_review are always pending, never p
   const governedResults = evaluateGates(changeGoverned, defGoverned);
   for (const id of ["approval", "security_review", "review"]) {
     const gate = governedResults.find((g) => g.id === id);
-    assert.equal(gate.status, "pending", `${id} must be pending`);
-    assert.notEqual(gate.status, "passed", `${id} must never be passed`);
+    assert.equal(gate.status, "pending", `${id} must be pending with no matching task`);
+    assert.notEqual(gate.status, "passed", `${id} must never fabricate "passed"`);
   }
+});
+
+test("evaluateGates: an unchecked (gate:<id>) task fails the gate, naming the unresolved task", () => {
+  const dir = makeChangeDir({
+    ...COMPLETE_LEGACY_FILES,
+    "tasks.md": "# Tasks\n\n- [ ] (gate:approval) Architecture approved\n",
+    "manifest.json": manifestFor("governed")
+  });
+  const change = loadChangeUnified(dir);
+  const def = loadWorkflowDefinition("governed").value;
+  const gate = evaluateGates(change, def).find((g) => g.id === "approval");
+  assert.equal(gate.status, "failed");
+  assert.equal(gate.blocking, true);
+  assert.match(gate.reason, /unresolved \(gate:approval\) task\(s\): Architecture approved/);
+});
+
+test("evaluateGates: a checked (gate:<id>) task passes the gate", () => {
+  const dir = makeChangeDir({
+    ...COMPLETE_LEGACY_FILES,
+    "tasks.md": "# Tasks\n\n- [x] (gate:approval) Architecture approved\n",
+    "manifest.json": manifestFor("governed")
+  });
+  const change = loadChangeUnified(dir);
+  const def = loadWorkflowDefinition("governed").value;
+  const gate = evaluateGates(change, def).find((g) => g.id === "approval");
+  assert.equal(gate.status, "passed");
+  assert.equal(gate.blocking, true);
+});
+
+test("evaluateGates: (gate:<id>) recognizes '*' and '+' bullets, and is case-insensitive on the checkbox mark", () => {
+  const dir = makeChangeDir({
+    ...COMPLETE_LEGACY_FILES,
+    "tasks.md": "# Tasks\n\n* [X] (gate:security_review) Security review completed\n",
+    "manifest.json": manifestFor("governed")
+  });
+  const change = loadChangeUnified(dir);
+  const def = loadWorkflowDefinition("governed").value;
+  const gate = evaluateGates(change, def).find((g) => g.id === "security_review");
+  assert.equal(gate.status, "passed");
 });
 
 test("evaluateGates: status_consistency is 'not_applicable' when change.md declares no status of its own", () => {
