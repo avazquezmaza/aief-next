@@ -47,3 +47,7 @@ scaffolded as domain code. Documentation only; no code.
   states the ADR-008/ADR-013 posture explicitly.
 - No executable file changed; `aief verify --change 0122-multi-agent-runtime-open-questions --strict`
   passes; no other document modified.
+
+## Status
+
+Closed (2026-09-09)
