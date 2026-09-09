@@ -13,7 +13,7 @@
     "lint": "npm --prefix cli run lint"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "license": "MIT"
 }

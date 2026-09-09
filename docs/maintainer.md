@@ -154,7 +154,7 @@ cd examples/todo-app && npm test  # the executable example stays runnable
 python3 scripts/diagrams/generate_all.py  # confirms every diagram generator still runs cleanly
 ```
 
-The CI lint job uses Node 22; runtime tests use Node 18, 20 and 22 without installing ESLint.
+The CI lint job uses Node 22; runtime tests use Node 22 and 24 without installing ESLint.
 Diagram tests regenerate into a temporary script layout, compare SVGs and validate PNGs without
 writing to tracked images. For the common assistant procedure, see [Working a Change](assistant-workflow.md).
 

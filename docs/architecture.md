@@ -56,8 +56,8 @@ Every subsystem follows the same four-layer split, top to bottom:
 | Layer | Responsibility | Where |
 |---|---|---|
 | CLI Commands | Argument parsing, Change resolution, output rendering | `cli/bin/aief.js`, `cli/src/cli.js` |
-| Application Services | Workflow, Prompt, Verification, Harness/Loop, Graph/Next orchestration | `cli/src/*-service.js` |
-| Domain Models | Change, Manifest, Requirement, Skill, Hook, Graph shapes | `cli/src/change.js`, `change-manifest.js`, `sdd-model.js`, `skill.js`, `hook.js`, `change-graph.js` |
+| Application Services | Workflow, Prompt, Verification, Harness/Loop, Graph/Next orchestration | `cli/src/core/services/*.js` |
+| Domain Models | Change, Manifest, Requirement, Skill, Hook, Graph shapes | `cli/src/core/domain/change.js`, `change-manifest.js`, `sdd-model.js`, `skill.js`, `hook.js`, `change-graph.js` |
 | Registries / Providers | Static id-to-implementation maps | `cli/src/workflows/`, `sdd-providers/`, `skills/`, `hooks/`, `verification-rules/`, `requirement-providers/` |
 | Repository | The actual state read/written every run | `changes/`, `knowledge/`, `manifest.json`, `evidence.md` |
 
