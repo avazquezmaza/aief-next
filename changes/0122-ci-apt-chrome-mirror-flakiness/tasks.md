@@ -7,15 +7,15 @@
 
 ## Documentation
 
-- [ ] None required.
+- [x] None required.
 
 ## Verification
 
 - [x] `npm test` (cli)
 - [x] `node cli/bin/aief.js verify --strict`
 - [x] `git diff --check`
-- [ ] (human) Confirm CI is green on the pushed branch/PR — cannot be observed from this session
-      until GitHub Actions actually runs it.
+- [x] Confirm CI is green on the pushed branch/PR — observed directly via `gh pr checks 67`
+      (`lint`, `test (18)`, `test (20)`, `test (22)` all `pass`).
 
 ## Evidence
 

@@ -34,3 +34,7 @@ GitHub Actions Ubuntu runner image — a repo this job never uses (it only needs
 - The `test` job's "Install SVG renderer" step no longer depends on the Chrome apt repo's index.
 - A CI run on the PR branch shows `test (18/20/22)` passing again.
 - `npm test`, `node cli/bin/aief.js verify --strict`, `git diff --check` all pass locally.
+
+## Status
+
+Closed (2026-09-09)

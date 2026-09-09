@@ -21,10 +21,13 @@ identical failure, ruling out a one-off transient blip. Fixed by removing the Ch
 ## Verification
 
 - `npm test` (cli, run from `cli/`): 1053/1053 pass.
-- `node cli/bin/aief.js verify --change 0122-ci-apt-chrome-mirror-flakiness --strict`: FAIL, expected
-  — blocked only on the `(human)` task "Confirm CI is green on the pushed branch/PR", which this
-  session cannot check itself; will be confirmed once GitHub Actions runs the pushed branch.
 - `git diff --check`: clean.
+- PR #67 (`https://github.com/avazquezmaza/aief-next/pull/67`) CI, first push (naive
+  `google-chrome.list` filename): `lint` pass, `test (20)` fail — same `dl.google.com` hash mismatch,
+  proving the guessed filename was wrong on this runner image; `test (18)`/`test (22)` cancelled.
+- PR #67 CI, second push (content-based `grep -rl 'dl\.google\.com'` removal): `gh pr checks 67` —
+  `lint` pass, `test (18)` pass, `test (20)` pass, `test (22)` pass. Confirms the fix.
+- `node cli/bin/aief.js verify --change 0122-ci-apt-chrome-mirror-flakiness --strict`: PASS.
 
 ## Findings
 
