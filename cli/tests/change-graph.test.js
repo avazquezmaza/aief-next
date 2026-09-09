@@ -5,7 +5,7 @@ import { buildGraph } from "../src/core/domain/change-graph.js";
 
 test("buildGraph: empty input is an empty, issue-free graph", () => {
   const graph = buildGraph([]);
-  assert.deepEqual(graph, { nodes: [], edges: [], order: [], cycles: null, issues: [] });
+  assert.deepEqual(graph, { nodes: [], edges: [], order: [], cycles: null, cycleComponents: null, issues: [] });
 });
 
 test("buildGraph: one Change with no dependencies", () => {
@@ -74,9 +74,71 @@ test("buildGraph: a 2-node cycle is detected, order is null", () => {
   const graph = buildGraph([{ id: "0001-a", dependsOn: ["0002-b"] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   assert.equal(graph.order, null);
   assert.deepEqual(graph.cycles, ["0001-a", "0002-b"]);
+  assert.deepEqual(graph.cycleComponents, [["0001-a", "0002-b"]]);
   const cycleIssue = graph.issues.find((i) => i.type === "cycle");
   assert.ok(cycleIssue);
   assert.deepEqual(cycleIssue.members, ["0001-a", "0002-b"]);
+});
+
+// Change 0123: a Change depending on a cyclic Change is blocked by that
+// cycle, but is not itself a member of it — the two must be distinguished.
+test("buildGraph: a Change depending on a cyclic Change is reported as blocked, not as a cycle member", () => {
+  const graph = buildGraph([
+    { id: "0001-a", dependsOn: ["0002-b"] },
+    { id: "0002-b", dependsOn: ["0001-a"] },
+    { id: "0003-c", dependsOn: ["0002-b"] }
+  ]);
+  assert.equal(graph.order, null);
+  assert.deepEqual(graph.cycles, ["0001-a", "0002-b", "0003-c"], "cycles keeps its pre-0123 shape: every unordered id");
+  assert.deepEqual(graph.cycleComponents, [["0001-a", "0002-b"]], "0003-c is not part of the actual cycle");
+
+  const cycleIssues = graph.issues.filter((i) => i.type === "cycle");
+  assert.equal(cycleIssues.length, 1);
+  assert.deepEqual(cycleIssues[0].members, ["0001-a", "0002-b"]);
+
+  const blockedIssue = graph.issues.find((i) => i.type === "blocked_by_cycle");
+  assert.ok(blockedIssue, "0003-c gets its own blocked_by_cycle issue");
+  assert.equal(blockedIssue.changeId, "0003-c");
+  assert.deepEqual(blockedIssue.blockedBy, ["0001-a", "0002-b"]);
+});
+
+test("buildGraph: two independent cycles are reported as two separate cycles, not one blob", () => {
+  const graph = buildGraph([
+    { id: "0001-a", dependsOn: ["0002-b"] },
+    { id: "0002-b", dependsOn: ["0001-a"] },
+    { id: "0003-c", dependsOn: ["0004-d"] },
+    { id: "0004-d", dependsOn: ["0003-c"] }
+  ]);
+  assert.equal(graph.order, null);
+  assert.deepEqual(graph.cycleComponents, [["0001-a", "0002-b"], ["0003-c", "0004-d"]]);
+
+  const cycleIssues = graph.issues.filter((i) => i.type === "cycle");
+  assert.equal(cycleIssues.length, 2, "one issue per independent cycle, not one for the whole remaining set");
+  assert.deepEqual(cycleIssues.map((i) => i.members).sort(), [["0001-a", "0002-b"], ["0003-c", "0004-d"]]);
+});
+
+test("buildGraph: a cycle, a Change blocked by it, and an unrelated acyclic Change coexist correctly", () => {
+  const graph = buildGraph([
+    { id: "0001-a", dependsOn: ["0002-b"] },
+    { id: "0002-b", dependsOn: ["0001-a"] },
+    { id: "0003-blocked", dependsOn: ["0002-b"] },
+    { id: "0004-unrelated", dependsOn: [] }
+  ]);
+  assert.deepEqual(graph.nodes, ["0001-a", "0002-b", "0003-blocked", "0004-unrelated"]);
+  assert.equal(graph.order, null);
+  assert.deepEqual(graph.cycleComponents, [["0001-a", "0002-b"]]);
+  assert.equal(
+    graph.issues.some((i) => i.type === "cycle" && i.members.includes("0004-unrelated")),
+    false,
+    "0004-unrelated is not swept into the cycle — it never depends on anything in remaining"
+  );
+  assert.equal(
+    graph.issues.some((i) => i.type === "blocked_by_cycle" && i.changeId === "0004-unrelated"),
+    false,
+    "0004-unrelated has no dependency at all, so it is not 'blocked' by anything either"
+  );
+  const blockedIssue = graph.issues.find((i) => i.type === "blocked_by_cycle");
+  assert.equal(blockedIssue.changeId, "0003-blocked");
 });
 
 test("buildGraph: a 3-node cycle is detected and named in full", () => {
