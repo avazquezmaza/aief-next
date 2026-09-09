@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { BIN, POSIX, makeProject, aief, aiefWithInput } from "./helpers/cli-runner.js";
 
 // --- Change 0071: `aief close --evidence-from <path>` (JUnit XML capture) ---
@@ -20,7 +21,37 @@ test("close --evidence-from: a valid JUnit report fills in evidence.md's Verific
   const evidence = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
   assert.match(evidence, /### Captured Test Report/);
   assert.match(evidence, /Captured from `report\.xml` \(JUnit XML, 1 suite\(s\)\) — not executed by AIEF\./);
+  // Change 0129: provenance metadata (digest/commit/producer) is appended
+  // to every real capture, not only exercised in the domain-level tests.
+  assert.match(evidence, /\*\*Provenance:\*\*/);
+  assert.match(evidence, /- SHA-256: `sha256:[0-9a-f]{64}`/);
+  assert.match(evidence, /- Verification type: junit-xml/);
+  assert.match(evidence, /- Producer: aief close --evidence-from \(aief .+\)/);
   assert.match(evidence, /- Tests: 10/);
+});
+
+test("close --evidence-from: the provenance's git commit is the real HEAD sha when run inside a git repo, and null/'unknown' when not", () => {
+  const dir = makeProject();
+  aief(dir, ["new-change", "thing"]);
+  fs.writeFileSync(path.join(dir, "report.xml"), JUNIT_REPORT, "utf8");
+  const { status: statusNoGit } = aief(dir, ["close", "--evidence-from", "report.xml"]);
+  assert.equal(statusNoGit, 0);
+  const evidenceNoGit = fs.readFileSync(path.join(dir, "changes", "0001-thing", "evidence.md"), "utf8");
+  assert.match(evidenceNoGit, /- Git commit: unknown \(not inside a git work tree, or no commits yet\)/);
+
+  const gitDir = makeProject();
+  aief(gitDir, ["new-change", "thing"]);
+  spawnSync("git", ["init", "-q"], { cwd: gitDir });
+  spawnSync("git", ["config", "user.email", "test@example.com"], { cwd: gitDir });
+  spawnSync("git", ["config", "user.name", "Test"], { cwd: gitDir });
+  spawnSync("git", ["add", "."], { cwd: gitDir });
+  spawnSync("git", ["commit", "-q", "-m", "init"], { cwd: gitDir });
+  const headSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: gitDir, encoding: "utf8" }).stdout.trim();
+  fs.writeFileSync(path.join(gitDir, "report.xml"), JUNIT_REPORT, "utf8");
+  const { status: statusGit } = aief(gitDir, ["close", "--evidence-from", "report.xml"]);
+  assert.equal(statusGit, 0);
+  const evidenceGit = fs.readFileSync(path.join(gitDir, "changes", "0001-thing", "evidence.md"), "utf8");
+  assert.match(evidenceGit, new RegExp(`- Git commit: \`${headSha}\``));
 });
 
 test("close --evidence-from: a missing report path exits 1 with a clear message, writes nothing", () => {

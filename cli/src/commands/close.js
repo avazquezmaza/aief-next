@@ -17,6 +17,7 @@ import { loadChangeUnified } from "../core/domain/change-loader.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
 import { nextAction } from "../core/services/workflow-service.js";
 import { parseJUnitReport, renderCapturedVerification } from "../core/domain/junit-report.js";
+import { buildProvenance } from "../core/domain/evidence-provenance.js";
 import { replaceOrAppendEvidenceSection } from "../core/domain/evidence-sections.js";
 import { read, writeFile, section, parseArgs, resolveExplicitChange, resolveImplicitChange, printNext } from "./shared.js";
 
@@ -70,7 +71,11 @@ export function close(args) {
     try { reportContent = fs.readFileSync(resolvedPath, "utf8"); } catch (err) { console.error(`--evidence-from: could not read ${reportPath}: ${err.message}`); process.exitCode = 1; return; }
     const report = parseJUnitReport(reportContent);
     if (!report) { console.error(`--evidence-from: no <testsuite> element found in ${reportPath}. Supported format: JUnit XML.`); process.exitCode = 1; return; }
-    const verificationBody = renderCapturedVerification(reportPath, report);
+    // Change 0129: provenance is computed from the exact bytes just read
+    // above (reportContent), never a re-read — avoids a TOCTOU gap between
+    // what AIEF hashed and what it actually parsed.
+    const provenance = buildProvenance(reportPath, reportContent, "aief close --evidence-from", "junit-xml", process.cwd());
+    const verificationBody = renderCapturedVerification(reportPath, report, provenance);
     const evidencePath = path.join(changeDir, "evidence.md");
     const currentEvidence = read(evidencePath);
     const updatedEvidence = replaceOrAppendEvidenceSection(currentEvidence, "Verification", "Captured from `", verificationBody);
