@@ -30,6 +30,10 @@ still authoritative; it is simply not part of the learning path.
   here as raised, not updated in place.
 - **[external-harness-patterns.md](external-harness-patterns.md)** — patterns observed from an
   external CI/review harness, considered as input to the Verification Engine design.
+- **[multi-agent-runtime-open-questions.md](multi-agent-runtime-open-questions.md)** — an external
+  "Multi-Agent Runtime Foundation" proposal (Run/Attempt/ExecutionGraph/AgentRouter and ~20 related
+  domain types), recorded as a deferred, evidence-gated open question per ADR-008/ADR-013, not
+  implemented.
 - **[proposals/](proposals/)** — early proposals that predate or duplicate what
   [knowledge/decisions.md](../../knowledge/decisions.md) now records as accepted ADRs.
 
