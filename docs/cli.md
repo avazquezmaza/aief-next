@@ -16,7 +16,7 @@ introduced its flag.
 
 | Command | Reads | Writes | Purpose |
 |---|---|---|---|
-| `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/`, whether `GEMINI_API_KEY` is set in the environment | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). One line always reports the graph-engine mode an assistant would use for the `graphify-ast-architecture` Skill — `Graphify Semantic Engine available` when `GEMINI_API_KEY` is set, `AST Engine active` otherwise; this reads the variable's presence only, never its value, and never calls Gemini (Change 0064). Exits 1 only when a required tool (Node, npm, git) is missing; exits 0 otherwise, including when recommended tools are absent. |
+| `aief doctor` | PATH tools, project files, `ai-specs/skills/`, `ai-specs/standards/`, whether `GEMINI_API_KEY` is set in the environment | Nothing | Environment (required/recommended/optional tools) + project readiness. Recommended Skills include a project's own `ai-specs/skills/*.md` alongside AIEF's built-ins — project always wins on id collision (Change 0054/ADR-024). A "Standards:" section appears — only when `ai-specs/standards/` contributes something — with the same project-over-built-in precedence (Change 0055/ADR-025). Doctor reports only whether `GEMINI_API_KEY` is present; it does not verify Graphify installation, authorize external processing or execute an analysis engine. Local static analysis remains available. It never displays the credential value or calls Gemini. Exits 1 only when a required tool (Node, npm, git) is missing; exits 0 otherwise, including when recommended tools are absent. |
 | `aief doctor --verbose` | Same, plus every open Change's `manifest.loop`/`loop.md` | Nothing | Same, plus each Skill's/Standard's `source`, file `path` when project-sourced, `overrides` when it shadows a built-in, full `ai-specs` resolution warnings, a "Harness:" section listing every registered Hook and the event it fires on (Change 0056/ADR-026), and — only when at least one open Change configures it — a "Loop:" section with each such Change's current attempt count (Change 0057/ADR-027, read-only). |
 | `aief status` | `changes/`, project files, every Change's `manifest.dependsOn` | Nothing | Adoption overview, recent Changes, all open Changes, Workflow/SDD summaries, and — only when at least one Change declares `dependsOn` — a "Dependency Graph:" section (Change 0058/ADR-028). |
 | `aief status --graph` | Every Change's `manifest.dependsOn` | Nothing | The full Change dependency graph: every Change as a node, all edges, topological order (or an explicit cycle statement), all issues. New flag, Change 0058/ADR-028. |
@@ -138,8 +138,8 @@ optional, hand-authored, per-assistant adaptations of format only (this reposito
 an example: each says "follow `AGENTS.md`," "do not duplicate it," and adds only tone/emphasis
 guidance, never a contradictory engineering rule).
 
-Compatibility levels, verified live against a from-scratch scratch project (evidence:
-`changes/0060-*/evidence.md`) — never by invoking any assistant's own API or network service:
+Compatibility levels below describe the AIEF CLI prompt contract. Native context discovery and
+behavioral validation are separate; see [Working a Change with an assistant](assistant-workflow.md).
 
 | Assistant | Level | Mechanism | Instruction file | Limitations |
 |---|---|---|---|---|

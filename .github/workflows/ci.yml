@@ -6,6 +6,18 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: cli
+      - run: npm run lint
+        working-directory: cli
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -18,12 +30,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Install SVG renderer
         run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
-      - name: Install CLI devDependencies (eslint)
-        run: npm ci
-        working-directory: cli
-      - name: Lint
-        run: npm run lint
-        working-directory: cli
       - name: CLI tests
         run: npm test
         working-directory: cli

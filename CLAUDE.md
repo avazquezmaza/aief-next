@@ -1,6 +1,8 @@
 # Claude Instructions
 
-Follow all rules in `AGENTS.md`. This repository is itself an AIEF project (its own dogfood) —
+@AGENTS.md
+
+Follow the imported project rules. This repository is itself an AIEF project (its own dogfood) —
 before contributing to the CLI, also read [docs/maintainer.md](docs/maintainer.md) for the
 registry-extension pattern, the Change workflow, and testing commands.
 
@@ -17,3 +19,5 @@ Claude-specific guidance:
   `git diff --check` — all three must pass. See `docs/maintainer.md` "Testing".
 - Never run `git push`, delete files/branches, or perform another destructive or irreversible Git
   operation without the user's explicit confirmation for that specific action.
+
+For Change work, read [the shared procedure](docs/assistant-workflow.md).

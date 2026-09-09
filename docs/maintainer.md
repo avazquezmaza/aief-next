@@ -39,6 +39,8 @@ convention to remember.
    elsewhere; `--no-branch` opts out on any of the four commands when that's actually wanted.
    `enrich` writes its Change files directly rather than through `createChange()`, so it calls
    `ensureChangeBranch()` itself instead (Change 0117) — same contract, different call site.
+   Existing feature branches and worktrees are preserved; choose the intended checkout before
+   starting another Change. The CLI does not enforce one Change per existing branch.
 2. Fill `change.md` and `spec.md` before implementing.
 3. Implement, then run `npm test` (from the repo root) and `node cli/bin/aief.js verify`.
 4. Update `evidence.md` with what was actually done and verified — not a template.
@@ -143,12 +145,18 @@ XML noise.
 ## Testing
 
 ```bash
-npm test                          # from the repo root — full CLI suite, node --test, no dependencies
+npm --prefix cli ci               # development tooling; use Node 22.13+
+npm run lint                      # requires installed CLI devDependencies
+npm test                          # runtime suite; no npm runtime dependencies
 node cli/bin/aief.js verify       # validate this repository's own AIEF structure
 git diff --check                  # no whitespace errors, run before every commit
 cd examples/todo-app && npm test  # the executable example stays runnable
 python3 scripts/diagrams/generate_all.py  # confirms every diagram generator still runs cleanly
 ```
+
+The CI lint job uses Node 22; runtime tests use Node 18, 20 and 22 without installing ESLint.
+Diagram tests regenerate into a temporary script layout, compare SVGs and validate PNGs without
+writing to tracked images. For the common assistant procedure, see [Working a Change](assistant-workflow.md).
 
 ## Git discipline
 
