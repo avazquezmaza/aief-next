@@ -173,6 +173,7 @@ Adapter files, fallback behavior, and how compatibility was verified: [docs/cli.
 | Find every configuration file AIEF reads | [Configuration](docs/configuration.md) |
 | See worked examples | [Examples](docs/examples.md) |
 | Extend AIEF or contribute a Change | [Maintainer Guide](docs/maintainer.md) |
+| Understand AIEF's trust boundaries and threat model | [Security Model](docs/security-model.md) |
 | Read the architecture decision log (ADRs) | [knowledge/decisions.md](knowledge/decisions.md) |
 | Browse engineering history and superseded proposals | [docs/history/](docs/history/README.md) |
 
