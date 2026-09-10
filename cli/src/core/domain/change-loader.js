@@ -113,6 +113,43 @@ function mapLegacyChange(changeDir) {
   return { ...loadChange(changeDir), source: "legacy", manifest: null, manifestError: null, track: "" };
 }
 
+// markManifestClosed(changeDir) -> true | false | null (Change 0131, fixing
+// an external audit finding, C0130-F1). manifest.json, when present, is the
+// sole authority for `closed` (this module's own header comment) — `close`
+// used to only ever write change.md, leaving the manifest silently stale
+// while reporting success (aief status would immediately contradict it).
+//
+// - null: no manifest.json at all — nothing to do, not an error (the
+//   legacy/no-track path is entirely unaffected by this function).
+// - true: manifest.json existed, parsed, validated, and was updated to
+//   `status: "closed"` on disk.
+// - false: manifest.json existed but could not be safely updated (read
+//   error, malformed JSON, or already failing schema validation) — never
+//   silently accepted or corrupted further; the caller must refuse the
+//   close, not report success (WF-R2's "never crash, never silently fall
+//   back" discipline, applied here to a write instead of a read).
+export function markManifestClosed(changeDir) {
+  const manifestPath = path.join(changeDir, MANIFEST_FILE);
+  if (!fs.existsSync(manifestPath)) return null;
+  let raw;
+  try {
+    raw = fs.readFileSync(manifestPath, "utf8");
+  } catch {
+    return false;
+  }
+  const parsed = parseManifest(raw);
+  if (!parsed.ok) return false;
+  const { valid } = validateManifest(parsed.value);
+  if (!valid) return false;
+  const updated = { ...parsed.value, status: "closed" };
+  try {
+    fs.writeFileSync(manifestPath, `${JSON.stringify(updated, null, 2)}\n`, "utf8");
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 // loadChangeUnified(changeDir) -> Change
 // Manifest presence is the only precedence signal (spec.md R1) — a Change
 // with both manifest.json and a change.md whose ## Status disagrees resolves

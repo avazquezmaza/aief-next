@@ -389,7 +389,15 @@ test("status/verify: with no manifest-backed Change, output is byte-identical to
   assert.doesNotMatch(verifyWholeOut, /manifest\.status disagreement/i);
 });
 
-test("status/verify: aief close --yes on a manifest-backed Change surfaces the resulting drift, without writing manifest.json or blocking verify's PASS", () => {
+// Change 0131 (external-audit finding C0130-F1): this test used to pin the
+// opposite of what it now asserts — `aief close --yes` on a manifest-backed
+// Change wrote only change.md, leaving manifest.status stale ("open") while
+// reporting success, immediately contradicted by `aief status`. That was
+// a real split-brain lifecycle bug, not a documented feature; fixed by
+// having close() also update manifest.json (atomically — before change.md
+// is touched, so a manifest that can't be safely updated aborts the whole
+// close rather than reporting success anyway).
+test("status/verify: aief close --yes on a manifest-backed Change also updates manifest.status — no drift results", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   aief(dir, ["new-change", "drift-thing"]);
   const changeDir = path.join(dir, "changes", "0001-drift-thing");
@@ -397,35 +405,64 @@ test("status/verify: aief close --yes on a manifest-backed Change surfaces the r
   fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
   fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
 
-  // aief close --yes writes only change.md (Change 0043/0044's established
-  // behavior) — manifest.status ("open") is left untouched.
   const closed = aief(dir, ["close", "--yes"]);
   assert.equal(closed.status, 0);
-  const manifestBefore = fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8");
-  assert.match(manifestBefore, /"status":"open"/);
+  const manifestAfter = JSON.parse(fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8"));
+  assert.equal(manifestAfter.status, "closed");
+  // Every other manifest field survives untouched.
+  assert.equal(manifestAfter.id, "0001");
+  assert.equal(manifestAfter.slug, "drift-thing");
+  assert.equal(manifestAfter.schema, "aief.change/v1");
+
+  const statusOverview = aief(dir, ["status"]);
+  assert.doesNotMatch(statusOverview.out, /manifest\.status disagrees/);
+
+  const verifySingle = aief(dir, ["verify", "--change", "0001-drift-thing"]);
+  assert.doesNotMatch(verifySingle.out, /Manifest status disagreement/);
+  assert.match(verifySingle.out, /\nResult: PASS/);
+  assert.equal(verifySingle.status, 0);
+});
+
+// The manifest/change.md disagreement detector itself (status_consistency)
+// still has a real trigger — a manifest edited independently of `close`
+// (e.g. by hand, or by another tool) — kept exercised here so this
+// coverage doesn't disappear along with the bug that used to create it as
+// a side effect.
+test("status/verify: a manifest/change.md disagreement created independently of close is still detected, non-blockingly", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "drift-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-drift-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), manifestFor("0001", "drift-thing", "x"), "utf8");
+  fs.appendFileSync(path.join(changeDir, "change.md"), "\n## Status\n\nClosed (2026-09-09)\n");
 
   const statusOverview = aief(dir, ["status"]);
   assert.match(statusOverview.out, /Changes where manifest\.status disagrees with change\.md: 1/);
   assert.match(statusOverview.out, /0001-drift-thing: manifest says "open", change\.md says "closed"/);
 
-  const statusSingle = aief(dir, ["status", "--change", "0001-drift-thing"]);
-  assert.match(statusSingle.out, /Warning: manifest\.status \("open"\) disagrees with change\.md's own ## Status \("closed"\)/);
-
   const verifySingle = aief(dir, ["verify", "--change", "0001-drift-thing"]);
   assert.match(verifySingle.out, /Manifest status disagreement for this Change \(non-blocking\)/);
-  assert.match(verifySingle.out, /manifest\.status says "open", change\.md's own ## Status says "closed"/);
   assert.match(verifySingle.out, /\nResult: PASS/);
   assert.equal(verifySingle.status, 0);
+});
 
-  const verifyWhole = aief(dir, ["verify"]);
-  assert.match(verifyWhole.out, /Changes with a manifest\.status disagreement \(non-blocking\)/);
-  assert.match(verifyWhole.out, /0001-drift-thing: manifest says "open", change\.md says "closed"/);
-  assert.match(verifyWhole.out, /\nResult: PASS/);
-  assert.equal(verifyWhole.status, 0);
+// Atomicity: if manifest.json exists but can't be safely updated, close must
+// refuse the whole transition — never report success while silently
+// skipping the manifest, and never write change.md either (Change 0131).
+test("close: a malformed manifest.json aborts the close atomically — neither manifest.json nor change.md is touched", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "broken-manifest-thing"]);
+  const changeDir = path.join(dir, "changes", "0001-broken-manifest-thing");
+  fs.writeFileSync(path.join(changeDir, "manifest.json"), "{ not valid json", "utf8");
+  fs.writeFileSync(path.join(changeDir, "evidence.md"), "# Evidence\n\n## Summary\n\nReal work happened.\n", "utf8");
+  fs.writeFileSync(path.join(changeDir, "tasks.md"), "# Tasks\n\n- [x] Everything done.\n", "utf8");
+  const manifestBefore = fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8");
+  const changeMdBefore = fs.readFileSync(path.join(changeDir, "change.md"), "utf8");
 
-  // Detection only — manifest.json is still exactly what it was.
-  const manifestAfter = fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8");
-  assert.equal(manifestAfter, manifestBefore);
+  const closed = aief(dir, ["close", "--yes"]);
+  assert.equal(closed.status, 1);
+  assert.match(closed.out, /manifest\.json exists but could not be safely read, parsed, or validated/);
+  assert.equal(fs.readFileSync(path.join(changeDir, "manifest.json"), "utf8"), manifestBefore);
+  assert.equal(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), changeMdBefore, "change.md must not be written when the manifest update fails");
 });
 
 test("--help / help / --version output is unaffected by the parser migration", () => {
