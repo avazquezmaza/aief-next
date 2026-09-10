@@ -58,3 +58,24 @@ test("renderCapturedVerification: deterministic, includes the marker prefix and 
   assert.match(body, /- Skipped: 1/);
   assert.match(body, /- Duration: 5s/);
 });
+
+// Change 0129: provenance is optional and purely additive — omitting it
+// must reproduce this function's exact pre-0129 output.
+test("renderCapturedVerification: with no provenance argument, output is byte-identical to before Change 0129", () => {
+  const report = { suiteCount: 2, tests: 15, failures: 1, errors: 1, skipped: 1, time: 5, passed: 12 };
+  const withoutArg = renderCapturedVerification("results.xml", report);
+  const withUndefined = renderCapturedVerification("results.xml", report, undefined);
+  assert.equal(withoutArg, withUndefined);
+  assert.doesNotMatch(withoutArg, /Provenance/);
+});
+
+test("renderCapturedVerification: a provenance argument appends a Provenance block after the counts", () => {
+  const report = { suiteCount: 1, tests: 1, failures: 0, errors: 0, skipped: 0, time: 1, passed: 1 };
+  const provenance = {
+    source: "results.xml", sourceDigest: "sha256:abc", gitCommit: "deadbeef",
+    capturedAt: "2026-09-09T00:00:00.000Z", producer: "aief close --evidence-from (aief 3.3.0)", verificationType: "junit-xml"
+  };
+  const body = renderCapturedVerification("results.xml", report, provenance);
+  assert.match(body, /- Duration: 1s\n\n\*\*Provenance:\*\*/);
+  assert.match(body, /- SHA-256: `sha256:abc`/);
+});

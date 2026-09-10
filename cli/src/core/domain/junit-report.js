@@ -8,6 +8,8 @@
 // for Markdown extraction. No XML parser dependency — still zero runtime
 // dependencies.
 
+import { renderProvenance } from "./evidence-provenance.js";
+
 const TESTSUITE_RE = /<testsuite\b([^>]*)>/gi;
 const ATTR_RE = /(\w[\w:-]*)="([^"]*)"/g;
 
@@ -50,11 +52,18 @@ export function parseJUnitReport(content) {
   };
 }
 
-// renderCapturedVerification(reportPath, report) -> the "## Verification"
-// section body text (Change 0071's own marker: literally starts with
-// "Captured from `" — replaceOrAppendEvidenceSection() uses this prefix to
-// recognize its own previous capture and safely re-capture, never to
-// mistake genuine human prose for one).
-export function renderCapturedVerification(reportPath, report) {
-  return `Captured from \`${reportPath}\` (JUnit XML, ${report.suiteCount} suite(s)) — not executed by AIEF.\n\n- Tests: ${report.tests}\n- Passed: ${report.passed}\n- Failed: ${report.failures}\n- Errors: ${report.errors}\n- Skipped: ${report.skipped}\n- Duration: ${report.time}s`;
+// renderCapturedVerification(reportPath, report, provenance?) -> the
+// "## Verification" section body text (Change 0071's own marker: literally
+// starts with "Captured from `" — replaceOrAppendEvidenceSection() uses
+// this prefix to recognize its own previous capture and safely re-capture,
+// never to mistake genuine human prose for one).
+//
+// `provenance` (Change 0129, evidence-provenance.js's buildProvenance())
+// is optional and purely additive: omitting it reproduces this function's
+// exact pre-0129 output, byte for byte — existing callers/tests that never
+// pass a third argument are unaffected.
+export function renderCapturedVerification(reportPath, report, provenance) {
+  const base = `Captured from \`${reportPath}\` (JUnit XML, ${report.suiteCount} suite(s)) — not executed by AIEF.\n\n- Tests: ${report.tests}\n- Passed: ${report.passed}\n- Failed: ${report.failures}\n- Errors: ${report.errors}\n- Skipped: ${report.skipped}\n- Duration: ${report.time}s`;
+  if (!provenance) return base;
+  return `${base}\n\n${renderProvenance(provenance)}`;
 }
