@@ -39,10 +39,21 @@ built-in `sbom` command, no new dependency added to `cli/package.json`.
 - `git diff --check`: clean.
 - `cli/package.json`'s `dependencies`/`devDependencies` are byte-identical to before this
   Change — confirmed by diff.
-- The three new/modified workflow files themselves only actually execute in GitHub Actions
-  (CodeQL analysis, the dependency-review PR check, and the SBOM job) — their first real
-  execution is this Change's own PR and its merge to `main`; noted here as a limitation, not a
-  claim of having already observed all three run green.
+- The three new/modified workflow files themselves only actually execute in GitHub Actions —
+  their first real execution was this Change's own PR (#79). **All watched to green before
+  merging**, not assumed:
+  - `Analyze (javascript-typescript)` (CodeQL): passed on first run.
+  - `lint`/`test (22)`/`test (24)`: passed on first run, unaffected as expected.
+  - `Generate SBOM`: correctly skipped (PR event, not `push` — exactly the intended gating).
+  - `dependency-review`: **failed on first run** — `"Dependency review is not supported on this
+    repository. Please ensure that Dependency graph is enabled"`. Root cause: the action
+    requires GitHub's vulnerability-alerts feature enabled at the repository level; it was off
+    (`gh api repos/.../vulnerability-alerts` returned 404). Fixed by enabling it directly
+    (`gh api --method PUT repos/.../vulnerability-alerts`, confirmed with the user first as an
+    outward-facing repository-configuration change) — a one-time, additive, reversible setting,
+    not a workflow-file bug. Re-ran the job; passed. Documented here since it's a real
+    repository-configuration prerequisite this Change's workflow depends on, not obvious from
+    the YAML alone.
 
 ## Findings
 
