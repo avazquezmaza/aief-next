@@ -61,9 +61,11 @@ What the boundaries above exist to protect:
 
 Named explicitly, not left implicit:
 
-- **No supply-chain hardening yet.** No CodeQL, dependency review, or secret scanning runs in
-  CI (`.github/workflows/ci.yml`) today. Relatively cheap to add given this CLI has zero runtime
-  dependencies — tracked as a separate, future Change, not implemented here.
+- **Secret scanning is not yet enabled at the repository level.** CodeQL, dependency review, and
+  SBOM generation run in CI (Change 0133); GitHub's own secret scanning/push protection is a
+  repository *setting* (Settings → Code security), not a workflow file — enabling it is an
+  outward-facing repository-configuration change, left for the project owner to enable directly
+  rather than toggled via an API call from a Change.
 - **No sandboxing of assistant execution — by design.** AIEF does not, and structurally cannot,
   control what an assistant does once handed a prompt (zone 3, above) — that is explicitly out
   of scope per ADR-021 and the "Recommendation, never execution" principle. Whatever sandboxing
