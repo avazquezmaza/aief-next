@@ -9,6 +9,7 @@ import { loadChange } from "../core/domain/change.js";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
 import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 import { detectDuplicateChangeIds } from "../core/domain/change-id-collisions.js";
+import { buildResultEnvelope } from "../core/domain/result-envelope.js";
 import { verifyProject, verifyChange } from "../core/services/change-verifier.js";
 import { explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { detectProject } from "../detect.js";
@@ -146,14 +147,45 @@ function runRequirementVerification(changeDir, report, inspection) {
 export function verify(args = []) {
   const parsed = parseArgs("verify", args);
   if (!parsed) return;
-  section("AIEF Verify");
-  console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n");
+  // Change 0138: `--json` replaces every other line of output with exactly
+  // one JSON object on stdout (a versioned envelope, result-envelope.js) —
+  // for a script/CI consumer, not a human. Everything below this check
+  // (section header, Hooks, Loop, Requirement Verification) is
+  // human-facing narration this Change deliberately does not fold into
+  // the envelope yet — no observed consumer need for it, per this
+  // project's own "no speculative capability" discipline (ADR-008/013).
+  const wantsJson = Boolean(parsed.json);
+  if (!wantsJson) {
+    section("AIEF Verify");
+    console.log("Purpose: verify required AIEF files and Change structures. Writes nothing.\n");
+  }
   // `--change <id>` verifies exactly one Change (and says which); the default
   // remains the whole project — both share the same rules in change-verifier.
   if (typeof parsed.change === "string") {
     const changeDir = resolveExplicitChange(parsed.change);
-    if (!changeDir) { printNext("aief status (list open Changes)"); return; }
+    if (!changeDir) {
+      if (wantsJson) { console.log(JSON.stringify(buildResultEnvelope({ operation: "verify", change: parsed.change, result: "ERROR", errors: [`no Change found matching "${parsed.change}"`] }))); process.exitCode = 1; return; }
+      printNext("aief status (list open Changes)"); return;
+    }
     const report = verifyChange(loadChange(changeDir), process.cwd(), Boolean(parsed.strict));
+    if (wantsJson) {
+      const changeId = path.basename(changeDir);
+      const graph = buildProjectGraph();
+      const graphIssues = graph.issues.filter((issue) => issue.changeId === changeId || (issue.members && issue.members.includes(changeId)));
+      const drift = detectManifestStatusDrift(loadChangeUnified(changeDir));
+      const envelope = buildResultEnvelope({
+        operation: "verify",
+        change: changeId,
+        result: report.passed ? "PASS" : "FAIL",
+        errors: report.errors,
+        warnings: report.warnings,
+        graphIssues,
+        manifestStatusDrift: drift.drift ? { manifestStatus: drift.manifestStatus, changeMdStatus: drift.changeMdStatus } : null
+      });
+      console.log(JSON.stringify(envelope, null, 2));
+      if (!report.passed) process.exitCode = 1;
+      return;
+    }
     renderReport(report);
     // Computed exactly once per invocation, shared by the Hook and (if
     // requested) Requirement Verification — never a second explain() call
@@ -176,6 +208,25 @@ export function verify(args = []) {
     cwd: process.cwd(),
     strict: Boolean(parsed.strict)
   });
+  if (wantsJson) {
+    const drifting = getChangeDirs().map(loadChangeUnified).filter((c) => detectManifestStatusDrift(c).drift).map((c) => {
+      const drift = detectManifestStatusDrift(c);
+      return { change: c.basename, manifestStatus: drift.manifestStatus, changeMdStatus: drift.changeMdStatus };
+    });
+    const idCollisions = detectDuplicateChangeIds(getChangeDirs().map((dir) => path.basename(dir)));
+    const envelope = buildResultEnvelope({
+      operation: "verify",
+      change: null,
+      result: report.passed ? "PASS" : "FAIL",
+      errors: report.errors,
+      warnings: report.warnings,
+      manifestStatusDrift: drifting,
+      duplicateChangeIds: idCollisions
+    });
+    console.log(JSON.stringify(envelope, null, 2));
+    if (!report.passed) process.exitCode = 1;
+    return;
+  }
   renderReport(report);
   // Change 0095 — same non-blocking drift note as the --change path, scanned
   // across every Change while whole-project verify already iterates them.
