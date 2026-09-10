@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadChange } from "../src/core/domain/change.js";
-import { loadChangeUnified } from "../src/core/domain/change-loader.js";
+import { loadChangeUnified, markManifestClosed } from "../src/core/domain/change-loader.js";
 import { MANIFEST_SCHEMA_VERSION } from "../src/core/domain/change-manifest.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -163,4 +163,37 @@ test("loadChangeUnified: zero-drift regression across every real Change in this 
     assert.equal(track, "", dir);
     assert.deepEqual(rest, legacy, dir);
   }
+});
+
+// --- markManifestClosed (Change 0131, external-audit finding C0130-F1) ---
+
+test("markManifestClosed: null when there is no manifest.json at all — nothing to do, not an error", () => {
+  const dir = makeChangeDir(LEGACY_CHANGE);
+  assert.equal(markManifestClosed(dir), null);
+});
+
+test("markManifestClosed: updates status to \"closed\" on disk, preserving every other field", () => {
+  const dir = makeChangeDir({ ...LEGACY_CHANGE, "manifest.json": JSON.stringify(VALID_MANIFEST) });
+  assert.equal(markManifestClosed(dir), true);
+  const updated = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
+  assert.equal(updated.status, "closed");
+  assert.equal(updated.id, VALID_MANIFEST.id);
+  assert.equal(updated.slug, VALID_MANIFEST.slug);
+  assert.equal(updated.title, VALID_MANIFEST.title);
+  assert.equal(updated.schema, VALID_MANIFEST.schema);
+  assert.equal(updated.track, VALID_MANIFEST.track);
+});
+
+test("markManifestClosed: false, never a throw, on malformed JSON — the file is left untouched", () => {
+  const dir = makeChangeDir({ ...LEGACY_CHANGE, "manifest.json": "{ not valid json" });
+  const before = fs.readFileSync(path.join(dir, "manifest.json"), "utf8");
+  assert.equal(markManifestClosed(dir), false);
+  assert.equal(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"), before);
+});
+
+test("markManifestClosed: false, never a throw, when the manifest fails schema validation — left untouched", () => {
+  const invalid = JSON.stringify({ ...VALID_MANIFEST, schema: "not-a-real-schema" });
+  const dir = makeChangeDir({ ...LEGACY_CHANGE, "manifest.json": invalid });
+  assert.equal(markManifestClosed(dir), false);
+  assert.equal(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"), invalid);
 });

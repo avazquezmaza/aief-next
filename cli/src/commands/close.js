@@ -13,7 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadChange, isClosedContent } from "../core/domain/change.js";
-import { loadChangeUnified } from "../core/domain/change-loader.js";
+import { loadChangeUnified, markManifestClosed } from "../core/domain/change-loader.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
 import { nextAction } from "../core/services/workflow-service.js";
 import { parseJUnitReport, renderCapturedVerification } from "../core/domain/junit-report.js";
@@ -103,6 +103,19 @@ export function close(args) {
   else for (const problem of problems) console.log(`○ ${problem}`);
   if (!parsed.yes) { printNext(blocked ? "resolve the items above, then: aief close --yes" : "aief close --yes"); return; }
   if (blocked) { console.error("\nNot closed: resolve the items above first."); process.exitCode = 1; return; }
+  // Change 0131 (external-audit finding C0130-F1): manifest.json, when
+  // present, is the sole authority for `closed` (change-loader.js's own
+  // contract) — attempted BEFORE change.md is touched, so a manifest that
+  // can't be safely updated aborts the whole close atomically, rather than
+  // reporting "Closed" while leaving the authoritative state silently
+  // stale (the exact split-brain the finding reproduced: `aief status`
+  // would immediately contradict a "successful" close).
+  const manifestResult = markManifestClosed(changeDir);
+  if (manifestResult === false) {
+    console.error(`\nCould not mark ${name} as Closed — manifest.json exists but could not be safely read, parsed, or validated. Fix manifest.json, then retry.`);
+    process.exitCode = 1;
+    return;
+  }
   if (!markClosed(changeDir)) { console.error(`\nCould not mark ${name} as Closed — check the Status section in change.md.`); process.exitCode = 1; return; }
   console.log(`\n✓ Closed ${name}.`);
   printNext("git status", "aief status");
