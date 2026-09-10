@@ -257,7 +257,7 @@ export const KNOWN_FLAGS = {
   // --strict (Change 0083): opt-in objective-completeness checking on top of
   // default verify's structural rules — never on by default (backward
   // compatible), never a quality score (checkStrictCompleteness()).
-  verify: { change: { type: "string" }, requirements: { type: "boolean" }, strict: { type: "boolean" } },
+  verify: { change: { type: "string" }, requirements: { type: "boolean" }, strict: { type: "boolean" }, json: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
