@@ -40,3 +40,26 @@ jobs:
         working-directory: examples/todo-app
       - name: AIEF verify
         run: node cli/bin/aief.js verify
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    # Only on main pushes — an SBOM answers "what does the released code
+    # depend on," so it's generated once per merge, not once per PR run.
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: cli
+      # npm's own built-in `sbom` command (npm >=9.5) — no new dependency,
+      # consistent with this CLI having zero runtime dependencies.
+      - run: npm sbom --sbom-format cyclonedx > sbom.cyclonedx.json
+        working-directory: cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: cli/sbom.cyclonedx.json
+          retention-days: 90
