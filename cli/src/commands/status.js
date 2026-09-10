@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
 import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
+import { detectDuplicateChangeIds } from "../core/domain/change-id-collisions.js";
 import { detectProject } from "../detect.js";
 import { nextAction, explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { resolveHarnessConfig, describeHarnessRegistry } from "../core/services/harness-service.js";
@@ -55,6 +56,19 @@ export function statusOverview(project = detectProject(), showNext = true) {
     console.log(`\nChanges where manifest.status disagrees with change.md: ${driftingManifests.length}`);
     for (const { dir, drift } of driftingManifests) {
       console.log(`- ${path.basename(dir)}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
+    }
+  }
+  // Additive only (Change 0137, external-audit finding C0130-F2): absent
+  // whenever no two Change directories share a leading numeric id — mirrors
+  // the drift note immediately above exactly (detection only, non-blocking,
+  // same rendering shape). `aief verify` already reports this project-wide;
+  // surfacing it here too means a human sees it from `aief status` as well,
+  // without having to run verify separately.
+  const idCollisions = detectDuplicateChangeIds(changes.map((dir) => path.basename(dir)));
+  if (idCollisions.length) {
+    console.log(`\nChanges sharing a numeric ID: ${idCollisions.length}`);
+    for (const { id, basenames } of idCollisions) {
+      console.log(`- ${id}: ${basenames.join(", ")} — a bare "--change ${id}" reference is ambiguous; use the full basename.`);
     }
   }
   // Additive only (WF-R15): absent whenever no Change declares a recognized
