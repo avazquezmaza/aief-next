@@ -9,8 +9,14 @@ informally.
 
 ## Requirements
 
-- **Document**: `docs/history/multi-agent-runtime-open-questions.md`, new file; no existing document
-  modified.
+- **Document**: `docs/history/multi-agent-runtime-open-questions.md`, new file. `docs/history/README.md`
+  gains one index entry linking to it — the one existing-document edit this Change authorizes, so
+  the new document is discoverable from the index that lists every other document there; no other
+  existing document is modified. **(Correction, external audit finding C0130-F3, Change 0133-era
+  follow-up):** this requirement originally read "no existing document modified" while the
+  Acceptance Criteria below and evidence.md both correctly recorded the index-entry edit — a
+  spec/evidence inconsistency, not an undisclosed scope violation. Corrected here to match what was
+  actually done and already disclosed.
 - **Summarize the proposal**: a Governance Plane / Execution Plane split, with Run, Attempt,
   ExecutionNode, ExecutionGraph, ExecutionPolicy, AgentProvider, AgentProfile, AgentCapabilities,
   AgentRouter, Executor, ToolProvider, Sandbox, Validator, Eval, Trace, Checkpoint, and
@@ -39,6 +45,7 @@ informally.
       ADR-008/ADR-013 rationale for not building it now.
 - [x] The document names its overlap with `docs/history/runtime-governance-open-questions.md`.
 - [x] The document states an explicit evidence gate for revisiting the proposal.
-- [x] No file outside this Change and the new document was created or modified.
+- [x] No file outside this Change was created or modified, except `docs/history/README.md`'s one
+      authorized index entry linking to the new document.
 - [x] `aief verify --change 0122-multi-agent-runtime-open-questions --strict` PASS.
 - [x] Tests not run/not required: no executable file changed (documentation only).

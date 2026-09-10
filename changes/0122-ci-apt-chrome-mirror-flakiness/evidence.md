@@ -38,7 +38,10 @@ identical failure, ruling out a one-off transient blip. Fixed by removing the Ch
   run (`test (20)`) still showed the Chrome repo being fetched and failing — the file is not named
   `google-chrome.list` on this runner image. Replaced with a content-based lookup
   (`grep -rl 'dl\.google\.com' /etc/apt/sources.list.d/ | xargs -r sudo rm -f`) that does not depend
-  on the exact filename. Re-pushed; awaiting confirmation this actually removes the repo.
+  on the exact filename. Re-pushed; PR #67's subsequent CI run confirmed green (lint + all Node
+  matrix test jobs), confirming the content-based lookup does remove the repo. **(Correction,
+  external audit finding C0130-F4):** this line originally still read "awaiting confirmation" after
+  that confirmation had already happened — stale text, not a real open question. Corrected here.
 
 ## Risks
 
@@ -55,5 +58,6 @@ identical failure, ruling out a one-off transient blip. Fixed by removing the Ch
 
 ## Next Change
 
-None. Once CI is confirmed green, this Change can close and the fix can be pushed/merged (directly to
-`main`, since it only touches CI plumbing, or via a PR — human to decide) ahead of or alongside PR #66.
+None. CI confirmed green on PR #67, which merged; this Change is closed. **(Correction, external
+audit finding C0130-F4):** this section originally still read "once CI is confirmed green, this
+Change can close" — stale text left over from before that had happened. Corrected here.
