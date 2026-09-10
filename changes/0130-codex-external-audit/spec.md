@@ -10,7 +10,7 @@ AIEF-generated prompt does.
 
 ## Requirements
 
-- Use `aief prompt codex --change 0123-codex-external-audit --profile reviewer` (native entrypoint,
+- Use `aief prompt codex --change 0130-codex-external-audit --profile reviewer` (native entrypoint,
   `docs/assistant-workflow.md`) — do not hand-write a parallel prompt format.
 - The Change context (`change.md`) must scope the audit honestly: governance model, CLI
   implementation, and the two same-day Changes — not a re-ask of the "Multi-Agent Runtime
@@ -21,7 +21,7 @@ AIEF-generated prompt does.
 
 ## Acceptance Criteria
 
-- [x] `aief prompt codex --change 0123-codex-external-audit --profile reviewer` runs successfully.
+- [x] `aief prompt codex --change 0130-codex-external-audit --profile reviewer` runs successfully.
 - [x] The generated prompt is presented to the user in full.
 - [x] `evidence.md` documents the handoff.
 - [ ] (human) Codex's findings, once obtained, are pasted back and summarized here.

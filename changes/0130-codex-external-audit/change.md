@@ -2,7 +2,7 @@
 
 ## ID
 
-`0123-codex-external-audit`
+`0130-codex-external-audit`
 
 ## Type
 
@@ -20,7 +20,7 @@ as evidence — it does not implement fixes itself.
 
 ### In scope
 
-- Generate a ready-to-paste Codex prompt via `aief prompt codex --change 0123-codex-external-audit
+- Generate a ready-to-paste Codex prompt via `aief prompt codex --change 0130-codex-external-audit
   --profile reviewer`, scoped to a general architecture/governance/code audit of the repository as
   it stands on `main`.
 - Record Codex's findings (once run, by a human, in a real Codex session) in `evidence.md`.

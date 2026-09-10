@@ -2,7 +2,7 @@
 
 ## Implementation
 
-- [x] Generate the prompt via `aief prompt codex --change 0123-codex-external-audit --profile reviewer`.
+- [x] Generate the prompt via `aief prompt codex --change 0130-codex-external-audit --profile reviewer`.
 - [x] Hand the prompt to the user.
 
 ## Documentation
