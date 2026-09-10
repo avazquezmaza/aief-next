@@ -490,6 +490,28 @@ test("verify: no collision line at all when every Change has a unique numeric id
   assert.doesNotMatch(out, /sharing a numeric ID/);
 });
 
+// Change 0137: the same collision, surfaced from `aief status` too — a
+// human sees it without having to separately run `aief verify`.
+test("status: two Changes sharing a numeric ID are reported in the overview", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "first-thing"]);
+  const secondDir = path.join(dir, "changes", "0001-second-thing");
+  fs.mkdirSync(secondDir);
+  for (const f of ["change.md", "spec.md", "tasks.md", "evidence.md"]) fs.writeFileSync(path.join(secondDir, f), "# x\n", "utf8");
+
+  const { out, status } = aief(dir, ["status"]);
+  assert.equal(status, 0);
+  assert.match(out, /Changes sharing a numeric ID: 1/);
+  assert.match(out, /- 0001: 0001-first-thing, 0001-second-thing — a bare "--change 0001" reference is ambiguous; use the full basename\./);
+});
+
+test("status: no collision line at all when every Change has a unique numeric id", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "only-thing"]);
+  const { out } = aief(dir, ["status"]);
+  assert.doesNotMatch(out, /sharing a numeric ID/);
+});
+
 test("--help / help / --version output is unaffected by the parser migration", () => {
   const dir = makeProject();
   const help1 = aief(dir, ["--help"]);
