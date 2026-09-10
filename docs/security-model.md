@@ -34,7 +34,7 @@ control.
 | A Skill/Hook/Verification Rule → the filesystem, a process, the network | An attempted write, command execution, or network call | N/A — structurally rejected | `FORBIDDEN_CAPABILITIES = ["writeFiles", "executeCommands", "network"]`, identical in `core/domain/skill.js` and `core/domain/hook.js` — a descriptor claiming any of these is rejected at registration, not merely discouraged by convention (ADR-019/ADR-020). Requirement Verification (ADR-021) never uses AI, never executes a test or a command, never reaches the network. |
 | Execution environment → repository | Application code, `evidence.md`, test results | Untrusted until reviewed | Humans retain scope, merge, and release authority throughout — AIEF never commits, opens a PR, or approves anything on its own (`docs/architecture.md`). `aief verify`/`aief close` structurally validate the resulting Change files but do not execute or judge the application code itself. |
 | A Change's own `(human)`/`(review)`/`(gate:<id>)` tasks | An assistant's proposed decision or approval | Untrusted until a human checks the box | `AGENTS.md`'s Prime Directive ("AI assists. Humans decide.") plus `checkChangeReadiness()`'s unresolved-task check and ADR-037's `(gate:<id>)` mechanism (Change 0125) — `aief close` refuses while any such task is unchecked; only a human is expected to check one (a convention, not currently code-enforced — see Known Gaps). |
-| Local developer → tracked files | Secrets (API tokens, cloud keys, bot tokens, PINs) | Must never cross | `AGENTS.md`'s Operational Guardrails: "No secrets in tracked files… They come from the environment or a gitignored local file." Not independently scanned for by AIEF today (see Known Gaps — secret scanning). |
+| Local developer → tracked files | Secrets (API tokens, cloud keys, bot tokens, PINs) | Must never cross | `AGENTS.md`'s Operational Guardrails: "No secrets in tracked files… They come from the environment or a gitignored local file." Backed by GitHub's own secret scanning and push protection, enabled at the repository level (Change 0136). |
 | A Claude Code / Codex / other assistant session → outward-facing systems | A push, a deploy, a write to an external system (e.g. Confluence) | Requires explicit confirmation | `AGENTS.md`'s Operational Guardrails: "Confirm before outward-facing or hard-to-reverse actions… unless already durably authorized." |
 
 ## Assets
@@ -61,11 +61,6 @@ What the boundaries above exist to protect:
 
 Named explicitly, not left implicit:
 
-- **Secret scanning is not yet enabled at the repository level.** CodeQL, dependency review, and
-  SBOM generation run in CI (Change 0133); GitHub's own secret scanning/push protection is a
-  repository *setting* (Settings → Code security), not a workflow file — enabling it is an
-  outward-facing repository-configuration change, left for the project owner to enable directly
-  rather than toggled via an API call from a Change.
 - **No sandboxing of assistant execution — by design.** AIEF does not, and structurally cannot,
   control what an assistant does once handed a prompt (zone 3, above) — that is explicitly out
   of scope per ADR-021 and the "Recommendation, never execution" principle. Whatever sandboxing
