@@ -8,6 +8,7 @@ import path from "node:path";
 import { loadChange } from "../core/domain/change.js";
 import { loadChangeUnified } from "../core/domain/change-loader.js";
 import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
+import { detectDuplicateChangeIds } from "../core/domain/change-id-collisions.js";
 import { verifyProject, verifyChange } from "../core/services/change-verifier.js";
 import { explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { detectProject } from "../detect.js";
@@ -185,6 +186,17 @@ export function verify(args = []) {
     for (const c of drifting) {
       const drift = detectManifestStatusDrift(c);
       console.log(`- ${c.basename}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
+    }
+  }
+  // Change 0135 (external-audit finding C0130-F2): same non-blocking,
+  // detection-only posture as the drift note above — a numeric-id
+  // collision is a repository fact, never a reason to fail verify's exit
+  // code or refuse a Change that's otherwise structurally fine.
+  const idCollisions = detectDuplicateChangeIds(getChangeDirs().map((dir) => path.basename(dir)));
+  if (idCollisions.length) {
+    console.log("\nChanges sharing a numeric ID (non-blocking):");
+    for (const { id, basenames } of idCollisions) {
+      console.log(`- ${id}: ${basenames.join(", ")} — a bare "--change ${id}" reference is ambiguous; use the full basename.`);
     }
   }
   runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });

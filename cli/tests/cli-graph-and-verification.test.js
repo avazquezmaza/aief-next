@@ -465,6 +465,31 @@ test("close: a malformed manifest.json aborts the close atomically — neither m
   assert.equal(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), changeMdBefore, "change.md must not be written when the manifest update fails");
 });
 
+// Change 0135 (external-audit finding C0130-F2): two Changes scaffolded on
+// separate branches can allocate the same numeric id before either merges —
+// live during this project's own work, Changes 0122 and 0123 each did.
+// `aief verify` now names the collision, non-blockingly.
+test("verify: two Changes sharing a numeric ID are reported non-blockingly", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "first-thing"]);
+  const secondDir = path.join(dir, "changes", "0001-second-thing");
+  fs.mkdirSync(secondDir);
+  for (const f of ["change.md", "spec.md", "tasks.md", "evidence.md"]) fs.writeFileSync(path.join(secondDir, f), "# x\n", "utf8");
+
+  const { out, status } = aief(dir, ["verify"]);
+  assert.equal(status, 0);
+  assert.match(out, /\nResult: PASS/, "a numeric-id collision never fails verify's exit code");
+  assert.match(out, /Changes sharing a numeric ID \(non-blocking\):/);
+  assert.match(out, /- 0001: 0001-first-thing, 0001-second-thing — a bare "--change 0001" reference is ambiguous; use the full basename\./);
+});
+
+test("verify: no collision line at all when every Change has a unique numeric id", () => {
+  const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
+  aief(dir, ["new-change", "only-thing"]);
+  const { out } = aief(dir, ["verify"]);
+  assert.doesNotMatch(out, /sharing a numeric ID/);
+});
+
 test("--help / help / --version output is unaffected by the parser migration", () => {
   const dir = makeProject();
   const help1 = aief(dir, ["--help"]);
