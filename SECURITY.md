@@ -1,5 +1,8 @@
 # Security Policy
 
+For AIEF's trust boundaries, threat categories, and existing mitigations, see
+[docs/security-model.md](docs/security-model.md).
+
 ## Reporting a Vulnerability
 
 Please do not open public issues for sensitive security problems.
