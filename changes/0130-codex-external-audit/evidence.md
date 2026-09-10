@@ -32,7 +32,7 @@ collision.
 | ID | Severity | Finding | Status | Resolution Change |
 | --- | --- | --- | --- | --- |
 | C0130-F1 | High | Manifest-backed `aief close --yes` reports success but leaves the authoritative manifest open | Resolved | 0131-manifest-close-persistence |
-| C0130-F2 | High | Parallel branches can create duplicate numeric Change IDs and project-wide verification accepts them | Instance resolved; general gap Open | this Change (renamed 0123→0130) |
+| C0130-F2 | High | Parallel branches can create duplicate numeric Change IDs and project-wide verification accepts them | Resolved (detection); allocation-side prevention deliberately not pursued | 0135-detect-duplicate-change-id-collisions |
 | C0130-F3 | Medium | Change 0122 multi-agent evidence records a modification forbidden by its own specification | Resolved | 0134-resolve-codex-audit-doc-findings |
 | C0130-F4 | Low | Change 0122 CI evidence retains stale, contradictory pre-confirmation language after CI passed | Resolved | 0134-resolve-codex-audit-doc-findings |
 
