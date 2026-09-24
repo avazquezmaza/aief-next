@@ -6,9 +6,10 @@ contributing a change to the CLI.
 ## AIEF is built using AIEF
 
 This repository runs its own workflow: every unit of work is a Change under
-[changes/](../changes/), each closed Change carries its own evidence, and `npx aief verify` gates
-every push and pull request. Before contributing, read [AGENTS.md](../AGENTS.md) — it is the one
-file every assistant and every contributor must follow, in this repository as in any adopted one.
+[changes/](../changes/), each closed Change carries its own evidence, and
+`node cli/bin/aief.js verify` gates every push and pull request. Before contributing, read
+[AGENTS.md](../AGENTS.md) — it is the one file every assistant and every contributor must follow,
+in this repository as in any adopted one.
 
 ## Extending a registry
 

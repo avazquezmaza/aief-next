@@ -118,7 +118,7 @@ def build():
     notes_y = box_y + box_h + 34
     notes = [
         "doctor never writes to the project — every write happens in bootstrap, analyze, or a later delivery Change.",
-        "bootstrap never overwrites an existing file (AGENTS.md, knowledge/standards/, CI gate) and is idempotent.",
+        "bootstrap never overwrites an existing file (AGENTS.md, knowledge/standards/) and generates no CI configuration; it is idempotent.",
         "After adoption there are typically two open Changes: the Adoption Change and the Analysis Change.",
         "The Adoption Change records that AIEF was added; the Analysis Change captures architecture, stack, risks and gaps.",
         "Delivery Changes (new-change / enrich) come after — they are the first real feature, fix or refactor.",

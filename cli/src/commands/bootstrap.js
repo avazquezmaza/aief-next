@@ -17,7 +17,6 @@ import { newChange } from "./new-change.js";
 // file lives one directory deeper (cli/src/commands/, not cli/src/) — same
 // lesson as commands/misc.js's printVersion() fix in the second slice.
 const STANDARDS_TEMPLATES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "templates", "standards");
-const CI_TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "templates", "ci", "aief-verify.yml");
 // The canonical AGENTS.md. Adoption previously wrote a 14-line inline string that
 // carried 7 of ~40 rules and none of the (human)/(review) gates, so adopted
 // projects never received the governance AIEF documents for itself (Change 0040).
@@ -72,19 +71,6 @@ function createStandards(project) {
     if (writeFile(cwd("knowledge", "standards", file), fs.readFileSync(template, "utf8"))) created.push(file);
   }
   return created;
-}
-// The governance gate (Flux Portal dogfooding, finding F2): adoption used to
-// deliver structure but no enforcement, so `aief verify` — which already exits
-// non-zero on FAIL — was simply never run. On that migration it would have
-// FAILED from Change 0008 through the cutover, unseen. This adds NO core
-// capability: it is a workflow file plus documentation. Visible (no hidden
-// state, ADR-009) and never overwritten, like every other adoption artifact.
-// Not on GitHub Actions? The gate is one command: `npx aief verify`
-// (docs/configuration.md, "CI gate").
-function createCiGate() {
-  if (!fs.existsSync(CI_TEMPLATE)) return null;
-  const created = writeFile(cwd(".github", "workflows", "aief-verify.yml"), fs.readFileSync(CI_TEMPLATE, "utf8"));
-  return created ? ".github/workflows/aief-verify.yml" : null;
 }
 // Visible Skills: the recommended Skills become a readable artifact in the
 // adopted project. The catalog stays the technical source; this file is the
@@ -185,9 +171,8 @@ function runAdoption() {
   if (!createdStandards.length) console.log("✓ knowledge/standards/ already present (nothing overwritten)");
   if (writeFile(cwd("knowledge", "skills.md"), skillsDoc(project, skills))) { console.log("Skills documented: knowledge/skills.md"); artifacts.push("knowledge/skills.md"); }
   else console.log("Skills documentation already exists: knowledge/skills.md");
-  const ciGate = createCiGate();
-  if (ciGate) { console.log(`✓ Created ${ciGate} — CI gate: runs aief verify on every push/PR`); artifacts.push(ciGate); }
-  else console.log("✓ CI gate already present (nothing overwritten): .github/workflows/aief-verify.yml");
+  // No CI config is generated: it is host-specific (GitHub/GitLab/Bitbucket…) and
+  // wiring `aief verify` into CI is the team's choice — docs/configuration.md "CI gate" (Change 0139).
   if (!getChangeDirs().some((dir) => path.basename(dir).includes("adopt-aief"))) {
     // Use the next free ID so adoption never collides with existing Changes.
     const id = nextChangeId();
