@@ -40,3 +40,7 @@ already acknowledged as a known self-trigger in comments in `cli-skills-and-matu
 - A freshly bootstrapped project with no AI mention in `README.md` does not detect `aiRoadmap`.
 - `aiRoadmap` is still detected from `README.md`/`docs/architecture.md`.
 - `npm test`, `npm run lint`, `node cli/bin/aief.js verify`, and `git diff --check` pass.
+
+## Status
+
+Closed (2026-09-24)

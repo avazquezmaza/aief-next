@@ -62,3 +62,7 @@ engine and the detectors that use it.
   (`node_modules`, `target`, …), are not.
 - Every existing test still passes; `npm test`, `node cli/bin/aief.js verify`, and
   `git diff --check` pass.
+
+## Status
+
+Closed (2026-09-24)

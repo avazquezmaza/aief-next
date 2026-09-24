@@ -20,7 +20,7 @@
 - [x] Tests in `detect.test.js` and `cli-bootstrap-and-standards.test.js` for every acceptance
       criterion.
 - [x] `npm test`, `node cli/bin/aief.js verify`, `git diff --check`.
-- [ ] (review) Independent review of the detection rules and walk limits.
+- [x] (review) Independent review of the detection rules and walk limits.
 
 ## Evidence
 
