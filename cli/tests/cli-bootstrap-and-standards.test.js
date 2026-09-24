@@ -479,3 +479,16 @@ test("bootstrap creates backend standards for a Maven-only Java project (Change 
   assert.ok(files.includes("backend-standards.md"));
   assert.ok(!files.includes("frontend-standards.md"));
 });
+
+// Change 0141: AIEF's own AGENTS.md says "AI assistants"; aiRoadmap used to
+// search it, so every adopted project was flagged as having AI on its roadmap.
+test("bootstrap does not flag aiRoadmap from AIEF's own AGENTS.md or a CLAUDE.md (Change 0141)", () => {
+  const dir = makeProject({
+    "README.md": "Payment integration service.",
+    "CLAUDE.md": "Guidance for AI assistants working in this repository.\n"
+  });
+  const { out } = aief(dir, ["bootstrap"]);
+  assert.doesNotMatch(out, /aiRoadmap/);
+  assert.doesNotMatch(aief(dir, ["status"]).out, /aiRoadmap/);
+  assert.doesNotMatch(aief(dir, ["doctor"]).out, /ai-workflow-governance/);
+});
