@@ -470,3 +470,12 @@ test("doctor does not recommend governance for generic prose", () => {
   assert.doesNotMatch(out, /multitenant-saas-architect/);
 });
 
+
+test("bootstrap creates backend standards for a Maven-only Java project (Change 0140)", () => {
+  const dir = makeProject({ "pom.xml": "<project><groupId>io.quarkus</groupId></project>\n" });
+  const { out } = aief(dir, ["bootstrap"]);
+  assert.match(out, /Created knowledge\/standards\/backend-standards\.md/);
+  const files = fs.readdirSync(path.join(dir, "knowledge", "standards"));
+  assert.ok(files.includes("backend-standards.md"));
+  assert.ok(!files.includes("frontend-standards.md"));
+});

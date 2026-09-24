@@ -23,6 +23,54 @@ export function containsKeyword(text, keyword) {
   return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, "i").test(text);
 }
 
+// Bounded, read-only walk for detectors whose evidence lives in
+// subdirectories (Kustomize overlays, OpenShift/Argo CD manifests, Helm
+// charts). Computed at most once per detectProject() call, and only when a
+// detector declares nestedFiles or manifestMarkers.
+const WALK_MAX_DEPTH = 4;
+const WALK_MAX_ENTRIES = 5000;
+const WALK_MAX_YAML_FILES = 500;
+const WALK_MAX_YAML_BYTES = 256 * 1024;
+const WALK_SKIP_DIRS = new Set([".git", "node_modules", "target", "build", "dist", "out", ".gradle", ".idea", ".venv", "venv", "vendor", "graphify-out"]);
+
+function walkProject(rootDir) {
+  const entries = [];
+  const yamlFiles = [];
+  const queue = [{ dir: rootDir, depth: 0 }];
+  while (queue.length && entries.length < WALK_MAX_ENTRIES) {
+    const { dir, depth } = queue.shift();
+    let dirents;
+    try {
+      dirents = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const dirent of dirents) {
+      if (entries.length >= WALK_MAX_ENTRIES) break;
+      const full = path.join(dir, dirent.name);
+      const rel = path.relative(rootDir, full).split(path.sep).join("/");
+      if (dirent.isDirectory()) {
+        if (WALK_SKIP_DIRS.has(dirent.name)) continue;
+        entries.push({ name: dirent.name, rel });
+        if (depth + 1 <= WALK_MAX_DEPTH) queue.push({ dir: full, depth: depth + 1 });
+      } else if (dirent.isFile()) {
+        entries.push({ name: dirent.name, rel });
+        if (/\.ya?ml$/i.test(dirent.name) && yamlFiles.length < WALK_MAX_YAML_FILES) yamlFiles.push({ full, rel });
+      }
+    }
+  }
+  const yaml = [];
+  for (const file of yamlFiles) {
+    try {
+      if (fs.statSync(file.full).size > WALK_MAX_YAML_BYTES) continue;
+      yaml.push({ rel: file.rel, text: fs.readFileSync(file.full, "utf8") });
+    } catch {
+      // unreadable file: ignore, like readIfExists()
+    }
+  }
+  return { entries, yaml };
+}
+
 function evaluateDetector(detector, context) {
   const reasons = [];
   const { deps, rootDir, fileCache } = context;
@@ -47,6 +95,17 @@ function evaluateDetector(detector, context) {
     if (!text) continue;
     const keyword = (detector.keywords || []).find((k) => containsKeyword(text, k));
     if (keyword) reasons.push(`keyword "${keyword}" found in ${file}`);
+  }
+  if ((detector.nestedFiles || []).length || (detector.manifestMarkers || []).length) {
+    if (!context.walk) context.walk = walkProject(rootDir);
+    for (const name of detector.nestedFiles || []) {
+      const match = context.walk.entries.find((e) => e.name === name);
+      if (match) reasons.push(`"${name}" found at ${match.rel}`);
+    }
+    for (const marker of detector.manifestMarkers || []) {
+      const match = context.walk.yaml.find((f) => containsKeyword(f.text, marker));
+      if (match) reasons.push(`marker "${marker}" found in ${match.rel}`);
+    }
   }
 
   return reasons;
