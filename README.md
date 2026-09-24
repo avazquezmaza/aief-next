@@ -93,7 +93,7 @@ the Change can close. Full walkthrough:
 
 ## Quick start
 
-Requires Node.js >= 18. No runtime dependencies.
+Requires Node.js >= 22. No runtime dependencies.
 
 ```bash
 git clone https://github.com/avazquezmaza/aief-next.git
