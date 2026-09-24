@@ -4,7 +4,7 @@ The AIEF CLI is a guided workflow tool.
 
 It explains what each command does, what it reads, what it writes, and what to do next: `aief help <command>`.
 
-Commands cover levels 1 (context: doctor/adopt/analyze/prompt) and 3 (governance: verify/close) of the [three-level AIEF workflow](../docs/workflow.md); level 2 (the feature work) happens in your assistant, optionally with OpenSpec.
+Commands cover levels 1 (context: doctor/bootstrap/analyze/prompt) and 3 (governance: verify/close) of the [three-level AIEF workflow](../docs/workflow.md); level 2 (the feature work) happens in your assistant, optionally with OpenSpec.
 
 ## Install
 
@@ -23,7 +23,7 @@ Linking from `cli/` also works. Or run directly: `node cli/bin/aief.js <command>
 
 ```bash
 aief doctor
-aief adopt
+aief bootstrap
 aief verify
 aief analyze
 aief prompt claude --profile architect
@@ -39,10 +39,10 @@ aief status
 aief help doctor
 ```
 
-### Adoption
+### Bootstrap
 
 ```bash
-aief adopt
+aief bootstrap
 aief analyze
 ```
 
@@ -58,11 +58,11 @@ aief close --yes
 
 ## Skills and standards
 
-`aief doctor` and `aief adopt` inspect project signals and recommend possible Skills, always explaining why each Skill was recommended.
+`aief doctor` and `aief bootstrap` inspect project signals and recommend possible Skills, always explaining why each Skill was recommended.
 
 Detectors, Skill recommendations and Skill content are data, not engine logic: they live in `src/skills-catalog.json` and are evaluated by `src/detect.js` with word-boundary keyword matching to avoid false positives. Skill content (promptContext, commonRisks, standardsToRead, evidenceExpectations) is injected into `aief prompt` output as context — Skills are never executed.
 
-`aief adopt` also creates editable project standards under `knowledge/standards/` (from `templates/standards/`), matched to detected frontend/backend signals and never overwriting existing files. `aief analyze` seeds the Analysis Change with detected signals, Skills, standards and inferred risks; `aief prompt` tells the assistant to follow the standards.
+`aief bootstrap` also creates editable project standards under `knowledge/standards/` (from `templates/standards/`), matched to detected frontend/backend signals and never overwriting existing files. `aief analyze` seeds the Analysis Change with detected signals, Skills, standards and inferred risks; `aief prompt` tells the assistant to follow the standards.
 
 Profiles define the role. Skills define specialized knowledge. Standards define project rules. None of them replaces `AGENTS.md`.
 
@@ -76,4 +76,4 @@ Profiles define the role. Skills define specialized knowledge. Standards define 
 npm test
 ```
 
-Runs the CLI suite with `node --test` (Node >= 22, no dependencies). Covers Change ID safety, adoption idempotence, detection, skill reasons, Analysis Changes, CRLF handling, verify, help coverage and the OpenSpec fallback paths.
+Runs the CLI suite with `node --test` (Node >= 22, no dependencies). Covers Change ID safety, bootstrap idempotence, detection, skill reasons, Analysis Changes, CRLF handling, verify, help coverage and the OpenSpec fallback paths.
