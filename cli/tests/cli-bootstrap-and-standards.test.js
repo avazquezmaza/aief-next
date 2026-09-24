@@ -46,6 +46,19 @@ test("bootstrap does not touch application files", () => {
   assert.equal(fs.readFileSync(path.join(dir, "src", "app.js"), "utf8"), "console.log('app');");
 });
 
+test("bootstrap generates no CI config, and leaves an existing .github/ untouched (Change 0139)", () => {
+  const empty = makeProject();
+  const { status, out } = aief(empty, ["bootstrap"]);
+  assert.equal(status, 0);
+  assert.equal(fs.existsSync(path.join(empty, ".github")), false);
+  assert.doesNotMatch(out, /CI gate/);
+
+  const withCi = makeProject({ ".github/workflows/ci.yml": "name: CI\n" });
+  aief(withCi, ["bootstrap"]);
+  assert.deepEqual(fs.readdirSync(path.join(withCi, ".github", "workflows")), ["ci.yml"]);
+  assert.equal(fs.readFileSync(path.join(withCi, ".github", "workflows", "ci.yml"), "utf8"), "name: CI\n");
+});
+
 test("bootstrap (no --interactive) is byte-identical to before Change 0068", () => {
   const dir = makeProject();
   const { status, out } = aief(dir, ["bootstrap"]);

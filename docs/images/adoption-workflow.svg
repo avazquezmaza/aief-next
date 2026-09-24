@@ -88,7 +88,7 @@
   <path d="M 553.0 176 L 485.5 236" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
   <path d="M 553.0 176 L 814.5 236" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-blue)"/>
   <text x="40" y="460" font-size="12" fill="#64748b">- doctor never writes to the project — every write happens in bootstrap, analyze, or a later delivery Change.</text>
-  <text x="40" y="480" font-size="12" fill="#64748b">- bootstrap never overwrites an existing file (AGENTS.md, knowledge/standards/, CI gate) and is idempotent.</text>
+  <text x="40" y="480" font-size="12" fill="#64748b">- bootstrap never overwrites an existing file (AGENTS.md, knowledge/standards/) and generates no CI configuration; it is idempotent.</text>
   <text x="40" y="500" font-size="12" fill="#64748b">- After adoption there are typically two open Changes: the Adoption Change and the Analysis Change.</text>
   <text x="40" y="520" font-size="12" fill="#64748b">- The Adoption Change records that AIEF was added; the Analysis Change captures architecture, stack, risks and gaps.</text>
   <text x="40" y="540" font-size="12" fill="#64748b">- Delivery Changes (new-change / enrich) come after — they are the first real feature, fix or refactor.</text>

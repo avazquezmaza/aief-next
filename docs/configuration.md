@@ -167,7 +167,15 @@ Absent by default. See [Workflow — Loop](workflow.md#loop--verify-feedback-ret
 
 ## CI gate
 
-`aief bootstrap` creates `.github/workflows/aief-verify.yml` from
-`cli/templates/ci/aief-verify.yml` if missing (never overwritten) — one job that runs
-`npx aief verify` on every push and pull request. Not on GitHub Actions? The gate is one command
-you can wire into any CI system yourself: `npx aief verify`.
+`aief bootstrap` does not generate CI configuration: it would be host-specific (GitHub, GitLab,
+Bitbucket…), and wiring the gate into CI is the team's choice (Change 0139). The gate is one
+command that exits non-zero on FAIL — add it as a step in whatever CI you use:
+
+```bash
+git clone --depth 1 https://github.com/avazquezmaza/aief-next.git /tmp/aief
+node /tmp/aief/cli/bin/aief.js verify
+```
+
+The CLI is not published to the npm registry, so do not use `npx aief verify` — it would fail, or
+run an unrelated package if one is ever published under that name. Pin the clone to a tag or
+commit if you need reproducible CI.

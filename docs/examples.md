@@ -40,7 +40,7 @@ my-service/
   src/                              # unchanged
   test/                             # unchanged
   package.json                      # unchanged
-  .github/workflows/                # unchanged (aief-verify.yml added alongside it)
+  .github/workflows/                # unchanged
   AGENTS.md                         # created (was missing)
   changes/
     0001-adopt-aief/

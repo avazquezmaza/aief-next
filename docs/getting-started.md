@@ -115,9 +115,10 @@ project or any other.
 
 **What does `bootstrap` create?** `AGENTS.md` (only if missing), `changes/`, `knowledge/`,
 `profiles/`, `knowledge/standards/` starter standards matched to your detected stack,
-`knowledge/skills.md`, a CI gate (`.github/workflows/aief-verify.yml`), and one Adoption Change
-(`changes/<id>-adopt-aief/`). It also writes `knowledge/sdd-provider.json`, but only when the SDD
-Provider choice is genuinely ambiguous and you're prompted for it interactively.
+`knowledge/skills.md`, and one Adoption Change (`changes/<id>-adopt-aief/`). It also writes
+`knowledge/sdd-provider.json`, but only when the SDD Provider choice is genuinely ambiguous and
+you're prompted for it interactively. It generates no CI configuration — to run `aief verify` in
+your CI, see [Configuration — CI gate](configuration.md#ci-gate).
 
 **What does `bootstrap` preserve?** Everything else — application source, tests, package files, CI
 configuration, Git history, and any file that already exists at a path `bootstrap` would otherwise

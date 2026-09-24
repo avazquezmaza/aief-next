@@ -36,7 +36,7 @@ const COMMAND_HELP = {
     purpose: "Bootstrap a project to use AIEF: detects what it can, asks only what it must (the SDD Provider, only when genuinely ambiguous), and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
     when: "Right after cloning, or the first time an existing project starts using AIEF.",
     reads: "AGENTS.md, changes/, openspec/, specboot markers, PATH (OpenSpec/SpecBoot CLIs, TTY), package.json, README.md and common project files.",
-    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, the CI gate, changes/<next-id>-adopt-aief/, and knowledge/sdd-provider.json only when the SDD Provider choice is ambiguous and you are prompted. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
+    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, changes/<next-id>-adopt-aief/, and knowledge/sdd-provider.json only when the SDD Provider choice is ambiguous and you are prompted. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
     example: "aief bootstrap   (or: aief bootstrap my-project)",
     next: "aief verify, then aief analyze or aief new-change <name>."
   },
