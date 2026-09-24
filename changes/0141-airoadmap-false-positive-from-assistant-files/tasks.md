@@ -12,7 +12,7 @@
 
 - [x] Regression tests; adjust tests that relied on the self-trigger.
 - [x] `npm test`, `npm run lint`, `node cli/bin/aief.js verify`, `git diff --check`.
-- [ ] (review) Independent review.
+- [x] (review) Independent review.
 
 ## Evidence
 
