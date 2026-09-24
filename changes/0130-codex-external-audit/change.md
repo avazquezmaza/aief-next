@@ -39,3 +39,7 @@ as evidence — it does not implement fixes itself.
 - A Codex prompt is generated and handed to the user.
 - `evidence.md` records the prompt and, once available, a summary of Codex's findings.
 - No code, config, or other document changed by this Change beyond its own directory.
+
+## Status
+
+Closed (2026-09-24)

@@ -23,4 +23,4 @@
 
 ## Review
 
-- [ ] (review) Independent review of the diff
+- [x] (review) Independent review of the diff

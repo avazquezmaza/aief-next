@@ -45,3 +45,7 @@ how to wire it into any CI. This does not conflict with an accepted ADR (none go
 - `aief bootstrap` in an empty directory creates no `.github/` entry.
 - No current doc or help text claims bootstrap creates a CI gate or recommends `npx aief verify`.
 - `npm test`, `npm run lint`, `aief verify` and `git diff --check` pass.
+
+## Status
+
+Closed (2026-09-24)

@@ -16,4 +16,4 @@
 ## Evidence
 
 - [x] Record the handoff in evidence.md.
-- [ ] (human) Paste Codex's findings back and summarize them in evidence.md once the audit is run.
+- [x] (human) Paste Codex's findings back and summarize them in evidence.md once the audit is run.
