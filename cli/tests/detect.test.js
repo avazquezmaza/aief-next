@@ -281,3 +281,123 @@ test("django, flask and fastapi each recommend python-backend-architecture", () 
     assert.equal(match.confidence, expectStrong ? "strong" : "weak");
   }
 });
+
+// --- Change 0140: Java/Quarkus/Camel and nested deployment tooling ---
+
+const QUARKUS_CAMEL_POM = `<project>
+  <dependencies>
+    <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-openshift</artifactId></dependency>
+    <dependency><groupId>org.apache.camel.quarkus</groupId><artifactId>camel-quarkus-rest</artifactId></dependency>
+  </dependencies>
+</project>
+`;
+
+test("a Quarkus + Camel pom.xml detects java, quarkus, camel and openshift (Change 0140)", () => {
+  const ids = detectProject(makeProject({ "pom.xml": QUARKUS_CAMEL_POM })).signals.map((s) => s.id);
+  for (const id of ["java", "quarkus", "camel", "openshift"]) assert.ok(ids.includes(id), `expected ${id}`);
+});
+
+test("a plain Maven or Gradle build detects java only (Change 0140)", () => {
+  for (const file of ["pom.xml", "build.gradle", "build.gradle.kts"]) {
+    const ids = detectProject(makeProject({ [file]: "<project/>\n" })).signals.map((s) => s.id);
+    assert.deepEqual(ids, ["java"], `${file}: ${ids.join(",")}`);
+  }
+});
+
+test("nested kustomization, OpenShift Route, Argo CD Application and Deployment are detected with their path (Change 0140)", () => {
+  const dir = makeProject({
+    "k8s/overlays/prod/kustomization.yaml": "resources:\n  - ../../base\n",
+    "deploy/openshift/route.yaml": "apiVersion: route.openshift.io/v1\nkind: Route\n",
+    "gitops/apps/app.yaml": "apiVersion: argoproj.io/v1alpha1\nkind: Application\n",
+    "manifests/base/deploy.yml": "apiVersion: apps/v1\nkind: Deployment\n"
+  });
+  const signals = detectProject(dir).signals;
+  const byId = Object.fromEntries(signals.map((s) => [s.id, s]));
+  assert.match(byId.kustomize.reasons[0], /"kustomization\.yaml" found at k8s\/overlays\/prod\/kustomization\.yaml/);
+  assert.match(byId.openshift.reasons[0], /marker "route\.openshift\.io" found in deploy\/openshift\/route\.yaml/);
+  assert.match(byId.argocd.reasons[0], /marker "argoproj\.io" found in gitops\/apps\/app\.yaml/);
+  assert.ok(byId.kubernetes.reasons.includes("marker \"kind: Deployment\" found in manifests/base/deploy.yml"), byId.kubernetes.reasons.join("; "));
+});
+
+test("an OpenShift DeploymentConfig does not count as a Kubernetes Deployment marker (Change 0140)", () => {
+  const ids = detectProject(makeProject({ "deploy/dc.yaml": "kind: DeploymentConfig\n" })).signals.map((s) => s.id);
+  assert.ok(!ids.includes("kubernetes"));
+});
+
+test("nested search skips vendor/build dirs and stops below depth 4 (Change 0140)", () => {
+  const dir = makeProject({
+    "node_modules/pkg/kustomization.yaml": "resources: []\n",
+    "target/classes/app.yaml": "apiVersion: argoproj.io/v1alpha1\n",
+    "a/b/c/d/e/kustomization.yaml": "resources: []\n",
+    "a/b/c/d/e/app.yaml": "apiVersion: argoproj.io/v1alpha1\n"
+  });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  assert.ok(!ids.includes("kustomize"), ids.join(","));
+  assert.ok(!ids.includes("argocd"), ids.join(","));
+  const atLimit = detectProject(makeProject({ "a/b/c/d/kustomization.yaml": "resources: []\n" })).signals.map((s) => s.id);
+  assert.ok(atLimit.includes("kustomize"), "depth 4 is still searched");
+});
+
+test("an Argo CD-only repository gets the container-deployment-reviewer Skill (Change 0140)", () => {
+  const project = detectProject(makeProject({ "apps/app.yaml": "apiVersion: argoproj.io/v1alpha1\nkind: Application\n" }));
+  const skill = recommendSkills(project).find((s) => s.id === "container-deployment-reviewer");
+  assert.ok(skill);
+  assert.equal(skill.confidence, "strong");
+});
+
+test("a Camel on Spring Boot stack detects spring, kafka, redis, activemq and keycloak from pom.xml (Change 0140)", () => {
+  const pom = `<project>
+  <dependency><groupId>org.apache.camel.springboot</groupId><artifactId>camel-kafka-starter</artifactId></dependency>
+  <dependency><groupId>org.apache.camel.springboot</groupId><artifactId>camel-activemq-starter</artifactId></dependency>
+  <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-redis</artifactId></dependency>
+  <dependency><groupId>org.keycloak</groupId><artifactId>keycloak-admin-client</artifactId></dependency>
+</project>
+`;
+  const ids = detectProject(makeProject({ "pom.xml": pom })).signals.map((s) => s.id);
+  for (const id of ["java", "camel", "spring", "kafka", "redis", "activemq", "keycloak"]) assert.ok(ids.includes(id), `expected ${id}: ${ids.join(",")}`);
+  assert.ok(!ids.includes("quarkus"));
+});
+
+test("a Camel on Quarkus stack detects Artemis, Kafka, Redis, Keycloak (via config), Podman and the nested Quarkus Dockerfile (Change 0140)", () => {
+  const dir = makeProject({
+    "pom.xml": `<project>
+  <dependency><groupId>org.apache.camel.quarkus</groupId><artifactId>camel-quarkus-kafka</artifactId></dependency>
+  <dependency><groupId>io.quarkiverse.artemis</groupId><artifactId>quarkus-artemis-jms</artifactId></dependency>
+  <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-redis-client</artifactId></dependency>
+  <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-oidc</artifactId></dependency>
+</project>
+`,
+    "src/main/resources/application.properties": "quarkus.oidc.auth-server-url=https://keycloak.example.com/realms/integraciones\n",
+    "src/main/docker/Dockerfile.jvm": "FROM registry.access.redhat.com/ubi9/openjdk-17\n",
+    "Containerfile": "FROM registry.access.redhat.com/ubi9/openjdk-17\n"
+  });
+  const project = detectProject(dir);
+  const ids = project.signals.map((s) => s.id);
+  for (const id of ["java", "quarkus", "camel", "kafka", "activemq", "redis", "keycloak", "docker", "podman"]) assert.ok(ids.includes(id), `expected ${id}: ${ids.join(",")}`);
+  const docker = project.signals.find((s) => s.id === "docker");
+  assert.ok(docker.reasons.includes('"Dockerfile.jvm" found at src/main/docker/Dockerfile.jvm'), docker.reasons.join("; "));
+  const skills = recommendSkills(project).map((s) => s.id);
+  assert.ok(skills.includes("container-deployment-reviewer"));
+  assert.ok(skills.includes("security-rbac-reviewer"), "Keycloak triggers the security reviewer");
+});
+
+test("AMQ Streams (Strimzi) and AMQ Broker operator resources are detected from manifests (Change 0140)", () => {
+  const dir = makeProject({
+    "deploy/topic.yaml": "apiVersion: kafka.strimzi.io/v1beta2\nkind: KafkaTopic\n",
+    "deploy/broker.yaml": "apiVersion: broker.amq.io/v1beta1\nkind: ActiveMQArtemis\n"
+  });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  assert.ok(ids.includes("kafka"), ids.join(","));
+  assert.ok(ids.includes("activemq"), ids.join(","));
+});
+
+test("Eclipse JKube projects are detected: kind-less fragments in src/main/jkube and the Maven plugins (Change 0140)", () => {
+  const fragmentsOnly = detectProject(makeProject({ "src/main/jkube/deployment.yaml": "spec:\n  replicas: 1\n" })).signals;
+  const k8s = fragmentsOnly.find((s) => s.id === "kubernetes");
+  assert.ok(k8s, "a jkube fragments dir implies Kubernetes");
+  assert.ok(k8s.reasons.includes('"jkube" found at src/main/jkube'), k8s.reasons.join("; "));
+  const pom = "<project><plugin><groupId>org.eclipse.jkube</groupId><artifactId>kubernetes-maven-plugin</artifactId></plugin><plugin><artifactId>openshift-maven-plugin</artifactId></plugin></project>\n";
+  const ids = detectProject(makeProject({ "pom.xml": pom })).signals.map((s) => s.id);
+  assert.ok(ids.includes("kubernetes"), ids.join(","));
+  assert.ok(ids.includes("openshift"), ids.join(","));
+});

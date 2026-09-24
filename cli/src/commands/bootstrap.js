@@ -38,7 +38,7 @@ const BASE_STANDARDS = ["base-standards.md", "documentation-standards.md", "test
 // frontend-standards.md/backend-standards.md in its `standardsToRead` is
 // picked up automatically, with no third hand-edit of this file required.
 const EXPLICIT_FRONTEND_IDS = ["nextjs", "react", "tailwind"];
-const EXPLICIT_BACKEND_IDS = ["nestjs", "postgres", "cognito", "n8n"];
+const EXPLICIT_BACKEND_IDS = ["nestjs", "postgres", "cognito", "n8n", "java"];
 
 // idsRequiringStandard(standardFile, catalog) -> Set<techId>
 // Every detector id that is a `when` trigger of a Skill whose own

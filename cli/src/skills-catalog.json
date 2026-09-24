@@ -130,6 +130,26 @@
       "files": ["Cargo.toml"]
     },
     {
+      "id": "java",
+      "description": "Java application (Maven or Gradle)",
+      "signal": "strong",
+      "files": ["pom.xml", "build.gradle", "build.gradle.kts"]
+    },
+    {
+      "id": "quarkus",
+      "description": "Quarkus framework",
+      "signal": "weak",
+      "keywords": ["io.quarkus"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"]
+    },
+    {
+      "id": "camel",
+      "description": "Apache Camel integration",
+      "signal": "weak",
+      "keywords": ["org.apache.camel"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"]
+    },
+    {
       "id": "spring",
       "description": "Spring Framework backend",
       "signal": "weak",
@@ -164,7 +184,9 @@
       "id": "redis",
       "description": "Redis data layer",
       "signal": "strong",
-      "dependencies": ["redis", "ioredis"]
+      "dependencies": ["redis", "ioredis"],
+      "keywords": ["redis", "jedis", "redisson", "lettuce-core"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"]
     },
     {
       "id": "graphql",
@@ -176,13 +198,47 @@
       "id": "docker",
       "description": "Docker containerization",
       "signal": "strong",
-      "files": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"]
+      "files": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
+      "nestedFiles": ["Dockerfile", "Dockerfile.jvm", "Dockerfile.native", "Dockerfile.native-micro"]
+    },
+    {
+      "id": "podman",
+      "description": "Podman containerization",
+      "signal": "strong",
+      "files": ["Containerfile", "podman-compose.yml", "podman-compose.yaml", ".containerignore"],
+      "nestedFiles": ["Containerfile"]
     },
     {
       "id": "kubernetes",
       "description": "Kubernetes orchestration",
       "signal": "strong",
-      "files": ["k8s", "kubernetes", "helm"]
+      "files": ["k8s", "kubernetes", "helm"],
+      "nestedFiles": ["Chart.yaml", "jkube"],
+      "keywords": ["kubernetes-maven-plugin", "kubernetes-gradle-plugin"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "manifestMarkers": ["kind: Deployment", "kind: StatefulSet", "kind: DaemonSet", "kind: CronJob"]
+    },
+    {
+      "id": "openshift",
+      "description": "Red Hat OpenShift deployment",
+      "signal": "strong",
+      "files": [".s2i", "openshift"],
+      "nestedFiles": ["openshift.yml", "openshift.yaml"],
+      "keywords": ["quarkus-openshift", "openshift-maven-plugin", "openshift-gradle-plugin"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "manifestMarkers": ["route.openshift.io", "apps.openshift.io", "image.openshift.io", "build.openshift.io"]
+    },
+    {
+      "id": "kustomize",
+      "description": "Kustomize manifest overlays",
+      "signal": "strong",
+      "nestedFiles": ["kustomization.yaml", "kustomization.yml", "Kustomization"]
+    },
+    {
+      "id": "argocd",
+      "description": "Argo CD GitOps",
+      "signal": "strong",
+      "manifestMarkers": ["argoproj.io"]
     },
     {
       "id": "vercel",
@@ -224,13 +280,33 @@
       "id": "kafka",
       "description": "Kafka messaging",
       "signal": "strong",
-      "dependencies": ["kafkajs", "node-rdkafka"]
+      "dependencies": ["kafkajs", "node-rdkafka"],
+      "keywords": ["kafka"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "manifestMarkers": ["kafka.strimzi.io"]
     },
     {
       "id": "rabbitmq",
       "description": "RabbitMQ messaging",
       "signal": "strong",
       "dependencies": ["amqplib"]
+    },
+    {
+      "id": "activemq",
+      "description": "ActiveMQ Artemis / Red Hat AMQ Broker messaging",
+      "signal": "strong",
+      "keywords": ["activemq", "artemis", "qpid-jms", "camel-amqp"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "manifestMarkers": ["broker.amq.io"]
+    },
+    {
+      "id": "keycloak",
+      "description": "Keycloak identity and access management",
+      "signal": "strong",
+      "dependencies": ["keycloak-js"],
+      "keywords": ["keycloak"],
+      "searchFiles": ["pom.xml", "build.gradle", "build.gradle.kts", "src/main/resources/application.properties"],
+      "manifestMarkers": ["keycloak"]
     }
   ],
   "skills": [
@@ -271,7 +347,7 @@
       "id": "security-rbac-reviewer",
       "name": "Security & RBAC Reviewer",
       "description": "Server-side authorization, permissions, tenant isolation, secrets, audit events.",
-      "when": ["rbac", "multitenant"],
+      "when": ["rbac", "multitenant", "keycloak"],
       "whenToUse": "Any Change touching authentication, authorization, permissions or sensitive data.",
       "standardsToRead": ["security-standards.md"],
       "promptContext": "Authorization is enforced server-side on every operation; the UI is never a security boundary. Check permissions at the point of data access, not only at the route entry.",
@@ -336,9 +412,9 @@
     {
       "id": "container-deployment-reviewer",
       "name": "Container & Deployment Reviewer",
-      "description": "Docker/Kubernetes: image hardening, secrets handling, resource limits, rollout safety.",
-      "when": ["docker", "kubernetes"],
-      "whenToUse": "Changes that add or modify a Dockerfile, docker-compose service, or Kubernetes/Helm manifest.",
+      "description": "Docker/Podman, Kubernetes/OpenShift, Kustomize and Argo CD: image hardening, secrets handling, resource limits, rollout safety.",
+      "when": ["docker", "podman", "kubernetes", "openshift", "kustomize", "argocd"],
+      "whenToUse": "Changes that add or modify a Dockerfile/Containerfile, compose service, Kubernetes/OpenShift/Helm manifest, Kustomize overlay, or Argo CD Application.",
       "standardsToRead": ["backend-standards.md", "security-standards.md"],
       "promptContext": "Container images should run as a non-root user, never bake secrets into image layers, and Kubernetes manifests should declare resource requests/limits and liveness/readiness probes so a bad rollout fails safely.",
       "commonRisks": ["secrets committed into a Dockerfile ARG/ENV or an image layer", "container running as root by default", "a Deployment with no resource limits or health probes, letting one bad pod exhaust a node"],
