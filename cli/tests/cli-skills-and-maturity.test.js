@@ -194,7 +194,7 @@ test("prompt: a project-only ai-specs skill (no built-in match) appears tagged [
 
 test("prompt: an ai-specs skill overriding a built-in id replaces it wholly — the built-in's promptContext/commonRisks never show for that id", () => {
   const dir = makeProject({
-    "README.md": "Multi-tenant SaaS platform.",
+    "README.md": "Multi-tenant SaaS platform with LLM features.",
     "ai-specs/skills/ai-workflow-governance.md": "# Our Own Governance\n\nOverride text.\n"
   });
   aief(dir, ["bootstrap"]);
@@ -205,22 +205,21 @@ test("prompt: an ai-specs skill overriding a built-in id replaces it wholly — 
 
 test("prompt: a built-in Skill not overridden by any ai-specs/skills/ file keeps its full promptContext/commonRisks rendering", () => {
   const dir = makeProject({
-    "README.md": "Multi-tenant SaaS platform.",
+    "README.md": "Multi-tenant SaaS platform with LLM features.",
     "ai-specs/skills/pair-programming.md": "# Pair Programming\n\nGuidance.\n"
   });
   aief(dir, ["bootstrap"]);
   const { out } = aief(dir, ["prompt", "--change", "0001-adopt-aief"]);
   // "AI Workflow Governance" is triggered by the aiRoadmap detector (a weak,
-  // keyword-in-doc signal — AGENTS.md's own boilerplate text mentions "AI
-  // assistants") — Change 0072 tags it accordingly; this assertion was
-  // updated to match, not silently left describing untagged output.
+  // keyword-in-doc signal — "LLM" in README.md) — Change 0072 tags it
+  // accordingly.
   assert.match(out, /- AI Workflow Governance \(weak signal — confirm before relying on this\): AI-generated artifacts start inactive/);
   assert.match(out, /Watch out for: auto-activating generated artifacts/);
 });
 
 test("prompt: a second file claiming an already-claimed ai-specs id is excluded (never duplicated), the first still resolves normally, built-ins untouched", () => {
   const dir = makeProject({
-    "README.md": "Multi-tenant SaaS platform.",
+    "README.md": "Multi-tenant SaaS platform with LLM features.",
     "ai-specs/skills/dup.md": "one",
     "ai-specs/skills/dup.MD": "two"
   });
@@ -259,11 +258,9 @@ test("prompt: a Skill triggered only by a weak (keyword-in-doc) signal is tagged
 });
 
 test("prompt: the no-signals fallback Skill is never tagged as a weak signal — it is an honest statement, not a guess", () => {
-  // Deliberately no bootstrap: AIEF's own generated AGENTS.md text ("AI
-  // assistants...") would itself trigger the weak aiRoadmap signal, making
-  // a genuine zero-signal project impossible to reach post-bootstrap. A
-  // plain new-change on a project with no AGENTS.md/README keyword avoids
-  // that self-triggering entirely.
+  // A plain new-change on a project with no README keyword: a genuine
+  // zero-signal project. (Since Change 0141, bootstrap's own AGENTS.md no
+  // longer triggers aiRoadmap either — see the dedicated test.)
   const dir = makeProject({ "README.md": "x" });
   aief(dir, ["new-change", "thing"]);
   const { out } = aief(dir, ["prompt"]);

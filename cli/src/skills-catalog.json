@@ -79,7 +79,7 @@
       "description": "AI features on the roadmap",
       "signal": "weak",
       "keywords": ["llm", "llms", "genai", "ai-powered", "ai assistant", "ai assistants", "ai features", "artificial intelligence", "machine learning"],
-      "searchFiles": ["README.md", "CLAUDE.md", "AGENTS.md", "docs/architecture.md"]
+      "searchFiles": ["README.md", "docs/architecture.md"]
     },
     {
       "id": "codeGraphUnderstanding",
