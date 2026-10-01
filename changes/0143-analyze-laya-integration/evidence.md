@@ -78,12 +78,12 @@ Latency, memory, checkpoints, runtime package names, and configuration knobs wer
 
 | Finding | Severity | Status | Resolved By | Notes |
 | --- | --- | --- | --- | --- |
-| C0143-F1 | High | Open | — | Proposed: `0144-laya-triage-skill` (Skill plus example script outside `cli/`). |
-| C0143-F2 | High | Open | — | Proposed: `0144`. Guardrail wording in the Skill; not enforced anywhere today. |
-| C0143-F3 | Medium | Open | — | Proposed: `0144`, deployment guidance after measurement. |
-| C0143-F4 | Low | Open | — | Criteria in the schema below; calibration dataset deferred to a later Change. |
-| C0143-F5 | High | Open | — | Proposed: `0144` scope excludes `cli/`; any reversal needs an ADR. |
-| C0143-F6 | Medium | Open | — | Proposed: first task of `0144`. |
+| C0143-F1 | High | Resolved | 0144 | Laya lives only in `examples/laya-triage/` (opt-in Skill template plus script); `cli/` has no reference to Laya. |
+| C0143-F2 | High | Resolved | 0144 | Guardrails in the Skill template and script output ("PROPOSAL… A human decides"). Guidance, not machine-enforced. |
+| C0143-F3 | Medium | Resolved | 0144 | Measured on CPU: ~12–14 s and 2.4–2.9 GB per call; resource pre-check, timeout and single-checkpoint default. |
+| C0143-F4 | Low | Open | — | Confirmed by 0144 (zero-shot `requirement_clarity` failed; track weak). Proposed: 0145 evaluation set, 0146 fine-tuning. |
+| C0143-F5 | High | Resolved | 0144 | 0144 scope excluded `cli/`; verified with `git grep -i laya -- cli/`. |
+| C0143-F6 | Medium | Resolved | 0144 | Claims checked against pinned `laya==0.3.22`; several corrected (latency, cold start, `laya-ts`, network). |
 
 ## Decision Schema Mapping (R4)
 

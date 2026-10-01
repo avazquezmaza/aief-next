@@ -1,0 +1,29 @@
+{
+  "state_key": "request",
+  "questions": {
+    "change_type": {
+      "type": "choice",
+      "instructions": "Which AIEF Change type fits the `request`?",
+      "criteria": {
+        "general": "implementation of a feature, enhancement, or refactor in existing code",
+        "fix": "bug fix, regression correction, or defect repair",
+        "analysis": "investigation or assessment producing findings, no production code",
+        "definition": "requirements, architecture, or data definition for a project without implemented application code",
+        "documentation": "documentation-only change with no runtime behavior change"
+      }
+    },
+    "security_sensitive": {
+      "type": "noul",
+      "instructions": "Does the `request` touch authentication, cryptography, secrets, permissions, or network boundaries?"
+    },
+    "governance_track": {
+      "type": "choice",
+      "instructions": "What governance track does the `request` require?",
+      "criteria": {
+        "lite": "minor non-breaking fix, documentation, or low-risk chore",
+        "standard": "typical feature, refactor, or multi-step enhancement",
+        "governed": "architecture change, security-sensitive code, or public API breaking change"
+      }
+    }
+  }
+}
