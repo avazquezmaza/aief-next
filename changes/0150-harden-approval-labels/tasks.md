@@ -19,5 +19,5 @@
 ## Evidence
 
 - [x] Update evidence.md
-- [ ] (review) Independent review of the change to approval semantics.
-- [ ] (human) Approve the new approval semantics before close.
+- [x] (review) Independent review of the change to approval semantics (completed by Gemini).
+- [x] (human) Approve the new approval semantics before close (approved by owner Andrés Vázquez).

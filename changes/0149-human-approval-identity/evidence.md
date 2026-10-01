@@ -164,11 +164,11 @@ and outputs are summarized in R2.
 
 | Finding | Status | Resolved By | Notes |
 | --- | --- | --- | --- |
-| C0149-F1 | Open | — | Approved: Option 1+ in `0150`. |
-| C0149-F2 | Open | — | Partly addressed by Option 1+ (same rule for `(human)`/`(review)`). |
-| C0149-F3 | Open | — | Accepted residual risk, to be stated in `docs/security-model.md`. |
-| C0149-F4 | Open | — | Proposed: document Option 4 for teams. |
-| C0149-F5 | Open | — | Optional: one line in each entrypoint during the Option 1+ Change. |
+| C0149-F1 | Resolved | 0150 | `[-]` blocks `(human)`/`(review)`; checked and deleted lines remain residual risk. |
+| C0149-F2 | Resolved | 0150 | `(human)`/`(review)` now share the gate rule for `[-]`. |
+| C0149-F3 | Resolved | 0150 | Accepted residual risk, stated in `docs/security-model.md`. |
+| C0149-F4 | Resolved | 0150 | Team platform controls documented. |
+| C0149-F5 | Resolved | 0150 | `AGENTS.md` (and the template every entrypoint defers to) states the `[-]` rule. |
 
 ## Risks
 

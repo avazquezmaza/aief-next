@@ -63,5 +63,5 @@ which approvals the close relies on. AIEF still does not claim to know who check
 - [x] R5: Docs updated; AGENTS.md and template identical.
 - [x] R6: Same project-wide verdicts before and after.
 - [x] `npm test`, `npm run lint`, `node cli/bin/aief.js verify`, `git diff --check` pass.
-- [ ] (review) Independent review of the change to approval semantics.
-- [ ] (human) Approve the new approval semantics before close.
+- [x] (review) Independent review of the change to approval semantics (completed by Gemini).
+- [x] (human) Approve the new approval semantics before close (approved by owner Andrés Vázquez).

@@ -49,3 +49,7 @@ platform controls for teams and the accepted residual risk.
   project-wide `verify --strict` result is unchanged by it.
 - No closed Change in this repository changes verdict.
 - `npm test`, `npm run lint`, `aief verify` and `git diff --check` pass.
+
+## Status
+
+Closed (2026-10-01)
