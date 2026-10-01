@@ -51,8 +51,18 @@ named sequence of stages and gates that `aief status` narrates:
 Each stage may declare a `gateIds` list. A **gate** is `pending` until satisfied, then `passed`; an
 unsatisfied gate on the current stage is a **blocker** — `aief status --change <id>` always shows
 blockers separately from merely-pending gates, and never reports a transition as available while a
-gate blocks it. Gates are read-only narration: nothing in AIEF auto-advances a stage or waits on a
-gate to unblock a command. `aief close` still runs its own readiness checks regardless of track.
+gate blocks it. Nothing in AIEF auto-advances a stage.
+
+`aief close` enforces the track's `review`, `approval` and `security_review` gates (ADR-037, Change
+0125). Each gate needs its own checked line in `tasks.md`, which only a human may check:
+
+```markdown
+- [x] (gate:approval) Architecture approved
+- [x] (gate:security_review) Security review completed
+```
+
+`close` refuses while a gate the track declares has no `(gate:<id>)` line or has one still
+unchecked. It also runs its usual readiness checks. A Change with no `track` is unaffected.
 
 ### Checking where a Change stands
 

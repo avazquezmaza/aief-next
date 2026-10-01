@@ -4,7 +4,7 @@ A ~15-minute path from zero to your first verified Change.
 
 ## Install
 
-Requires Node.js >= 18. No runtime dependencies.
+Requires Node.js >= 22. No runtime dependencies.
 
 ```bash
 git clone https://github.com/avazquezmaza/aief-next.git
