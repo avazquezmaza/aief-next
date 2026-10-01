@@ -26,4 +26,7 @@
 
 - Initial release: framework, starter project, Navigator, CLI MVP, examples, profiles, adapters.
 
-> Note: release notes in `releases/` predate this changelog structure; `releases/v0.1.0.md` and `releases/v1.0.0.md` describe the same starter milestone. The project is currently in roadmap Phase 2 (Validation) — see `docs/history/roadmap-pre-core3.md`.
+> Note: `releases/v0.1.0.md` and `releases/v1.0.0.md` describe the same starter milestone. For later
+> versions see the per-release notes in [releases/](releases/) and the Change index in
+> [changes/README.md](changes/README.md). The pre-Core 3.0 roadmap is kept in
+> [docs/history/roadmap-pre-core3.md](docs/history/roadmap-pre-core3.md).

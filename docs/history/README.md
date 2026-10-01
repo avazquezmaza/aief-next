@@ -12,9 +12,10 @@ still authoritative; it is simply not part of the learning path.
 ## What's here
 
 - **[aief-2.0-experience-redesign/](aief-2.0-experience-redesign/)** — a UX simplification study
-  ("Experience Redesign"), proposed but never accepted. Frozen by ADR-015 pending a usability
-  validation study. Not related to the AIEF Core 3.0 subsystems described in the current docs —
-  the "2.0" in its name is a historical naming collision, not a version relationship.
+  ("Experience Redesign"), never adopted as a product release. Frozen by ADR-015 until the
+  usability study ran (Change 0096), then thawed by ADR-032; its governing Change 0037 closed
+  2026-09-01. Not related to the AIEF Core 3.0 subsystems described in the current docs — the
+  "2.0" in its name is a historical naming collision, not a version relationship.
 - **[roadmap-pre-core3.md](roadmap-pre-core3.md)**, **[ROADMAP-TO-1.0.md](ROADMAP-TO-1.0.md)**,
   **[AIEF-1.0-READINESS.md](AIEF-1.0-READINESS.md)** — forward-looking roadmaps written before
   Core 3.0 existed. Superseded by the actual Change history in [changes/](../../changes/).
@@ -39,6 +40,8 @@ still authoritative; it is simply not part of the learning path.
 
 ## Browsing further back
 
-Every unit of work AIEF has ever done is a Change under [changes/](../../changes/), each with its
-own `proposal.md`/`spec.md`/`tasks.md`/`evidence.md` and (for Core 3.0) `design.md`/`verification.md`.
+Every unit of work AIEF has ever done is a Change under [changes/](../../changes/) — indexed by
+release in [changes/README.md](../../changes/README.md) — each with its own
+`change.md`/`spec.md`/`tasks.md`/`evidence.md` (some early ones also `proposal.md`) and, for Core
+3.0, `design.md`/`verification.md`.
 That directory is the project's complete, unedited history — nothing here duplicates it.
