@@ -1,0 +1,1134 @@
+{
+  "output": "laya-zero-shot.jsonl",
+  "scored": [
+    "general",
+    "fix",
+    "analysis"
+  ],
+  "changeType": {
+    "all": {
+      "laya": {
+        "macroF1": 0.322,
+        "perClass": {
+          "general": {
+            "precision": 0.868,
+            "recall": 0.311,
+            "f1": 0.458,
+            "support": 106
+          },
+          "fix": {
+            "precision": 0.129,
+            "recall": 0.333,
+            "f1": 0.186,
+            "support": 12
+          },
+          "analysis": {
+            "precision": 0.227,
+            "recall": 0.556,
+            "f1": 0.323,
+            "support": 9
+          },
+          "definition": {
+            "precision": 0.125,
+            "recall": 1,
+            "f1": 0.222,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0.031,
+            "recall": 0.333,
+            "f1": 0.057,
+            "support": 3
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 33,
+            "fix": 26,
+            "analysis": 12,
+            "definition": 7,
+            "documentation": 28
+          },
+          "fix": {
+            "general": 2,
+            "fix": 4,
+            "analysis": 4,
+            "definition": 0,
+            "documentation": 2
+          },
+          "analysis": {
+            "general": 3,
+            "fix": 0,
+            "analysis": 5,
+            "definition": 0,
+            "documentation": 1
+          },
+          "definition": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 1,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 0,
+            "fix": 1,
+            "analysis": 1,
+            "definition": 0,
+            "documentation": 1
+          }
+        }
+      },
+      "majority": {
+        "macroF1": 0.298,
+        "perClass": {
+          "general": {
+            "precision": 0.809,
+            "recall": 1,
+            "f1": 0.895,
+            "support": 106
+          },
+          "fix": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 12
+          },
+          "analysis": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 9
+          },
+          "definition": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 3
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 106,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "fix": {
+            "general": 12,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "analysis": {
+            "general": 9,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "definition": {
+            "general": 1,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 3,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          }
+        }
+      },
+      "keyword": {
+        "macroF1": 0.197,
+        "perClass": {
+          "general": {
+            "precision": 0.704,
+            "recall": 0.179,
+            "f1": 0.286,
+            "support": 106
+          },
+          "fix": {
+            "precision": 0.154,
+            "recall": 0.5,
+            "f1": 0.235,
+            "support": 12
+          },
+          "analysis": {
+            "precision": 0.053,
+            "recall": 0.111,
+            "f1": 0.071,
+            "support": 9
+          },
+          "definition": {
+            "precision": 0.143,
+            "recall": 1,
+            "f1": 0.25,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0.077,
+            "recall": 1,
+            "f1": 0.143,
+            "support": 3
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 19,
+            "fix": 31,
+            "analysis": 18,
+            "definition": 6,
+            "documentation": 32
+          },
+          "fix": {
+            "general": 4,
+            "fix": 6,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 2
+          },
+          "analysis": {
+            "general": 4,
+            "fix": 2,
+            "analysis": 1,
+            "definition": 0,
+            "documentation": 2
+          },
+          "definition": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 1,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 3
+          }
+        }
+      }
+    },
+    "test": {
+      "laya": {
+        "macroF1": 0.326,
+        "perClass": {
+          "general": {
+            "precision": 0.842,
+            "recall": 0.302,
+            "f1": 0.444,
+            "support": 53
+          },
+          "fix": {
+            "precision": 0.125,
+            "recall": 0.333,
+            "f1": 0.182,
+            "support": 6
+          },
+          "analysis": {
+            "precision": 0.25,
+            "recall": 0.6,
+            "f1": 0.353,
+            "support": 5
+          },
+          "definition": {
+            "precision": 0.2,
+            "recall": 1,
+            "f1": 0.333,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0.067,
+            "recall": 0.5,
+            "f1": 0.118,
+            "support": 2
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 16,
+            "fix": 14,
+            "analysis": 6,
+            "definition": 4,
+            "documentation": 13
+          },
+          "fix": {
+            "general": 2,
+            "fix": 2,
+            "analysis": 2,
+            "definition": 0,
+            "documentation": 0
+          },
+          "analysis": {
+            "general": 1,
+            "fix": 0,
+            "analysis": 3,
+            "definition": 0,
+            "documentation": 1
+          },
+          "definition": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 1,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 1,
+            "definition": 0,
+            "documentation": 1
+          }
+        }
+      },
+      "majority": {
+        "macroF1": 0.294,
+        "perClass": {
+          "general": {
+            "precision": 0.791,
+            "recall": 1,
+            "f1": 0.883,
+            "support": 53
+          },
+          "fix": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 6
+          },
+          "analysis": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 5
+          },
+          "definition": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 2
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 53,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "fix": {
+            "general": 6,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "analysis": {
+            "general": 5,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "definition": {
+            "general": 1,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 2,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 0
+          }
+        }
+      },
+      "keyword": {
+        "macroF1": 0.202,
+        "perClass": {
+          "general": {
+            "precision": 0.615,
+            "recall": 0.151,
+            "f1": 0.242,
+            "support": 53
+          },
+          "fix": {
+            "precision": 0.143,
+            "recall": 0.5,
+            "f1": 0.222,
+            "support": 6
+          },
+          "analysis": {
+            "precision": 0.111,
+            "recall": 0.2,
+            "f1": 0.143,
+            "support": 5
+          },
+          "definition": {
+            "precision": 0.333,
+            "recall": 1,
+            "f1": 0.5,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 0.095,
+            "recall": 1,
+            "f1": 0.174,
+            "support": 2
+          }
+        },
+        "confusion": {
+          "general": {
+            "general": 8,
+            "fix": 17,
+            "analysis": 8,
+            "definition": 2,
+            "documentation": 18
+          },
+          "fix": {
+            "general": 2,
+            "fix": 3,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 1
+          },
+          "analysis": {
+            "general": 3,
+            "fix": 1,
+            "analysis": 1,
+            "definition": 0,
+            "documentation": 0
+          },
+          "definition": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 1,
+            "documentation": 0
+          },
+          "documentation": {
+            "general": 0,
+            "fix": 0,
+            "analysis": 0,
+            "definition": 0,
+            "documentation": 2
+          }
+        }
+      }
+    }
+  },
+  "security": {
+    "inclusive": {
+      "fittedOnTrain": {
+        "threshold": 0.5,
+        "precision": 0.2,
+        "recall": 1,
+        "f1": 0.333,
+        "fpr": 0.491,
+        "tp": 7,
+        "fp": 28,
+        "positives": 7,
+        "n": 64,
+        "recallConstraintMet": true
+      },
+      "atFitted": {
+        "all": {
+          "threshold": 0.5,
+          "precision": 0.2,
+          "recall": 0.917,
+          "f1": 0.328,
+          "fpr": 0.37,
+          "tp": 11,
+          "fp": 44,
+          "positives": 12,
+          "n": 131
+        },
+        "test": {
+          "threshold": 0.5,
+          "precision": 0.2,
+          "recall": 0.8,
+          "f1": 0.32,
+          "fpr": 0.258,
+          "tp": 4,
+          "fp": 16,
+          "positives": 5,
+          "n": 67
+        }
+      },
+      "atDefault": {
+        "all": {
+          "threshold": 0.8,
+          "precision": 0.171,
+          "recall": 0.5,
+          "f1": 0.255,
+          "fpr": 0.244,
+          "tp": 6,
+          "fp": 29,
+          "positives": 12,
+          "n": 131
+        },
+        "test": {
+          "threshold": 0.8,
+          "precision": 0.2,
+          "recall": 0.6,
+          "f1": 0.3,
+          "fpr": 0.194,
+          "tp": 3,
+          "fp": 12,
+          "positives": 5,
+          "n": 67
+        }
+      },
+      "curveAll": [
+        {
+          "threshold": 0.5,
+          "precision": 0.2,
+          "recall": 0.917,
+          "f1": 0.328,
+          "fpr": 0.37,
+          "tp": 11,
+          "fp": 44,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.55,
+          "precision": 0.17,
+          "recall": 0.75,
+          "f1": 0.277,
+          "fpr": 0.37,
+          "tp": 9,
+          "fp": 44,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.6,
+          "precision": 0.16,
+          "recall": 0.667,
+          "f1": 0.258,
+          "fpr": 0.353,
+          "tp": 8,
+          "fp": 42,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.65,
+          "precision": 0.152,
+          "recall": 0.583,
+          "f1": 0.241,
+          "fpr": 0.328,
+          "tp": 7,
+          "fp": 39,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.7,
+          "precision": 0.156,
+          "recall": 0.583,
+          "f1": 0.246,
+          "fpr": 0.319,
+          "tp": 7,
+          "fp": 38,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.75,
+          "precision": 0.15,
+          "recall": 0.5,
+          "f1": 0.231,
+          "fpr": 0.286,
+          "tp": 6,
+          "fp": 34,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.8,
+          "precision": 0.171,
+          "recall": 0.5,
+          "f1": 0.255,
+          "fpr": 0.244,
+          "tp": 6,
+          "fp": 29,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.85,
+          "precision": 0.172,
+          "recall": 0.417,
+          "f1": 0.244,
+          "fpr": 0.202,
+          "tp": 5,
+          "fp": 24,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.9,
+          "precision": 0.313,
+          "recall": 0.417,
+          "f1": 0.357,
+          "fpr": 0.092,
+          "tp": 5,
+          "fp": 11,
+          "positives": 12,
+          "n": 131
+        },
+        {
+          "threshold": 0.95,
+          "precision": 0.2,
+          "recall": 0.083,
+          "f1": 0.118,
+          "fpr": 0.034,
+          "tp": 1,
+          "fp": 4,
+          "positives": 12,
+          "n": 131
+        }
+      ]
+    },
+    "strict": {
+      "fittedOnTrain": {
+        "threshold": 0.5,
+        "precision": 0.176,
+        "recall": 1,
+        "f1": 0.3,
+        "fpr": 0.491,
+        "tp": 6,
+        "fp": 28,
+        "positives": 6,
+        "n": 63,
+        "recallConstraintMet": true
+      },
+      "atFitted": {
+        "all": {
+          "threshold": 0.5,
+          "precision": 0.122,
+          "recall": 1,
+          "f1": 0.218,
+          "fpr": 0.371,
+          "tp": 6,
+          "fp": 43,
+          "positives": 6,
+          "n": 122
+        },
+        "test": {
+          "threshold": 0.5,
+          "precision": 0,
+          "recall": 0,
+          "f1": 0,
+          "fpr": 0.254,
+          "tp": 0,
+          "fp": 15,
+          "positives": 0,
+          "n": 59
+        }
+      },
+      "atDefault": {
+        "all": {
+          "threshold": 0.8,
+          "precision": 0.067,
+          "recall": 0.333,
+          "f1": 0.111,
+          "fpr": 0.241,
+          "tp": 2,
+          "fp": 28,
+          "positives": 6,
+          "n": 122
+        },
+        "test": {
+          "threshold": 0.8,
+          "precision": 0,
+          "recall": 0,
+          "f1": 0,
+          "fpr": 0.186,
+          "tp": 0,
+          "fp": 11,
+          "positives": 0,
+          "n": 59
+        }
+      },
+      "curveAll": [
+        {
+          "threshold": 0.5,
+          "precision": 0.122,
+          "recall": 1,
+          "f1": 0.218,
+          "fpr": 0.371,
+          "tp": 6,
+          "fp": 43,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.55,
+          "precision": 0.085,
+          "recall": 0.667,
+          "f1": 0.151,
+          "fpr": 0.371,
+          "tp": 4,
+          "fp": 43,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.6,
+          "precision": 0.068,
+          "recall": 0.5,
+          "f1": 0.12,
+          "fpr": 0.353,
+          "tp": 3,
+          "fp": 41,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.65,
+          "precision": 0.073,
+          "recall": 0.5,
+          "f1": 0.128,
+          "fpr": 0.328,
+          "tp": 3,
+          "fp": 38,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.7,
+          "precision": 0.075,
+          "recall": 0.5,
+          "f1": 0.13,
+          "fpr": 0.319,
+          "tp": 3,
+          "fp": 37,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.75,
+          "precision": 0.057,
+          "recall": 0.333,
+          "f1": 0.098,
+          "fpr": 0.284,
+          "tp": 2,
+          "fp": 33,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.8,
+          "precision": 0.067,
+          "recall": 0.333,
+          "f1": 0.111,
+          "fpr": 0.241,
+          "tp": 2,
+          "fp": 28,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.85,
+          "precision": 0.08,
+          "recall": 0.333,
+          "f1": 0.129,
+          "fpr": 0.198,
+          "tp": 2,
+          "fp": 23,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.9,
+          "precision": 0.167,
+          "recall": 0.333,
+          "f1": 0.222,
+          "fpr": 0.086,
+          "tp": 2,
+          "fp": 10,
+          "positives": 6,
+          "n": 122
+        },
+        {
+          "threshold": 0.95,
+          "precision": 0.2,
+          "recall": 0.167,
+          "f1": 0.182,
+          "fpr": 0.034,
+          "tp": 1,
+          "fp": 4,
+          "positives": 6,
+          "n": 122
+        }
+      ]
+    }
+  },
+  "securityRanking": [
+    {
+      "id": "0070-shared-process-utils-openspec-consolidation",
+      "score": 0.978,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0057-loop-verify-feedback-retry",
+      "score": 0.973,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0095-manifest-status-change-md-discrepancy-lint",
+      "score": 0.961,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0132-threat-model-and-trust-boundaries",
+      "score": 0.96,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0034-workflow-cohesion-change-selection",
+      "score": 0.959,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0125-implement-workflow-gate-authority",
+      "score": 0.948,
+      "label": true,
+      "borderline": true
+    },
+    {
+      "id": "0051-core3-documentation-rebuild",
+      "score": 0.939,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0053-lidr-integration",
+      "score": 0.939,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0060-v3-1-release-readiness-and-documentation",
+      "score": 0.938,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0023-gemini-prompt-ux",
+      "score": 0.934,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0138-stable-json-output-for-verify",
+      "score": 0.922,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0112-kiro-native-assistant-target",
+      "score": 0.919,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0136-fix-qs-vulnerability-in-study-fixtures-and-enable-secret-scanning",
+      "score": 0.912,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0133-supply-chain-hardening",
+      "score": 0.91,
+      "label": true,
+      "borderline": true
+    },
+    {
+      "id": "0140-detect-java-quarkus-camel-and-deployment-tooling",
+      "score": 0.907,
+      "label": false,
+      "borderline": true
+    },
+    {
+      "id": "0139-stop-bootstrap-generating-github-workflow",
+      "score": 0.906,
+      "label": true,
+      "borderline": true
+    },
+    {
+      "id": "0110-ai-specs-skill-frontmatter-and-content-pointer",
+      "score": 0.889,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0015-public-readiness-and-ci",
+      "score": 0.886,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0042-usability-validation-protocol",
+      "score": 0.884,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0109-strict-acceptance-criteria-bullet-gap",
+      "score": 0.881,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0128-architecture-fitness-functions-for-layer-boundaries",
+      "score": 0.878,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0050-core3-documentation-architecture",
+      "score": 0.877,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0052-v31-bootstrap-experience",
+      "score": 0.877,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0077-reject-unknown-cli-options",
+      "score": 0.875,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0137-surface-change-id-collisions-in-status-overview",
+      "score": 0.869,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0076-clarify-lifecycle-and-trust-boundaries",
+      "score": 0.867,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0127-scope-complete-stop-directive",
+      "score": 0.865,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0083-verify-strict-completeness",
+      "score": 0.863,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0098-expand-skills-catalog-with-more-stack-detectors",
+      "score": 0.858,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0065-platform-support-documentation",
+      "score": 0.847,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0035-governance-conventions",
+      "score": 0.842,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0036-governance-signal-integrity",
+      "score": 0.815,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0114-auto-branch-on-new-change",
+      "score": 0.815,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0082-maturity-aware-standards",
+      "score": 0.808,
+      "label": true,
+      "borderline": true
+    },
+    {
+      "id": "0122-multi-agent-runtime-open-questions",
+      "score": 0.805,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0116-jira-provider-malformed-json-handling",
+      "score": 0.786,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0040-agents-md-canonical-source",
+      "score": 0.769,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0054-lidr-skill-recommendations",
+      "score": 0.759,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0030-workflow-cohesion-requirement-sources",
+      "score": 0.758,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0039-type-track-derivation-design",
+      "score": 0.75,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0090-expose-definition-enrichment-in-skill-context",
+      "score": 0.735,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0134-resolve-codex-audit-doc-findings",
+      "score": 0.732,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0135-detect-duplicate-change-id-collisions",
+      "score": 0.722,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0130-codex-external-audit",
+      "score": 0.713,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0105-jira-sourceid-path-traversal",
+      "score": 0.706,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0093-durable-knowledge-expert-skill-context-review",
+      "score": 0.68,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0086-close-must-not-bypass-an-unresolved-definition-decision",
+      "score": 0.633,
+      "label": true,
+      "borderline": true
+    },
+    {
+      "id": "0032-runtime-governance-open-questions",
+      "score": 0.631,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0123-fix-graph-cycle-membership",
+      "score": 0.618,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0038-framework-simplification-map",
+      "score": 0.617,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0058-change-graph-dependency-model",
+      "score": 0.595,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0073-ensure-all-cli-tests-run-in-ci",
+      "score": 0.558,
+      "label": false,
+      "borderline": false
+    },
+    {
+      "id": "0064-graphify-ast-graph-recommendation",
+      "score": 0.556,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0074-contain-jira-file-paths-within-project",
+      "score": 0.534,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0111-operational-guardrails-standard",
+      "score": 0.523,
+      "label": true,
+      "borderline": false
+    },
+    {
+      "id": "0124-workflow-gate-authority",
+      "score": 0.442,
+      "label": true,
+      "borderline": true
+    }
+  ]
+}

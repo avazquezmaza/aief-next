@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Second-opinion triage of a requirement with a locally installed Laya (Change 0144).
-// Prints proposals only: writes no files, never calls `aief`, never blocks AIEF.
+// Experimental triage of a requirement with a locally installed Laya (Change 0144).
+// Prints unvalidated scores only: writes no files, never calls `aief`, never blocks AIEF.
+// Change 0145 measured zero-shot Laya on 131 real Changes: no reliable signal (see README).
 //
 //   node examples/laya-triage/laya-triage.js "Fix the login 500 on expired passwords"
 //   node examples/laya-triage/laya-triage.js requirement.txt
@@ -19,7 +20,6 @@ const config = {
   model: process.env.LAYA_MODEL || "multilingual",
   timeoutMs: Number(process.env.LAYA_TIMEOUT_MS || 60_000),
   minFreeMb: Number(process.env.LAYA_MIN_FREE_MB || 3072),
-  securityThreshold: Number(process.env.LAYA_SECURITY_THRESHOLD || 0.8),
   questions: path.join(here, "questions.json"),
 };
 
@@ -82,9 +82,8 @@ const text = readRequirement(process.argv[2]);
 const { answers = {}, routing = {} } = runLaya(text);
 const security = answers.security_sensitive?.noul ?? 0;
 
-console.log(`Laya triage PROPOSAL (zero-shot, model: ${routing.model ?? config.model}). A human decides.`);
-console.log(`  change_type        : ${choice(answers.change_type)}   hint`);
-console.log(`  security_sensitive : ${security.toFixed(2)}${security >= config.securityThreshold
-  ? `   ALERT >= ${config.securityThreshold}: consider (gate:security_review)`
-  : ""}`);
-console.log(`  governance_track   : ${choice(answers.governance_track)}   weak signal`);
+console.log(`Laya triage (EXPERIMENTAL, not validated; model: ${routing.model ?? config.model}). Do not base decisions on it.`);
+console.log(`  change_type        : ${choice(answers.change_type)}`);
+console.log(`  security_sensitive : ${security.toFixed(2)}`);
+console.log(`  governance_track   : ${choice(answers.governance_track)}`);
+console.log("Change 0145: change_type no better than always \"general\"; security_sensitive 24 % false positives at 0.8.");

@@ -207,6 +207,15 @@ git diff --check                                 # clean
   and Change types are free text with 1 `Definition` and ~10 `Analysis`. A fine-tuning dataset
   (0146) needs label normalization and data for the minority classes first.
 
+## Findings Status
+
+| Finding | Status | Resolved By | Notes |
+| --- | --- | --- | --- |
+| C0144-F1 | Resolved | 0144 | `requirement_clarity` dropped from the example. |
+| C0144-F2 | Resolved | 0145 | Threshold measured on 131 Changes: 24 % FPR at 0.8. The ALERT was removed and the signal marked unvalidated. |
+| C0144-F3 | Resolved | 0144 | Resource figures documented in the example. |
+| C0144-F4 | Resolved | 0145 | Label gaps confirmed (no tracks, 1 `Definition`); fine-tuning not pursued. |
+
 ## Risks
 
 - `laya-serve` binds all interfaces by default; any guidance must set `LAYA_HOST=127.0.0.1`.

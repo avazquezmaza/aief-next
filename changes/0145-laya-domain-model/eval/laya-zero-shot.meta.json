@@ -1,0 +1,24 @@
+{
+  "started_utc": "2026-10-01T03:50:48Z",
+  "wall_seconds": 517.28,
+  "peak_rss_mb": 16214,
+  "items": 131,
+  "command": "laya --batch <dataset texts> --questions examples/laya-triage/questions.json --model multilingual --json",
+  "env": {
+    "LAYA_REVISION": "reviewed",
+    "LAYA_DEVICE": "cpu",
+    "HF_HUB_DISABLE_TELEMETRY": "1"
+  },
+  "versions": {
+    "laya": "0.3.22",
+    "torch": "2.14.1+cpu",
+    "transformers": "5.18.0"
+  },
+  "hardware": {
+    "cpu_count": 20,
+    "ram_gib": 46,
+    "gpu": null,
+    "os": "Linux-7.2.7-200.fc44.x86_64-x86_64-with-glibc2.43"
+  },
+  "dataset_sha256": "f8c46769fc42777f727c11a2e520680711daff3bbc5769c6bd38c847c6ca7008"
+}
