@@ -6,6 +6,7 @@
 import path from "node:path";
 import { createVerificationReport, addLine, setNext } from "../domain/verification-report.js";
 import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
+import { parseApprovalLines } from "../domain/change.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
@@ -20,6 +21,16 @@ function checkEnrichmentChange(change) {
   if (!/^##\s*open\s*questions/im.test(specMd)) problems.push("spec.md missing an Open Questions section");
   if (!/requires\s*human\s*review/im.test(changeMd)) problems.push("change.md missing the Requires Human Review status");
   return problems;
+}
+
+// Change 0150 (Analysis 0149, C0149-F1): `[-]` resolves an ordinary task
+// but must not resolve a `(human)` or `(review)` approval — otherwise an
+// approval can be skipped silently. `(gate:<id>)` lines already behave this
+// way (taskLabelGate(), ADR-037), so they are not repeated here.
+function abandonedApprovalProblems(tasksMd) {
+  return parseApprovalLines(tasksMd)
+    .filter((line) => line.state === "abandoned" && (line.label === "human" || line.label === "review"))
+    .map((line) => `(${line.label}) approval marked [-]: "${line.text}" — an approval cannot be abandoned; check it, or remove the label and say why`);
 }
 
 // Change 0083 — `aief verify --strict`: objective, deterministic completeness
@@ -128,6 +139,7 @@ export function checkStrictCompleteness(change) {
     const reviewMatch = line.match(/^\s*[-*+]\s*\[\s\]\s*\(review\)\s*(.+)$/i);
     if (reviewMatch) problems.push(`unresolved required independent review: ${reviewMatch[1].trim()}`);
   }
+  problems.push(...abandonedApprovalProblems(tasksMd));
 
   return problems;
 }
@@ -163,13 +175,15 @@ export function checkChangeReadiness(change) {
   // the invariant a real governance bypass was found in, not the whole of
   // checkStrictCompleteness().
   const definitionProblem = definitionDecisionOutcomeProblem(change);
+  const abandonedApprovals = abandonedApprovalProblems(change.files?.["tasks.md"]);
   return [
     ...change.missing.map((f) => `${f} is missing`),
     ...change.empty.map((f) => `${f} is empty`),
     ...(status ? [status] : []),
     ...(evidenceProblem ? [evidenceProblem] : []),
     ...(change.openTasksCount ? [`${change.openTasksCount} unchecked task(s) in tasks.md`] : []),
-    ...(definitionProblem ? [definitionProblem] : [])
+    ...(definitionProblem ? [definitionProblem] : []),
+    ...abandonedApprovals
   ];
 }
 
@@ -248,6 +262,12 @@ function addChangeLines(report, change, cwd, strict = false) {
     // errors on top, opt-in, defaulting to none of this ever running.
     if (strict) {
       for (const p of checkStrictCompleteness(change)) addLine(report, "error", `✗ ${name}: [strict] ${p}`);
+      // Change 0150 (decision in 0149): a notice, never an error — three
+      // closed Analysis Changes predate the convention, and a deleted
+      // approval line cannot be told apart from one that never existed.
+      if (/^(analysis|definition)\b/.test(change.type) && !parseApprovalLines(change.files?.["tasks.md"]).some((line) => line.label === "human")) {
+        addLine(report, "warn", `! ${name}: [strict] no (human) approval line — Analysis and Definition Changes normally require one`);
+      }
     }
   } else {
     for (const f of change.missing) addLine(report, "error", `✗ ${name}/${f} missing`);

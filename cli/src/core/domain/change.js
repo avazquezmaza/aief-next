@@ -169,6 +169,27 @@ export function countOpenTasks(tasksMd) {
   return (tasksMd.match(/^\s*[-*+] \[ \]/gm) || []).length;
 }
 
+// Every approval line in tasks.md — `(human)`, `(review)`, `(gate:<id>)` —
+// with its state (Change 0150, from Analysis 0149). `[-]` is "abandoned":
+// countOpenTasks() treats it as resolved, which is right for ordinary tasks
+// (governance conventions §2) but let an approval be skipped silently.
+// Same bullet/checkbox tolerance as countOpenTasks() and taskLabelGate().
+const APPROVAL_LINE = /^\s*[-*+]\s*\[([ xX-])\]\s*\((human|review|gate:[a-z_]+)\)\s*(.+)$/i;
+export function parseApprovalLines(tasksMd) {
+  const lines = [];
+  for (const line of String(tasksMd || "").split(/\r?\n/)) {
+    const match = line.match(APPROVAL_LINE);
+    if (!match) continue;
+    const mark = match[1].toLowerCase();
+    lines.push({
+      label: match[2].toLowerCase(),
+      state: mark === "x" ? "checked" : mark === "-" ? "abandoned" : "unchecked",
+      text: match[3].trim()
+    });
+  }
+  return lines;
+}
+
 // The single shared implementation of Change selection (Flux Portal dogfooding
 // finding: per-command substring matching silently picked the wrong Change).
 // Deterministic tiers — first tier with matches wins:

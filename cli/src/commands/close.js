@@ -12,7 +12,7 @@
 // requirement).
 import fs from "node:fs";
 import path from "node:path";
-import { loadChange, isClosedContent } from "../core/domain/change.js";
+import { loadChange, isClosedContent, parseApprovalLines } from "../core/domain/change.js";
 import { loadChangeUnified, markManifestClosed } from "../core/domain/change-loader.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
 import { nextAction } from "../core/services/workflow-service.js";
@@ -29,6 +29,15 @@ import { read, writeFile, section, parseArgs, resolveExplicitChange, resolveImpl
 function trackedProblemLines(action) {
   if (!action.evidence || !action.evidence.length) return [action.reason];
   return action.evidence.map((e) => (typeof e === "string" ? e : `${e.id}: ${e.reason}`));
+}
+
+// Change 0150 (Analysis 0149): AIEF cannot verify who checked an approval,
+// so it shows the human exactly which checked approvals a close relies on.
+function printApprovalsReliedOn(tasksMd) {
+  const approvals = parseApprovalLines(tasksMd).filter((line) => line.state === "checked");
+  if (!approvals.length) { console.log("Approvals relied on: none"); return; }
+  console.log("Approvals relied on:");
+  for (const line of approvals) console.log(`  - (${line.label}) ${line.text}`);
 }
 
 function markClosed(changeDir) {
@@ -98,7 +107,10 @@ export function close(args) {
   const action = isTracked ? nextAction(changeDir, process.cwd()) : null;
   const blocked = isTracked ? action.status !== "available" : problems.length > 0;
   console.log(`Change: ${name}\n`);
-  if (!blocked) console.log("✓ All readiness checks passed.");
+  if (!blocked) {
+    console.log("✓ All readiness checks passed.");
+    printApprovalsReliedOn(change.files["tasks.md"]);
+  }
   else if (isTracked) for (const problem of trackedProblemLines(action)) console.log(`○ ${problem}`);
   else for (const problem of problems) console.log(`○ ${problem}`);
   if (!parsed.yes) { printNext(blocked ? "resolve the items above, then: aief close --yes" : "aief close --yes"); return; }

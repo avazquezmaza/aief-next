@@ -71,11 +71,22 @@ Named explicitly, not left implicit:
   prompt to honor the label — this is the same class of limitation every prompt-injection
   mitigation for LLM-based tools has; AIEF's contribution is labeling clearly, not preventing
   the assistant from being influenced.
-- **`(human)`/`(review)`/`(gate:<id>)` task labels are not identity-verified.** `aief close`
-  checks whether the box is *checked*, not *who* checked it — nothing currently distinguishes a
-  human checking it from an assistant checking it against `AGENTS.md`'s instruction not to. This
-  is a documented convention every native entrypoint (`CLAUDE.md`, `CODEX.md`, `GEMINI.md`, the
-  `aief-change` skill) instructs assistants to respect, not a technical control.
+- **`(human)`/`(review)`/`(gate:<id>)` task labels are not identity-verified (accepted residual
+  risk).** `aief close` checks whether the box is *checked*, not *who* checked it. Analysis Change
+  0149 measured that nothing local can tell the owner from an assistant: they share the git
+  identity, squash merges are committed by the hosting platform, and the assistant can use the
+  owner's tokens. What AIEF enforces instead (Change 0150):
+  - `[-]` does not resolve a `(human)` or `(review)` approval (`(gate:<id>)` already worked this
+    way, ADR-037). `close` and `verify --strict` report it.
+  - `aief close` prints "Approvals relied on:" with every checked approval before closing, so the
+    human sees what the close treats as approved.
+  - `verify --strict` notes an Analysis or Definition Change with no `(human)` line (non-blocking).
+
+  Still possible: an assistant checking `[x]` against `AGENTS.md`, or deleting an approval line
+  from an ordinary Change. For a solo owner the control is reviewing the close output and the PR
+  before merging. **Teams** should add platform controls that AIEF cannot read but that do bind an
+  assistant: branch protection on `main`, at least one required review from a different account,
+  CODEOWNERS covering `changes/**`, and an assistant token that cannot approve or merge.
 - **Numeric Change-ID collisions across parallel branches are detected, not prevented.**
   Identified by the same external audit (Change 0130, finding C0130-F2): `aief new-change`
   allocates the next ID from the current checkout only, so two branches can create the same
