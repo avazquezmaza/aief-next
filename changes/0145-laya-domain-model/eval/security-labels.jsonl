@@ -1,0 +1,131 @@
+{"id": "0014-adoption-engine-hardening", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0015-public-readiness-and-ci", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0016-real-project-validation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0017-close-cycle-and-guided-ux", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0018-standards-and-skills-context", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0019-workflow-clarity", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0020-product-validation-flux-portal", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0021-adoption-ux-quick-wins", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0022-visible-skills", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0023-gemini-prompt-ux", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0024-prompt-lifecycle-guardrails", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0025-bootstrap-experience", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0026-product-identity-consolidation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0027-product-review-fixes", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0028-developer-handoff-package", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0030-workflow-cohesion-requirement-sources", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0031-formalize-aief-domain-model", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0032-runtime-governance-open-questions", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0033-evaluate-external-harness-patterns", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0034-workflow-cohesion-change-selection", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0035-governance-conventions", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0036-governance-signal-integrity", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0037-aief-2-0-experience-redesign", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0038-framework-simplification-map", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0039-type-track-derivation-design", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0040-agents-md-canonical-source", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0041-delete-review-package", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0042-usability-validation-protocol", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0043-core3-change-foundation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0044-core3-workflow-engine", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0045-core3-sdd-provider", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0046-core3-user-workflow", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0047-core3-skills-runtime", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0048-core3-hooks-runtime", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0049-core3-verification-engine", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0050-core3-documentation-architecture", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0051-core3-documentation-rebuild", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0052-v31-bootstrap-experience", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0053-lidr-integration", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0054-lidr-skill-recommendations", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0055-lidr-standards-integration", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0056-harness-hooks-visibility", "security_sensitive": false, "borderline": true, "reason": "hook visibility; mentions limiting hook authority and shell execution"}
+{"id": "0057-loop-verify-feedback-retry", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0058-change-graph-dependency-model", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0059-smart-workflow-next-change-selection", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0060-v3-1-release-readiness-and-documentation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0061-smart-assistant-resolution", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0062-bump-version-3-1-0", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0063-findings-status-tracking", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0064-graphify-ast-graph-recommendation", "security_sensitive": true, "borderline": false, "reason": "secrets (GEMINI_API_KEY) and a network-backed external service"}
+{"id": "0065-platform-support-documentation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0066-cheat-sheet-and-glossary", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0067-status-surfaces-next-recommendation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0068-bootstrap-interactive-wizard", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0069-prompt-skills-ai-specs-aware", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0070-shared-process-utils-openspec-consolidation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0071-evidence-capture-from-junit-report", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0072-skill-recommendation-confidence", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0073-ensure-all-cli-tests-run-in-ci", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0074-contain-jira-file-paths-within-project", "security_sensitive": true, "borderline": false, "reason": "file read outside the project root: missing path-containment (access boundary)"}
+{"id": "0075-support-standard-markdown-task-bullets", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0076-clarify-lifecycle-and-trust-boundaries", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0077-reject-unknown-cli-options", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0078-prevent-accidental-nested-bootstrap", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0079-add-definition-change-type", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0080-project-maturity-detection-and-analyze-routing", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0081-definition-enrichment-workflow", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0082-maturity-aware-standards", "security_sensitive": true, "borderline": true, "reason": "security standards incl. authn/authz and tenancy decisions (documentation)"}
+{"id": "0083-verify-strict-completeness", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0084-end-to-end-pre-implementation-initialization", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0085-recognize-docs-directory-for-definition-maturity-signal", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0086-close-must-not-bypass-an-unresolved-definition-decision", "security_sensitive": true, "borderline": true, "reason": "authorization bypass of a human-approval gate (governance, not classic security)"}
+{"id": "0087-aief-3-2-0-release-readiness-and-documentation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0088-bump-version-to-3-2-0", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0089-aief-3-2-0-visual-documentation-and-repository-hygiene", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0090-expose-definition-enrichment-in-skill-context", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0091-add-architecture-definition-skill-pilot", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0092-validate-architecture-definition-skill-on-realistic-projects", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0093-durable-knowledge-expert-skill-context-review", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0094-add-data-definition-skill-pilot-and-validate-coexistence", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0095-manifest-status-change-md-discrepancy-lint", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0096-run-usability-validation-study", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0097-thaw-remainder-of-adr-015", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0098-expand-skills-catalog-with-more-stack-detectors", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0099-make-three-cli-error-messages-actionable", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0100-specialize-the-python-detector-into-django-flask-and-fastapi", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0101-fix-dangling-references-to-deleted-docs", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0102-aief-3-3-0-release-readiness-and-documentation", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0103-bump-version-to-3-3-0", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0104-write-release-notes-for-v3-3-0", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0105-jira-sourceid-path-traversal", "security_sensitive": true, "borderline": false, "reason": "path traversal / arbitrary file read vulnerability"}
+{"id": "0106-bootstrap-missing-standards-for-detectors", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0107-minor-consistency-fixes", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0108-catalog-driven-standards", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0109-strict-acceptance-criteria-bullet-gap", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0110-ai-specs-skill-frontmatter-and-content-pointer", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0111-operational-guardrails-standard", "security_sensitive": true, "borderline": false, "reason": "no secrets in tracked files; confirmation before outward-facing actions"}
+{"id": "0112-kiro-native-assistant-target", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0113-skill-no-open-change-path", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0114-auto-branch-on-new-change", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0115-strict-human-task-bullet-tolerance", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0116-jira-provider-malformed-json-handling", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0117-branch-isolation-followup-for-enrich-analyze-propose", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0118-bootstrap-agents-template-reuse", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0119-ci-lint-and-node-matrix-coverage", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0120-fix-strict-verify-todo-tbd-false-positive-in-historical-changes", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0121-assistant-parity-and-audit-hardening", "security_sensitive": false, "borderline": true, "reason": "audit findings, content unspecified in the Objective"}
+{"id": "0122-ci-apt-chrome-mirror-flakiness", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0122-multi-agent-runtime-open-questions", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0123-fix-graph-cycle-membership", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0124-workflow-gate-authority", "security_sensitive": true, "borderline": true, "reason": "defines approval/security_review gate authority (authorization policy)"}
+{"id": "0125-implement-workflow-gate-authority", "security_sensitive": true, "borderline": true, "reason": "enforces review/approval/security_review gates in close (authorization)"}
+{"id": "0126-node-22-ci-and-docs-drift-housekeeping", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0127-scope-complete-stop-directive", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0128-architecture-fitness-functions-for-layer-boundaries", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0129-evidence-provenance-for-captured-verification", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0130-codex-external-audit", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0131-manifest-close-persistence", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0132-threat-model-and-trust-boundaries", "security_sensitive": true, "borderline": false, "reason": "security model: trust boundaries, threats and mitigations"}
+{"id": "0133-supply-chain-hardening", "security_sensitive": true, "borderline": true, "reason": "supply-chain hardening in CI (CodeQL, dependency review, SBOM); outside the five named areas"}
+{"id": "0134-resolve-codex-audit-doc-findings", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0135-detect-duplicate-change-id-collisions", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0136-fix-qs-vulnerability-in-study-fixtures-and-enable-secret-scanning", "security_sensitive": true, "borderline": false, "reason": "secret scanning/push protection and a dependency vulnerability fix"}
+{"id": "0137-surface-change-id-collisions-in-status-overview", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0138-stable-json-output-for-verify", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0139-stop-bootstrap-generating-github-workflow", "security_sensitive": true, "borderline": true, "reason": "generated CI would execute an unowned npm package (supply chain / network)"}
+{"id": "0140-detect-java-quarkus-camel-and-deployment-tooling", "security_sensitive": false, "borderline": true, "reason": "stack detection; mentions Keycloak only as a detected technology"}
+{"id": "0141-airoadmap-false-positive-from-assistant-files", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0142-fix-readme-drift-and-node-version", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0143-analyze-laya-integration", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
+{"id": "0144-laya-triage-skill", "security_sensitive": false, "borderline": false, "reason": "no authentication, cryptography, secrets, permissions or network boundary concern"}
