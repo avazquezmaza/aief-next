@@ -195,6 +195,18 @@
       "dependencies": ["graphql", "apollo-server", "@apollo/client", "graphql-yoga"]
     },
     {
+      "id": "websocket",
+      "description": "WebSocket server/client",
+      "signal": "strong",
+      "dependencies": ["ws", "socket.io", "socket.io-client"]
+    },
+    {
+      "id": "grpc",
+      "description": "gRPC service/client",
+      "signal": "strong",
+      "dependencies": ["@grpc/grpc-js", "@grpc/proto-loader", "protobufjs"]
+    },
+    {
       "id": "docker",
       "description": "Docker containerization",
       "signal": "strong",
@@ -419,6 +431,17 @@
       "promptContext": "Container images should run as a non-root user, never bake secrets into image layers, and Kubernetes manifests should declare resource requests/limits and liveness/readiness probes so a bad rollout fails safely.",
       "commonRisks": ["secrets committed into a Dockerfile ARG/ENV or an image layer", "container running as root by default", "a Deployment with no resource limits or health probes, letting one bad pod exhaust a node"],
       "evidenceExpectations": "Evidence should state how the image/manifest change was validated (local build, dry-run apply, or a real cluster)."
+    },
+    {
+      "id": "protocol-security-reviewer",
+      "name": "Protocol Security Reviewer",
+      "description": "WebSocket, gRPC and GraphQL transport security: TLS, handshake origin checks, connection authentication, reflection/introspection exposure.",
+      "when": ["websocket", "grpc", "graphql"],
+      "whenToUse": "Changes that add or modify a WebSocket, gRPC or GraphQL endpoint, client, or its authentication.",
+      "standardsToRead": ["backend-standards.md", "security-standards.md"],
+      "promptContext": "Any non-local transport uses TLS (wss://, TLS or mTLS for gRPC). A WebSocket handshake must validate the Origin header against an allowlist and authenticate the connection; credentials never travel in URLs or query strings. gRPC authentication is enforced server-side (interceptors or mTLS). In production, GraphQL introspection and gRPC server reflection are disabled, GraphQL queries have depth/complexity limits, and CORS uses an explicit allowlist.",
+      "commonRisks": ["Cross-Site WebSocket Hijacking from a handshake with no Origin check", "tokens passed in query strings and captured by proxy or server logs", "GraphQL introspection or gRPC reflection left enabled in production", "unbounded GraphQL query depth or message size exhausting the server"],
+      "evidenceExpectations": "Evidence should include automated tests showing that unauthenticated and unknown-origin connections or calls are rejected."
     },
     {
       "id": "project-architecture-reviewer",
