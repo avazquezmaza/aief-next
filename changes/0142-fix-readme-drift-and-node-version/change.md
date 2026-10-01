@@ -31,3 +31,7 @@ Fix documentation drift across repository README files:
 - No active README references Node 18 or the obsolete `aief adopt` command.
 - All internal markdown links continue to resolve properly.
 - `npm test`, `npm run lint`, and `node cli/bin/aief.js verify --change 0142-fix-readme-drift-and-node-version --strict` all pass.
+
+## Status
+
+Closed (2026-09-24)
