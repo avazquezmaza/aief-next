@@ -76,10 +76,13 @@ Named explicitly, not left implicit:
   human checking it from an assistant checking it against `AGENTS.md`'s instruction not to. This
   is a documented convention every native entrypoint (`CLAUDE.md`, `CODEX.md`, `GEMINI.md`, the
   `aief-change` skill) instructs assistants to respect, not a technical control.
-- **Numeric Change-ID collisions across parallel branches are not caught automatically.**
-  Identified by the same external audit (Change 0130, finding C0130-F2): `aief verify` does not
-  reject two Changes sharing a numeric prefix created on separate branches. One concrete
-  instance was resolved by renaming; the general gap remains open.
+- **Numeric Change-ID collisions across parallel branches are detected, not prevented.**
+  Identified by the same external audit (Change 0130, finding C0130-F2): `aief new-change`
+  allocates the next ID from the current checkout only, so two branches can create the same
+  numeric prefix. Since Changes 0135/0137, `aief verify` and `aief status` list every collision as
+  a non-blocking notice, and a bare `--change <number>` that matches more than one Change fails
+  loudly instead of picking one. Allocation-side prevention was deliberately not pursued; use the
+  full Change basename when a number is shared.
 
 ## Related decisions
 
