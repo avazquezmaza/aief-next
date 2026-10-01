@@ -29,6 +29,10 @@ hold (C0143-F4, C0144-F2).
 - **Phase C, wiring (only if Phase B passes):** the example can use the tuned model from a local
   directory, opt-in, with the zero-shot model as default when none is configured.
 
+- **Remediation of the 0144 example (owner-approved scope extension, 2026-10-01):** after the
+  no-go, remove the `security_sensitive` ALERT and gate suggestion from `examples/laya-triage/`, and
+  mark both signals as experimental and unvalidated, citing this Change's results (C0145-F2).
+
 ### Out of scope
 
 - Any change under `cli/` or `.agents/skills/`; Laya inside the engine needs an ADR (level 3).
@@ -44,3 +48,7 @@ hold (C0143-F4, C0144-F2).
 - On go, the tuned model is compared with zero-shot on the same held-out split, and wired into the
   example only if it meets the Phase B criterion.
 - `git grep -i laya -- cli/` stays empty; `npm test`, `aief verify` and `git diff --check` pass.
+
+## Status
+
+Closed (2026-10-01)

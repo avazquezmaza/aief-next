@@ -81,7 +81,7 @@ Latency, memory, checkpoints, runtime package names, and configuration knobs wer
 | C0143-F1 | High | Resolved | 0144 | Laya lives only in `examples/laya-triage/` (opt-in Skill template plus script); `cli/` has no reference to Laya. |
 | C0143-F2 | High | Resolved | 0144 | Guardrails in the Skill template and script output ("PROPOSAL… A human decides"). Guidance, not machine-enforced. |
 | C0143-F3 | Medium | Resolved | 0144 | Measured on CPU: ~12–14 s and 2.4–2.9 GB per call; resource pre-check, timeout and single-checkpoint default. |
-| C0143-F4 | Low | Open | — | Confirmed by 0144 (zero-shot `requirement_clarity` failed; track weak). Proposed: 0145 evaluation set, 0146 fine-tuning. |
+| C0143-F4 | Low | Deferred | 0145 | Measured in 0145: zero-shot not better than always `general`; fine-tuning stopped at a no-go checkpoint (owner decision). Revisit only with a larger labeled set. |
 | C0143-F5 | High | Resolved | 0144 | 0144 scope excluded `cli/`; verified with `git grep -i laya -- cli/`. |
 | C0143-F6 | Medium | Resolved | 0144 | Claims checked against pinned `laya==0.3.22`; several corrected (latency, cold start, `laya-ts`, network). |
 
