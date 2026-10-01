@@ -230,6 +230,37 @@ test("stripe dependency recommends the payments-reviewer skill with a reason", (
   assert.ok(match.because.length > 0);
 });
 
+// --- Change 0151: WebSocket/gRPC detectors and protocol-security-reviewer ---
+
+test("websocket and grpc detectors fire as strong signals for each listed dependency (Change 0151)", () => {
+  for (const [dep, id] of [
+    ["ws", "websocket"], ["socket.io", "websocket"], ["socket.io-client", "websocket"],
+    ["@grpc/grpc-js", "grpc"], ["@grpc/proto-loader", "grpc"], ["protobufjs", "grpc"]
+  ]) {
+    const dir = makeProject({ "package.json": JSON.stringify({ devDependencies: { [dep]: "1.0.0" } }) });
+    const signal = detectProject(dir).signals.find((s) => s.id === id);
+    assert.ok(signal, `expected ${id} for ${dep}`);
+    assert.equal(signal.signal, "strong");
+  }
+});
+
+test("websocket, grpc and graphql each recommend protocol-security-reviewer (Change 0151)", () => {
+  for (const dep of ["socket.io", "@grpc/grpc-js", "graphql"]) {
+    const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { [dep]: "1.0.0" } }) });
+    const match = recommendSkills(detectProject(dir)).find((s) => s.id === "protocol-security-reviewer");
+    assert.ok(match, `protocol-security-reviewer expected for ${dep}`);
+    assert.equal(match.confidence, "strong");
+    assert.ok(match.because.length > 0);
+  }
+});
+
+test("a project without protocol dependencies does not get protocol-security-reviewer (Change 0151)", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { express: "4.18.0", wsx: "1.0.0" } }) });
+  const ids = detectProject(dir).signals.map((s) => s.id);
+  assert.ok(!ids.includes("websocket") && !ids.includes("grpc"));
+  assert.ok(!recommendSkills(detectProject(dir)).some((s) => s.id === "protocol-security-reviewer"));
+});
+
 test("docker and kubernetes both recommend the container-deployment-reviewer skill", () => {
   const dockerOnly = makeProject({ Dockerfile: "FROM node:20\n" });
   const dockerSkills = recommendSkills(detectProject(dockerOnly));

@@ -447,6 +447,14 @@ test("prompt is honest when a recommended Skill has no operational content", () 
   assert.match(out, /no operational content yet/);
 });
 
+test("prompt renders protocol-security-reviewer for a socket.io project (Change 0151)", () => {
+  const dir = makeProject({ "package.json": JSON.stringify({ dependencies: { "socket.io": "4.7.0" } }) });
+  aief(dir, ["new-change", "thing"]);
+  const { out } = aief(dir, ["prompt"]);
+  assert.match(out, /Protocol Security Reviewer:/);
+  assert.match(out, /validate the Origin header/);
+});
+
 test("verify passes right after adopt creates standards", () => {
   const dir = makeProject({ "README.md": "x" });
   aief(dir, ["bootstrap"]);
