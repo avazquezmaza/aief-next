@@ -49,6 +49,8 @@ None of these become CLI states. Record them as **resolved (non-blocking) checkb
 
 Do **not** invent a marker the parser will miscount. A pending `- [ ]` blocks close (correct for real open work); a `[-]` line does not (correct for resolved/relocated work). Keep the reason on the same line so the diff is self-explanatory.
 
+**Exception: approvals.** `[-]` does not resolve a `(human)`, `(review)` or `(gate:<id>)` line; `close` and `verify --strict` report it (Change 0150; gates since ADR-037). When an approval no longer applies, its owner removes the label and states why on the same line, for example `- [-] Abandoned: no-go at checkpoint — no external actions needed.`
+
 ## 3. OpenSpec ↔ AIEF
 
 ```text
