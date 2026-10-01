@@ -110,7 +110,7 @@ R6, project-wide verdicts before and after:
 
 ## Recommendations
 
-- Independent review of the semantics change (`(review)` task) completed and approved by Gemini. Owner `(human)` approval pending before close.
+- Independent review (`(review)`) completed and approved by Gemini; owner `(human)` approval recorded; Change closed.
 
 ## Artifacts Produced
 
