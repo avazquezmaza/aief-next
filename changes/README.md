@@ -194,12 +194,17 @@ Released by Change 0147.
 - [0146](0146-aief-3-4-0-release-readiness/) aief 3 4 0 release readiness
 - [0147](0147-bump-version-to-3-4-0/) bump version to 3 4 0
 
-## Unreleased (after 3.4.0) — 0148+
+## 3.5.0 — 0148–0153
 
-Merged on `main`, not yet in a tagged release.
+Released by Change 0153.
 
 - [0148](0148-security-model-id-collision-gap/) security model id collision gap
 - [0149](0149-human-approval-identity/) human approval identity
 - [0150](0150-harden-approval-labels/) harden approval labels
 - [0151](0151-protocol-security-skill/) protocol security skill
 - [0152](0152-repo-cleanup-and-history-index/) repo cleanup and history index
+- [0153](0153-aief-3-5-0-release/) aief 3 5 0 release
+
+## Unreleased (after 3.5.0) — 0154+
+
+Merged on `main`, not yet in a tagged release. None yet.
