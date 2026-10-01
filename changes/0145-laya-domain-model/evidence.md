@@ -12,7 +12,8 @@ non-security Changes.
 
 ## Pre-registration
 
-Committed in `f6c3089` before any Laya run on the set:
+Committed in `f6c3089` before any Laya run on the set. PR #95 was squash-merged, so `f6c3089` is not
+on `main`; it stays reachable through the PR (`git fetch origin refs/pull/95/head`).
 
 | Artifact | SHA-256 |
 | --- | --- |
