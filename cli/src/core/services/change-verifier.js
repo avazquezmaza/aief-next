@@ -6,7 +6,7 @@
 import path from "node:path";
 import { createVerificationReport, addLine, setNext } from "../domain/verification-report.js";
 import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
-import { parseApprovalLines } from "../domain/change.js";
+import { parseApprovalLines, parseSpecApprovalLines } from "../domain/change.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
@@ -31,6 +31,16 @@ function abandonedApprovalProblems(tasksMd) {
   return parseApprovalLines(tasksMd)
     .filter((line) => line.state === "abandoned" && (line.label === "human" || line.label === "review"))
     .map((line) => `(${line.label}) approval marked [-]: "${line.text}" — an approval cannot be abandoned; check it, or remove the label and say why`);
+}
+
+// Change 0155 (B4 from Analysis 0154): an approval written as a spec.md
+// Acceptance Criterion must hold a close exactly like one in tasks.md.
+function specApprovalProblems(specMd) {
+  return parseSpecApprovalLines(specMd)
+    .filter((line) => line.state !== "checked")
+    .map((line) => line.state === "abandoned"
+      ? `(${line.label}) approval marked [-] in spec.md Acceptance Criteria: "${line.text}" — an approval cannot be abandoned; check it, or remove the label and say why`
+      : `unchecked (${line.label}) approval in spec.md Acceptance Criteria: ${line.text}`);
 }
 
 // Change 0083 — `aief verify --strict`: objective, deterministic completeness
@@ -140,6 +150,9 @@ export function checkStrictCompleteness(change) {
     if (reviewMatch) problems.push(`unresolved required independent review: ${reviewMatch[1].trim()}`);
   }
   problems.push(...abandonedApprovalProblems(tasksMd));
+  // Change 0155: errors only while open. On a closed Change they are notices
+  // (addChangeLines), so history does not start failing — as in Change 0150.
+  if (!change.closed) problems.push(...specApprovalProblems(specMd));
 
   return problems;
 }
@@ -176,6 +189,7 @@ export function checkChangeReadiness(change) {
   // checkStrictCompleteness().
   const definitionProblem = definitionDecisionOutcomeProblem(change);
   const abandonedApprovals = abandonedApprovalProblems(change.files?.["tasks.md"]);
+  const specApprovals = specApprovalProblems(change.files?.["spec.md"]);
   return [
     ...change.missing.map((f) => `${f} is missing`),
     ...change.empty.map((f) => `${f} is empty`),
@@ -183,7 +197,8 @@ export function checkChangeReadiness(change) {
     ...(evidenceProblem ? [evidenceProblem] : []),
     ...(change.openTasksCount ? [`${change.openTasksCount} unchecked task(s) in tasks.md`] : []),
     ...(definitionProblem ? [definitionProblem] : []),
-    ...abandonedApprovals
+    ...abandonedApprovals,
+    ...specApprovals
   ];
 }
 
@@ -267,6 +282,9 @@ function addChangeLines(report, change, cwd, strict = false) {
       // approval line cannot be told apart from one that never existed.
       if (/^(analysis|definition)\b/.test(change.type) && !parseApprovalLines(change.files?.["tasks.md"]).some((line) => line.label === "human")) {
         addLine(report, "warn", `! ${name}: [strict] no (human) approval line — Analysis and Definition Changes normally require one`);
+      }
+      if (change.closed) {
+        for (const p of specApprovalProblems(change.files?.["spec.md"])) addLine(report, "warn", `! ${name}: [strict] closed with ${p}`);
       }
     }
   } else {

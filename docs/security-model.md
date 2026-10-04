@@ -81,6 +81,9 @@ Named explicitly, not left implicit:
   - `aief close` prints "Approvals relied on:" with every checked approval before closing, so the
     human sees what the close treats as approved.
   - `verify --strict` notes an Analysis or Definition Change with no `(human)` line (non-blocking).
+  - A `(human)` or `(review)` Acceptance Criterion in `spec.md` counts like one in `tasks.md`:
+    `close` blocks on it, and `verify --strict` fails an open Change or notes a closed one
+    (Change 0155).
 
   Still possible: an assistant checking `[x]` against `AGENTS.md`, or deleting an approval line
   from an ordinary Change. For a solo owner the control is reviewing the close output and the PR

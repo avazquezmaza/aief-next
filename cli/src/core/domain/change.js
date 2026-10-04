@@ -190,6 +190,16 @@ export function parseApprovalLines(tasksMd) {
   return lines;
 }
 
+// `(human)` and `(review)` lines under spec.md's `## Acceptance Criteria`
+// (Change 0155, B4 from Analysis 0154). Before this, only tasks.md approval
+// lines were read, so an unchecked approval criterion in spec.md did not
+// stop a close. Unlabeled criteria are not returned: they stay informational.
+export function parseSpecApprovalLines(specMd) {
+  const match = String(specMd || "").match(/^##\s+Acceptance Criteria\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/im);
+  if (!match) return [];
+  return parseApprovalLines(match[1]).filter((line) => line.label === "human" || line.label === "review");
+}
+
 // The single shared implementation of Change selection (Flux Portal dogfooding
 // finding: per-command substring matching silently picked the wrong Change).
 // Deterministic tiers — first tier with matches wins:
