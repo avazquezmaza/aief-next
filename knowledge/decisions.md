@@ -4,7 +4,45 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-038: AIEF 4.0 is the Change contract, not a workflow engine — manifest-gated features are removed and dependencies move to `change.md`
+
+**Status: Accepted (2026-10-04), by the project owner. Decided in [Change 0156](../changes/0156-define-4-0-simplification/), from the evidence in [Analysis 0154](../changes/0154-pre-release-simplification/).**
+
+**Decision.**
+
+> AIEF records scope, evidence and human decisions, and checks them deterministically. Assistants
+> and their harnesses supply workflow mechanics. AIEF 4.0 removes everything that only a
+> `manifest.json` could switch on: the manifest itself, tracks and the workflow engine
+> (`(gate:<id>)` lines become ordinary tasks), Loop, the Harness log, SDD providers and OpenSpec
+> integration, requirement verification (`verify --requirements`), and `ai-specs` discovery.
+> Dependencies are kept and move to an optional `## Depends on` section in `change.md`
+> (`new-change --depends-on` writes it). `status --next` and `--graph` read it. `close` prints a
+> notice, never a block, when a dependency is still open. `adapters/openspec/` and
+> `adapters/specboot/` stay as docs marked "conceptual reference, not supported in 4.0".
+
+**Context.** Analysis 0154 found 0 `manifest.json` files in 11 projects (93 Changes) and in this
+repository, so none of these features had been used outside their own tests. Exercising them
+found a wrong Loop message (B1) and a doc/code mismatch (B2). Gates gave the same close result as
+plain `(review)` labels. Dependencies were the exception: 12 of 92 Changes named one in prose, and
+projects had up to 9 Changes open. AIEF had no users outside the owner's machine, so no
+deprecation release was needed.
+
+**Rule going forward.** A feature must be used in two real projects within six weeks of shipping,
+or it is removed.
+
+**Supersedes.** ADR-016, ADR-017, ADR-021 (the requirement-verification layer only), ADR-023,
+ADR-024, ADR-025, ADR-026, ADR-027, ADR-028 (the field moves from the manifest to `change.md`; the
+non-blocking intent is kept) and ADR-037. Replaces ADR-001's "AIEF is a Workflow Engine" framing.
+
+**Consequences.** About 2,600 source lines (29% of `cli/src`) and about 350 tests are removed in
+Change 0157. `AGENTS.md` loses its track/gate guidance. OpenSpec and `ai-specs` interoperability is
+gone until a real project asks for it, and would return as an adapter outside the core.
+
+---
+
 ## ADR-037: Workflow Gates become enforceable by `aief close`, opt-in by declared track, resolved by explicit per-gate task labels
+
+> **Superseded by ADR-038 (2026-10-04).**
 
 **Status: Accepted (2026-09-09), by the project owner. Decided in [Change 0124](../changes/0124-workflow-gate-authority/).**
 
@@ -531,6 +569,8 @@ unmodified — zero diff. `selectNextChange()` consumes a `buildGraph()` result 
 
 ## ADR-028: `dependsOn` is the official Change dependency field; the Graph is derived, pure, and read-only — construction and validation are one pass; `status --graph` is the full view, `status`'s overview gets a conditional summary, `verify` gets a non-blocking note, `doctor` gets nothing
 
+> **Superseded by ADR-038 (2026-10-04): `dependsOn` moves from the manifest to a `## Depends on` section in `change.md`; the non-blocking intent is kept.**
+
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0058](../changes/0058-change-graph-dependency-model/)'s planning artifacts (`spec.md`/`tasks.md`); the foundation `status --next`, automatic planning and Change navigation will read later — none of those are implemented here.
 
 **Decision.**
@@ -646,6 +686,8 @@ untouched — zero diff, zero coupling in either direction.
 
 ## ADR-027: Loop is opt-in, per-Change attempt tracking over the unmodified verify pipeline — feedback is reused, never recomputed; retry is always a manual re-invocation, never automatic; `loop.md` mirrors ADR-026's `hooks.md` exactly
 
+> **Superseded by ADR-038 (2026-10-04).**
+
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0057](../changes/0057-loop-verify-feedback-retry/)'s planning artifacts (`spec.md`/`tasks.md`); the third opt-in `manifest.json` extension following the pattern [ADR-026](#adr-026-harness-configuration-is-per-change-keyed-by-event-id-opt-in-via-manifestjson-disabling-and-logging-are-post-evaluation-filters-over-the-unmodified-adr-020-hook-runtime--never-a-second-hook-system-never-command-execution-never-blocking) established for Harness.
 
 **Decision.**
@@ -747,6 +789,8 @@ or a manifest without `loop`) is entirely unaffected.
 ---
 
 ## ADR-026: Harness configuration is per-Change, keyed by event id, opt-in via `manifest.json`; disabling and logging are post-evaluation filters over the unmodified ADR-020 Hook Runtime — never a second Hook system, never command execution, never blocking
+
+> **Superseded by ADR-038 (2026-10-04).**
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0056](../changes/0056-harness-hooks-visibility/)'s planning artifacts (`spec.md`/`tasks.md`); the first user-facing configuration surface over the Hook Runtime [ADR-020](#adr-020-a-hook-is-a-versioned-capability-gated-closed-catalog-event-observer-blocking-authority-is-contractually-reserved-but-structurally-inert-this-entrega-effects-deferred)
 established (Change 0048) as internally-registered and unconfigurable.
@@ -856,6 +900,8 @@ unchanged; a legacy Change (no manifest) is entirely unaffected, per ADR-016's o
 
 ## ADR-025: `aief prompt` is the primary consumer of project `ai-specs/standards/`; `aief doctor --verbose` gains a conditional report; the shared resolver is extracted from ADR-024's Skill wiring
 
+> **Superseded by ADR-038 (2026-10-04).**
+
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0055](../changes/0055-lidr-standards-integration/)'s planning artifacts (`spec.md`/`tasks.md`); the second activation of the resolver [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left dormant, after [ADR-024](#adr-024-aief-doctor-is-the-first-and-this-change-only-consumer-of-the-ai-specs-resolver-activation-is-directory-presence-never-a-changes-manifestjson)'s Skill wiring.
 
 **Decision.**
@@ -928,6 +974,8 @@ only its internal implementation now delegates to the shared helper this ADR int
 ---
 
 ## ADR-024: `aief doctor` is the first (and, this Change, only) consumer of the ai-specs resolver; activation is directory presence, never a Change's `manifest.json`
+
+> **Superseded by ADR-038 (2026-10-04).**
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0054](../changes/0054-lidr-skill-recommendations/)'s planning artifacts (`spec.md`/`tasks.md`); activates the wiring [ADR-023](#adr-023-ai-specs-resources-are-discovered-and-resolved-against-aiefs-built-ins-never-copied-project-always-wins-on-id-collision-unwired-dormant-this-change) left deliberately dormant.
 
@@ -1006,6 +1054,8 @@ invoked because nothing here needed it.
 ---
 
 ## ADR-023: `ai-specs/` resources are discovered and resolved against AIEF's built-ins, never copied; project always wins on id collision; unwired (dormant) this Change
+
+> **Superseded by ADR-038 (2026-10-04).**
 
 **Status: Accepted (2026-07-30), by the project owner.** Proposed alongside [Change 0053](../changes/0053-lidr-integration/)'s planning artifacts (`spec.md`/`design.md`/`tasks.md`); commissioned as the first, deliberately narrow step of LIDR integration — "AIEF consume LIDR, nunca lo copia."
 
@@ -1132,6 +1182,8 @@ ADR does not itself waive ADR-013 — each Change under AIEF 3.1 must independen
 ---
 
 ## ADR-021: Verification splits into Structural (existing) and Requirement (new, evidence-based, deterministic) layers; evidence is consumed and normalized, never generated; `close()` and Workflow-gate integration are deferred
+
+> **Requirement-verification layer superseded by ADR-038 (2026-10-04); Structural Verification is unchanged.**
 
 **Status: Accepted (2026-07-27)** — status line updated by [Change 0051](../changes/0051-core3-documentation-rebuild/) to reflect [Change 0049](../changes/0049-core3-verification-engine/)'s own closure record (`change.md`: "Status: Closed (2026-07-27)"); the decision text below is unchanged. Proposed alongside the rest of Change 0049's planning artifacts (`proposal.md`/`spec.md`/`design.md`/`tasks.md`/`verification.md`); implementation completed and the Change closed the following day, per that Change's own evidence.
 
@@ -1371,6 +1423,8 @@ Change 0043 took toward the vision document's `class SddProvider`).
 
 ## ADR-017: SDD access goes through a provider boundary; the Core never reads a provider's native files
 
+> **Superseded by ADR-038 (2026-10-04).**
+
 **Status: Accepted (2026-07-25), by the project owner.** Accepted alongside the rest of [Change 0045](../changes/0045-core3-sdd-provider/)'s planning artifacts; implementation begins immediately after acceptance, per the project owner's explicit instruction.
 
 **Decision.**
@@ -1403,6 +1457,8 @@ Change 0043 took toward the vision document's `class SddProvider`).
 ---
 
 ## ADR-016: The Workflow Engine governs transitions and gates; only non-inferable facts are persisted
+
+> **Superseded by ADR-038 (2026-10-04).**
 
 **Status: Accepted (2026-07-25), by the project owner.** Accepted alongside the rest of [Change 0044](../changes/0044-core3-workflow-engine/)'s planning artifacts (`proposal.md`, `spec.md`, `design.md`, `tasks.md`, `verification.md`); implementation begins immediately after acceptance, per the project owner's explicit instruction.
 
@@ -1581,6 +1637,8 @@ Each source has a single responsibility. **The Prompt Engine is the only place w
 ---
 
 ## ADR-001: AIEF is a Workflow Engine, not a specification generator
+
+> **Framing replaced by ADR-038 (2026-10-04): AIEF is the Change contract, not a workflow engine.**
 
 **Decision.** AIEF orchestrates the engineering workflow (Change → Spec → Tasks → Build → Verify → Evidence). It does not generate specifications itself.
 
