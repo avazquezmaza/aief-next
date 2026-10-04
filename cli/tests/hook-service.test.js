@@ -23,53 +23,16 @@ const COMPLETE = {
   "evidence.md": "# Evidence\n\n## Summary\n\nReal work happened.\n"
 };
 
-function manifestFor(overrides = {}) {
-  return JSON.stringify({ schema: "aief.change/v1", id: "0001", slug: "thing", title: "Thing", status: "open", ...overrides });
-}
-
 function contextFor(dir, operation = { input: {}, result: null }, eventId = "prompt.prepared") {
   const skillCtx = buildSkillContext(dir, dir);
   const event = buildEvent(eventId, eventId.split(".")[0]);
-  return buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, workflow: skillCtx.workflow, sdd: skillCtx.sdd, operation });
+  return buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, operation });
 }
 
 // --- evaluateEvent(): real registered Hooks ---
 
-test("evaluateEvent: prompt-skill-suggestion is not_applicable for a Change with no sdd", () => {
-  const dir = makeChangeDir(COMPLETE);
-  const event = buildEvent("prompt.prepared", "prompt");
-  const context = contextFor(dir);
-  const outcome = evaluateEvent(event, context);
-  assert.equal(outcome.results.length, 1);
-  assert.equal(outcome.results[0].hook, "prompt-skill-suggestion");
-  assert.equal(outcome.results[0].status, "matched"); // applies (Change resolved); Skill itself is not_applicable
-  assert.deepEqual(outcome.instructions, []);
-});
-
-test("evaluateEvent: prompt-skill-suggestion recommends the Skill when it is ready", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "local" } }) });
-  const event = buildEvent("prompt.prepared", "prompt");
-  const context = contextFor(dir);
-  const outcome = evaluateEvent(event, context);
-  assert.equal(outcome.results[0].status, "matched");
-  assert.equal(outcome.results[0].skillResults.length, 1);
-  assert.equal(outcome.results[0].skillResults[0].status, "ready");
-  assert.match(outcome.instructions[0], /aief prompt --skill requirements-analysis-instructions/);
-});
-
-test("evaluateEvent: a rejected SDD path-traversal change_id reaches prompt-skill-suggestion via context.sdd, still rejected (Change 0045's fix, unchanged)", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "openspec", change_id: "../../../etc" } }) });
-  fs.mkdirSync(path.join(dir, "openspec", "changes"), { recursive: true });
-  const event = buildEvent("prompt.prepared", "prompt");
-  const context = contextFor(dir);
-  const outcome = evaluateEvent(event, context);
-  assert.equal(outcome.results[0].status, "matched"); // the Hook itself still applies (a Change was resolved)
-  assert.equal(outcome.results[0].skillResults[0].status, "unsupported"); // but the allowlisted Skill correctly refuses
-  assert.deepEqual(outcome.instructions, []); // no recommendation is fabricated for a broken SDD provider
-});
-
 test("evaluateEvent: post-verify-next-action recommends the next command for a resolved Change", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite" }) });
+  const dir = makeChangeDir(COMPLETE);
   const event = buildEvent("verify.completed", "verify");
   const context = contextFor(dir, { input: { changeId: "0001-thing" }, result: { passed: false, lines: [] } }, "verify.completed");
   const outcome = evaluateEvent(event, context);
@@ -87,7 +50,7 @@ test("evaluateEvent: post-verify-next-action is not_applicable for the whole-pro
 });
 
 test("evaluateEvent: never changes the operation's own result — report object is untouched", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite" }) });
+  const dir = makeChangeDir(COMPLETE);
   const report = Object.freeze({ passed: true, lines: [] });
   const event = buildEvent("verify.completed", "verify");
   const context = contextFor(dir, { input: { changeId: "0001-thing" }, result: report }, "verify.completed");
@@ -101,14 +64,14 @@ test("evaluateEvent: unknown event throws", () => {
 });
 
 test("evaluateEvent: deterministic — same inputs, same result, every call", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "local" } }) });
+  const dir = makeChangeDir(COMPLETE);
   const event = buildEvent("prompt.prepared", "prompt", "2026-01-01T00:00:00.000Z");
   const context = contextFor(dir);
   assert.deepEqual(evaluateEvent(event, context), evaluateEvent(event, context));
 });
 
 test("evaluateEvent/evaluateHook perform zero writes", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "local" } }) });
+  const dir = makeChangeDir(COMPLETE);
   const before = {};
   for (const f of fs.readdirSync(dir)) before[f] = fs.readFileSync(path.join(dir, f), "utf8");
   const event = buildEvent("prompt.prepared", "prompt");
@@ -134,7 +97,7 @@ function fixtureHook(overrides) {
 
 function neutralContext() {
   const event = buildEvent("prompt.prepared", "prompt");
-  return { event, ctx: buildHookContext(event, { project: {}, change: { basename: "0001-thing" }, workflow: null, sdd: null, operation: { input: {}, result: null } }) };
+  return { event, ctx: buildHookContext(event, { project: {}, change: { basename: "0001-thing" }, operation: { input: {}, result: null } }) };
 }
 
 test("evaluateHook: hook/event fields always match the descriptor and fired event, never spoofable", () => {
@@ -194,7 +157,7 @@ test("evaluateHook: a synthetic pre-phase event WOULD honor an authorized blocke
     evaluate: () => ({ summary: "blocked by policy", blocking: true, blockers: ["a real, authoritative blocker"] })
   });
   const event = { id: "synthetic.pre", phase: "pre", timestamp: "x", operation: "synthetic" };
-  const ctx = { change: {}, workflow: null, sdd: null, project: {}, skill: null, operation: { input: {}, result: null } };
+  const ctx = { change: {}, project: {}, skill: null, operation: { input: {}, result: null } };
   const result = evaluateHook(mod, event, ctx);
   assert.equal(result.status, "matched");
   assert.equal(result.blocking, true);
@@ -233,7 +196,7 @@ test("evaluateHook: a Hook can invoke only its own allowlisted Skill", () => {
   const dir = makeChangeDir({ change: "# Change", spec: "x" }); // minimal, unused directly
   const { event } = neutralContext();
   const skillCtx = buildSkillContext(dir, dir);
-  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, workflow: skillCtx.workflow, sdd: skillCtx.sdd, operation: { input: {}, result: null } });
+  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, operation: { input: {}, result: null } });
   const result = evaluateHook(mod, event, hookCtx);
   assert.equal(result.status, "matched");
   assert.equal(result.skillResults.length, 1);
@@ -249,7 +212,7 @@ test("evaluateHook: a Skill's ready status is embedded unedited — never re-lab
   const dir = makeChangeDir(COMPLETE);
   const { event } = neutralContext();
   const skillCtx = buildSkillContext(dir, dir);
-  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, workflow: skillCtx.workflow, sdd: skillCtx.sdd, operation: { input: {}, result: null } });
+  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, operation: { input: {}, result: null } });
   const result = evaluateHook(mod, event, hookCtx);
   assert.equal(result.skillResults[0].status, "ready");
   assert.notEqual(result.skillResults[0].status, "completed");
@@ -269,7 +232,7 @@ test("evaluateHook: a Hook cannot forge or mutate skillResults by writing into t
   const dir = makeChangeDir(COMPLETE);
   const { event } = neutralContext();
   const skillCtx = buildSkillContext(dir, dir);
-  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, workflow: skillCtx.workflow, sdd: skillCtx.sdd, operation: { input: {}, result: null } });
+  const hookCtx = buildHookContext(event, { project: skillCtx.project, change: skillCtx.change, operation: { input: {}, result: null } });
   const result = evaluateHook(mod, event, hookCtx);
   assert.equal(result.skillResults.length, 1);
   assert.equal(result.skillResults[0].skill, "change-context");
@@ -321,8 +284,8 @@ test("Hook-to-Skill recursion: the Skill Service never references the Hook Servi
 });
 
 test("Hooks never import a Skill module directly", () => {
-  for (const file of ["prompt-skill-suggestion.js", "post-verify-next-action.js"]) {
+  for (const file of ["post-verify-next-action.js"]) {
     const source = fs.readFileSync(new URL(`../src/hooks/${file}`, import.meta.url), "utf8");
-    assert.doesNotMatch(source, /from ["'].*skills\/(change-context|requirements-analysis-instructions)\.js["']/);
+    assert.doesNotMatch(source, /from ["'].*skills\//);
   }
 });

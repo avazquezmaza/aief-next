@@ -23,11 +23,11 @@ OUTPUT_W = 270
 
 GROUPS = [
     ("Universal instructions", "slate", ["AGENTS.md — always the base contract", "Assistant adapter (optional)", "Profile"]),
-    ("Project intelligence", "blue", ["LIDR", "Standards", "Recommended Skills"]),
+    ("Project intelligence", "blue", ["Standards", "Recommended Skills"]),
     (
         "Change execution context",
         "violet",
-        ["Change spec / tasks", "Workflow & SDD", "Requested Skill", "Hook observations"],
+        ["Change spec / tasks", "Requested Skill", "Hook observations"],
     ),
 ]
 
@@ -105,7 +105,7 @@ def build():
     body.append(arrow(COMPOSER_X + COMPOSER_W, composer_y + composer_h / 2, OUTPUT_X, out_y + out_h / 2, color="green", width=2.5))
 
     body.append(
-        '  <text x="40" y="{y}" font-size="12" fill="#64748b">A group with nothing to contribute (no adapter, no track, no requested Skill) stays silent — it never renders an empty section.</text>'.format(
+        '  <text x="40" y="{y}" font-size="12" fill="#64748b">A group with nothing to contribute (no adapter, no requested Skill) stays silent — it never renders an empty section.</text>'.format(
             y=top_y + total_h + 24
         )
     )
@@ -123,8 +123,8 @@ def main():
         "pc-desc",
         "Three groups feed the Prompt Composer: Universal instructions (AGENTS.md as the always-"
         "present base contract, an optional assistant adapter, and a profile), Project "
-        "intelligence (LIDR, Standards, recommended Skills), and Change execution context (Change "
-        "spec/tasks, Workflow and SDD, a requested Skill, Hook observations). The composer "
+        "intelligence (Standards, recommended Skills), and Change execution context (Change "
+        "spec/tasks, a requested Skill, Hook observations). The composer "
         "produces one portable, ready-to-paste prompt; AIEF generates this text but never invokes "
         "an assistant itself, and a group with nothing to contribute stays silent rather than "
         "rendering an empty section.",

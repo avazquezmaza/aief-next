@@ -3,71 +3,24 @@
 Everything AIEF reads is a visible file in your project. This page is the reference for each of
 them.
 
-## `changes/<id>-<slug>/manifest.json` (optional)
+## `changes/<id>-<slug>/change.md` → `## Depends on` (optional)
 
-Absent by default — a Change with no manifest behaves exactly as it always has. Add one to opt
-into the Workflow Engine and/or the SDD Provider.
+Lists the Changes this one depends on, one id per bullet — a full basename or a bare numeric id:
 
-```json
-{
-  "schema": "aief.change/v1",
-  "id": "0002-add-login",
-  "slug": "add-login",
-  "title": "Add login",
-  "status": "open",
-  "track": "standard",
-  "sdd": {
-    "provider": "openspec",
-    "change_id": "add-login"
-  }
-}
+```markdown
+## Depends on
+
+- 0002-base-api
+- 0003
 ```
 
-| Field | Required | Values | Notes |
-|---|---|---|---|
-| `schema` | yes | `"aief.change/v1"` | Must match exactly; anything else is reported as an invalid manifest. |
-| `id` | yes | non-empty string | Should match the directory name. |
-| `slug` | yes | non-empty string | |
-| `title` | yes | non-empty string | |
-| `status` | yes | `"open"` \| `"closed"` | Authoritative over `change.md`'s own `## Status` section when a manifest is present. |
-| `track` | no | `"lite"` \| `"standard"` \| `"governed"` | Opts into the Workflow Engine. See [Workflow — Tracks](workflow.md#tracks). Any other value is an explicit "unrecognized track" error, never guessed into one of the three. |
-| `sdd.provider` | no | `"local"` \| `"openspec"` | Opts into the SDD Provider. Defaults to none — `aief status` shows no SDD section for a Change without it. |
-| `sdd.change_id` | no | non-empty string | The identifier the provider resolves against (e.g. the OpenSpec change's own directory name). |
-| `harness.log` | no | boolean | Opts into a visible, append-only `<changeDir>/hooks.md` execution log. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration). |
-| `harness.hooks."<event>".disabled` | no | array of Hook id strings | Excludes listed Hook ids from that event's output/log. `<event>` must be `"prompt.prepared"` or `"verify.completed"` — any other key is an invalid-manifest error. An unknown Hook id inside the array is a visible warning (`aief status --change <id>`), never a crash and never disables anything real. |
-| `loop.verify.maxRetries` | no | positive integer, default `3` | Opts the Change into Loop attempt tracking for `aief verify --change <id>`. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry). |
-| `dependsOn` | no | array of Change id strings | Names other Changes this one depends on. Referential validity (does the named Change exist? is there a cycle?) is a cross-Change fact resolved by `aief status`/`aief status --graph`/`aief verify --change <id>`, never checked here. See [Workflow — Graph](workflow.md#graph--the-change-dependency-model). |
+`aief new-change <name> --depends-on <id>[,<id>...]` writes it with full basenames. `aief status
+--graph` and `aief status --next` read it (missing, self and duplicate dependencies and cycles are
+reported as Graph issues). `aief close` prints a notice while a dependency is still open and closes
+anyway. Absent by default.
 
-An invalid manifest (bad JSON, wrong schema, missing required field, or — since Changes 0056–0058
-— an unrecognized `harness`/`loop`/`dependsOn` shape) is reported as a distinct, visible state by
-`aief status` — it is never silently treated as "no manifest," and never falls back to inferring
-the missing fields.
-
-## Workflow track definitions — `cli/src/workflows/*.json`
-
-Ship with AIEF itself (`lite.json`, `standard.json`, `governed.json`) — not user-editable per
-project. Each is a `{ schema, track, stages, transitions }` graph:
-
-```json
-{
-  "schema": "aief.workflow/v1",
-  "track": "standard",
-  "stages": [
-    { "id": "work" },
-    { "id": "verify", "gateIds": ["readiness"] },
-    { "id": "review", "gateIds": ["review"] },
-    { "id": "close" }
-  ],
-  "transitions": [
-    { "from": "work", "to": "verify" },
-    { "from": "verify", "to": "review" },
-    { "from": "review", "to": "close" }
-  ]
-}
-```
-
-A stage's `gateIds` names which gates must be satisfied before the engine reports the next
-transition as available. See [Architecture — Workflow Engine](architecture.md#workflow-engine).
+AIEF 4.0 no longer reads `manifest.json` (ADR-038). If a Change directory still has one, `aief
+verify` names it as no longer read; it has no other effect.
 
 ## `knowledge/standards/*.md`
 
@@ -81,11 +34,6 @@ Editable project standards, created by `aief bootstrap` from
 
 `aief prompt` instructs the assistant to follow every file present here. Edit them freely — they
 are a property of your project, not of AIEF.
-
-A project's own `ai-specs/standards/<id>.md` (LIDR/SpecBoot convention) is discovered and resolved
-against these built-ins — project always wins on a matching id, referenced from its own real
-location, never copied here (Change 0055/ADR-025). See [CLI Reference](cli.md#work) (`aief
-prompt`) and `templates/specboot/README.md`.
 
 ## `knowledge/skills.md`
 
@@ -137,33 +85,6 @@ Selected by name in `aief enrich <provider> <source-id>`. Implemented today: `ma
 fills the facts), `jira` (reads a **local export file** at `requirements/jira/<issue-key>.json`,
 or any path via `--file` — no network call, no credentials). Requesting an unimplemented provider
 (`notion`, `github`, `azure-devops`) fails loudly, naming what is and isn't implemented.
-
-## `knowledge/sdd-provider.json`
-
-Optional, project-level SDD Provider choice (`{ "provider": "openspec" | "local", "setBy":
-"bootstrap", "date": "..." }`). Written only by `aief bootstrap`, only when the choice is
-genuinely ambiguous (OpenSpec and SpecBoot both detected) and you are prompted for it in an
-interactive shell. Absent by default — a Change's own `manifest.sdd.provider` still wins over it.
-See `sdd-provider-resolver.js`'s step 2.
-
-## `changes/<id>-<slug>/hooks.md`
-
-Optional, per-Change, visible Harness execution log (Change 0056/ADR-026). Written only when that
-Change's `manifest.harness.log` is `true`; appended to on every `aief prompt`/`aief verify
---change <id>` call targeting it — never truncated or rewritten. Each entry lists, for every
-active (non-disabled) Hook evaluated for the fired event: id, event, status, and the Hook's own
-short summary — never raw command output, full context, or a credential. Absent by default. See
-[Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
-
-## `changes/<id>-<slug>/loop.md`
-
-Optional, per-Change, visible Loop attempt log (Change 0057/ADR-027). Written only when that
-Change's `manifest.loop.verify` is declared; appended to on every `aief verify --change <id>` call
-targeting it — never truncated or rewritten. Each entry records: attempt number, timestamp,
-PASS/FAIL, Feedback (Structural Verification's own error lines, reused as-is), and the decision
-(`retry available`/`retry limit reached`/`loop complete`). The current attempt number is derived
-by counting this file's own prior entries — never a hidden counter, never a `manifest.json` write.
-Absent by default. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
 
 ## CI gate
 

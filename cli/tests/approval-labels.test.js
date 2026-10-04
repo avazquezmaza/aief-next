@@ -89,20 +89,6 @@ test("close lists the checked approvals it relies on, with and without --yes", (
   assert.match(fs.readFileSync(path.join(changeDir, "change.md"), "utf8"), /Closed \(/);
 });
 
-test("close on a tracked Change lists its gates and blocks on an abandoned (human) approval", () => {
-  const gates = "- [x] (gate:approval) Arch approved\n- [x] (gate:security_review) Security pass\n- [x] (gate:review) Reviewed\n";
-  const { dir, changeDir } = closeableProject(`# Tasks\n\n- [x] Work\n${gates}`);
-  fs.writeFileSync(path.join(changeDir, "manifest.json"), JSON.stringify({
-    schema: "aief.change/v1", id: "0001", slug: "thing", title: "x", status: "open", track: "governed"
-  }), "utf8");
-  assert.match(aief(dir, ["close"]).out, /Approvals relied on:\n {2}- \(gate:approval\) Arch approved/);
-
-  fs.writeFileSync(path.join(changeDir, "tasks.md"), `# Tasks\n\n- [x] Work\n${gates}- [-] (human) Owner approves\n`, "utf8");
-  const { status, out } = aief(dir, ["close", "--yes"]);
-  assert.equal(status, 1);
-  assert.match(out, /readiness: \(human\) approval marked \[-\]/);
-});
-
 test("close says 'Approvals relied on: none' when the Change has no approval line", () => {
   const { dir } = closeableProject("# Tasks\n\n- [x] Work\n");
   assert.match(aief(dir, ["close"]).out, /Approvals relied on: none/);

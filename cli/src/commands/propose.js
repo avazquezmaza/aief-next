@@ -1,22 +1,10 @@
 // Command handler: propose (modularization, third slice). Zero dependency
-// on any other command handler — only the shared kernel plus OpenSpec
-// detection (process-utils.js).
+// on any other command handler — only the shared kernel. Always creates a
+// local Change with proposal.md; AIEF 4.0 no longer delegates to OpenSpec
+// (ADR-038), and never runs an external command.
 import path from "node:path";
-import { run, commandExists } from "../process-utils.js";
 import { section, parseArgs, createChange, writeFile, printNext, resolveExplicitChange } from "./shared.js";
 
-// Validate the OpenSpec CLI contract before delegating. Never assume
-// "openspec propose <idea>" exists: check installation, version and
-// whether the propose command is actually exposed.
-function openspecInfo() {
-  if (!commandExists("openspec")) return { installed: false };
-  const versionResult = run("openspec", ["--version"]);
-  const version = versionResult.status === 0 ? String(versionResult.stdout || "").trim() : "unknown";
-  const helpResult = run("openspec", ["--help"]);
-  const helpText = `${helpResult.stdout || ""}${helpResult.stderr || ""}`;
-  const supportsPropose = helpResult.status === 0 && /\bpropose\b/i.test(helpText);
-  return { installed: true, version, supportsPropose };
-}
 export function propose(args) {
   section("AIEF Propose");
   const parsed = parseArgs("propose", args);
@@ -29,17 +17,6 @@ export function propose(args) {
   if (typeof parsed.change === "string") { proposeForChange(parsed.change, parsed._.join(" ")); return; }
   const idea = parsed._.join(" ");
   if (!idea) { console.error('Example: aief propose "Add login"\n   or: aief propose --change <change-id>   (continue an existing Change, e.g. after aief enrich)'); process.exitCode = 1; return; }
-  const openspec = openspecInfo();
-  if (!openspec.installed) {
-    console.log("OpenSpec is not installed. Creating a local Change instead.");
-  } else if (!openspec.supportsPropose) {
-    console.warn(`OpenSpec ${openspec.version} is installed but does not expose a "propose" command. Falling back to local Change generation.`);
-  } else {
-    console.log(`Delegating to OpenSpec ${openspec.version}...`);
-    const r = run("openspec", ["propose", idea], { stdio: "inherit" });
-    if (r.status === 0) return;
-    console.error(`OpenSpec delegation failed (exit code ${r.status}). Falling back to local Change generation.`);
-  }
   const dir = createChange(idea, { noBranch: parsed["no-branch"] });
   if (dir) {
     writeFile(path.join(dir, "proposal.md"), `# Proposal\n\n## Idea\n\n${idea}\n\n## Why\n\n-\n\n## What Changes\n\n-\n`);

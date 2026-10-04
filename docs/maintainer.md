@@ -1,6 +1,6 @@
 # Maintainer Guide
 
-For anyone extending AIEF itself — adding a Skill, Hook, Verification Rule, or provider — or
+For anyone extending AIEF itself — adding a Skill, Hook, or Requirement provider — or
 contributing a change to the CLI.
 
 ## AIEF is built using AIEF
@@ -13,8 +13,7 @@ in this repository as in any adopted one.
 
 ## Extending a registry
 
-Every extensible subsystem (Skills, Hooks, Verification Rules, SDD providers, Requirement
-providers) follows the same shape: a plain module export, a static registry object, no plugin
+Every extensible subsystem (Skills, Hooks, Requirement providers) follows the same shape: a plain module export, a static registry object, no plugin
 loader or dynamic discovery. Adding a new one never requires touching a caller — only the registry
 file itself.
 
@@ -22,13 +21,10 @@ file itself.
 |---|---|---|---|
 | Skill | `cli/src/core/domain/skill.js` | `cli/src/skills/index.js` | Adding a file under `cli/src/skills/` exporting the descriptor, plus one entry in the registry. |
 | Hook | `cli/src/core/domain/hook.js` | `cli/src/hooks/index.js` | Same pattern under `cli/src/hooks/`. New lifecycle events require extending `EVENT_CATALOG` in `hook.js` first — the catalog is closed by design; only add an event with a confirmed emission point and a real consumer. |
-| Verification Rule | `cli/src/core/domain/verification-rule.js` | `cli/src/verification-rules/index.js` | Same pattern under `cli/src/verification-rules/`. New Evidence types require extending the vocabulary in `verification-rule.js` first. |
-| SDD Provider | `cli/src/core/domain/sdd-model.js` | `cli/src/sdd-providers/index.js` | A file under `cli/src/sdd-providers/` implementing `resolveChange()`/`validate()`, plus one registry entry. |
 | Requirement Source provider | `cli/src/requirement.js` | `cli/src/requirement-providers/index.js` | A file under `cli/src/requirement-providers/` producing the Normalized Requirement shape. |
 
 A capability a new entry declares that isn't in the module's `KNOWN_CAPABILITIES`, or that is in
-its `FORBIDDEN_CAPABILITIES` (currently `writeFiles`/`executeCommands`/`network`, plus
-`assistantRequired` for Verification Rules), fails registration outright — this is enforced, not a
+its `FORBIDDEN_CAPABILITIES` (currently `writeFiles`/`executeCommands`/`network`), fails registration outright — this is enforced, not a
 convention to remember.
 
 ## Contributing a Change

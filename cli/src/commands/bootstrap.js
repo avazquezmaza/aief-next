@@ -5,11 +5,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills, loadCatalog } from "../detect.js";
-import { resolveSddProvider, sddProviderConfigPath } from "../core/domain/sdd-provider-resolver.js";
-import { getProvider } from "../sdd-providers/index.js";
-import { cwd, exists, writeFile, section, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles, promptSync } from "./shared.js";
+import { cwd, exists, writeFile, section, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles } from "./shared.js";
 import { analyze } from "./analyze.js";
 import { newChange } from "./new-change.js";
 
@@ -188,36 +185,9 @@ function runAdoption() {
   return artifacts;
 }
 function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}\n\nChoose a different name, or cd into it and run aief bootstrap there.`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), fs.readFileSync(AGENTS_TEMPLATE, "utf8")); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
-// Implements sdd-provider-resolver.js's step 2 (project-level configuration)
-// from the bootstrap side (spec.md R4). Only ever prompts when the choice is
-// genuinely ambiguous (OpenSpec available AND a specboot/LIDR marker
-// present) and stdin is a TTY; every other case is silent and deterministic.
-// knowledge/sdd-provider.json, once written, is never overwritten (R7).
-function configureSddProvider(specbootMarker) {
-  const projectCwd = process.cwd();
-  const configPath = sddProviderConfigPath(projectCwd);
-  if (fs.existsSync(configPath)) {
-    const resolved = resolveSddProvider({ manifest: null }, projectCwd);
-    return resolved.error
-      ? `knowledge/sdd-provider.json is invalid (${resolved.error}) — falling back, see aief doctor.`
-      : `${resolved.provider.PROVIDER_ID} (from knowledge/sdd-provider.json, already configured — never overwritten)`;
-  }
-  const openspecAvailable = getProvider("openspec").detect(projectCwd).available;
-  const ambiguous = openspecAvailable && specbootMarker;
-  if (ambiguous && process.stdin.isTTY) {
-    const answer = promptSync('Both OpenSpec and SpecBoot were detected. Which SDD Provider should AIEF use for this project — "openspec" or "local"? [openspec]: ').toLowerCase();
-    const choice = answer === "local" ? "local" : "openspec";
-    writeFile(configPath, `${JSON.stringify({ provider: choice, setBy: "bootstrap", date: new Date().toISOString().slice(0, 10) }, null, 2)}\n`);
-    return `${choice} (your choice — saved to knowledge/sdd-provider.json)`;
-  }
-  const resolved = resolveSddProvider({ manifest: null }, projectCwd);
-  const reason = ambiguous ? "non-interactive shell, using the deterministic default" : resolved.source === "detected" ? "OpenSpec detected" : "default";
-  return `${resolved.provider.PROVIDER_ID} (${reason})`;
-}
 // `aief bootstrap` (current directory) replaces `init`/`adopt` (Change
-// 0052). It creates only visible structure via runAdoption(), reports how
-// AIEF fits with OpenSpec and SpecBoot, resolves the SDD Provider (R4), and
-// ends with one recommended next command.
+// 0052). It creates only visible structure via runAdoption() and ends with
+// one recommended next command.
 // True if `startDir` has an ancestor (strictly above it, never itself)
 // whose own AGENTS.md and changes/ coexist — the same two markers
 // bootstrap's own "Detected:" section already checks for this directory.
@@ -253,19 +223,10 @@ function bootstrapHere(opts = {}) {
       return;
     }
   }
-  const openspecCli = commandExists("openspec") || commandExists("opsx");
-  const openspecProject = exists("openspec") || exists(".openspec");
-  const specboot = commandExists("specboot") || exists("specboot") || exists(".specboot");
   console.log("Detected:");
   console.log(exists("AGENTS.md") ? "✓ AGENTS.md" : "○ AGENTS.md: not present (will be created)");
   console.log(exists("changes") ? "✓ changes/" : "○ changes/: not present (will be created)");
-  console.log(openspecCli ? "✓ OpenSpec CLI" : "○ OpenSpec CLI: not detected");
-  console.log(openspecProject ? "✓ OpenSpec project structure (openspec/)" : "○ OpenSpec project structure: not detected");
-  console.log(specboot ? "✓ SpecBoot" : "○ SpecBoot: not detected");
   const artifacts = runAdoption();
-  const sddMessage = configureSddProvider(specboot);
-  console.log("\nSDD Provider:");
-  console.log(`  ${sddMessage}`);
   console.log(`\n${"─".repeat(60)}`);
   console.log(artifacts.length
     ? `Bootstrap complete — created ${artifacts.length} new artifact(s) (see above).`
@@ -274,15 +235,11 @@ function bootstrapHere(opts = {}) {
   if (guided) return;
   console.log("\nNext steps:");
   console.log("  1. Run: aief doctor");
-  console.log("  2. Install OpenSpec if missing: npm install -g @fission-ai/openspec@latest");
-  console.log("  3. Initialize OpenSpec if needed: openspec init");
-  if (specboot) console.log("  4. SpecBoot detected — see adapters/specboot/README.md (deeper LIDR integration is a following AIEF 3.1 Change).");
-  console.log(`  ${specboot ? "5" : "4"}. Create your first AIEF change: aief new-change <name>`);
+  console.log("  2. Create your first AIEF change: aief new-change <name>");
 }
 // Line-buffered stdin reader for --interactive's (possibly multi-question)
-// flow. Unlike promptSync() (a single blocking read, used only for
-// configureSddProvider()'s ambiguous-provider case, where stdin is always a
-// real, canonical-mode TTY and exactly one line is ever needed), --interactive
+// flow. Unlike promptSync() (a single blocking read for a real TTY, where
+// exactly one line is ever needed), --interactive
 // has no isTTY gate and may run over piped/automated stdin (Change 0068's own
 // test suite) — where a single read() can return several newline-terminated
 // answers at once. This buffers any bytes read past the first newline so a

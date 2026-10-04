@@ -81,7 +81,7 @@ Neither one touched `src/`, `test/`, `package.json`, or `.github/workflows/`.
 
 ## A full worked walkthrough
 
-Starting from an idea, using the standard (no-OpenSpec) path:
+Starting from an idea:
 
 ```bash
 aief new-change add-rate-limiting
@@ -115,32 +115,26 @@ aief close --yes --change 0007-add-rate-limiting
 ✓ Closed changes/0007-add-rate-limiting.
 ```
 
-## A worked example with a `track`
+## A worked example with a dependency
 
-Add `manifest.json` to opt a Change into the Workflow Engine:
-
-```json
-{
-  "schema": "aief.change/v1",
-  "id": "0007-add-rate-limiting",
-  "slug": "add-rate-limiting",
-  "title": "Add rate limiting",
-  "status": "open",
-  "track": "standard"
-}
+```bash
+aief new-change add-rate-limit-dashboard --depends-on 0007
 ```
-
-Now `aief status --change 0007-add-rate-limiting` narrates stage and gates:
-
 ```text
-Track: standard
-Stage: verify
-Blockers:
-  - readiness: pending — evidence.md is still a placeholder
+Created Change: changes/0008-add-rate-limit-dashboard
 ```
 
-Once evidence is real and `aief verify` passes, the same command reports stage `review`, then
-`close`, matching `standard.json`'s stage sequence (see [Configuration](configuration.md)).
+`change.md` now carries:
+
+```markdown
+## Depends on
+
+- 0007-add-rate-limiting
+```
+
+`aief status --graph` shows the edge `0008-add-rate-limit-dashboard -> 0007-add-rate-limiting`, and
+`aief status --next` recommends `0007` first. Closing `0008` while `0007` is open prints
+`! depends on 0007-add-rate-limiting, which is still open` and closes anyway.
 
 ## A worked example starting from a ticket
 
@@ -148,24 +142,12 @@ Once evidence is real and `aief verify` passes, the same command reports stage `
 aief enrich manual TICKET-42
 ```
 ```text
-Created Change: changes/0008-manual-ticket-42/
+Created Change: changes/0009-manual-ticket-42/
 Source: manual:TICKET-42 (read-only; nothing was written back to manual).
 
 This Change requires human review before any implementation.
 ```
 
 Fill in `spec.md`'s Normalized Requirement and answer its Open Questions, check off the Human
-Review tasks in `tasks.md`, then continue with `aief propose --change 0008-manual-ticket-42` or
+Review tasks in `tasks.md`, then continue with `aief propose --change 0009-manual-ticket-42` or
 straight to `aief prompt`.
-
-## Requirement Verification
-
-```bash
-aief verify --change 0007-add-rate-limiting --requirements
-```
-```text
-Requirement Verification: INCOMPLETE
-  R1 — requirement-has-traceability: failed — not cited in verification.md
-```
-
-See [Workflow — Verification](workflow.md#verification) for what each aggregate status means.

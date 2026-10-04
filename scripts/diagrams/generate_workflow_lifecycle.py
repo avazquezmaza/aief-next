@@ -37,7 +37,7 @@ LEVELS = [
         "Level 2 — Assistant implementation",
         "violet",
         [
-            ("AI assistant (any)", ["Implements from the pasted prompt.", "OpenSpec is an optional structuring path."]),
+            ("AI assistant (any)", ["Implements from the pasted prompt,", "within the Change's scope."]),
             ("Write evidence.md", ["Records what was actually done and", "verified — not a template."]),
         ],
     ),
@@ -45,7 +45,7 @@ LEVELS = [
         "Level 3 — Verification & closing",
         "green",
         [
-            ("aief verify", ["Structural check, optional requirement", "check. Never AI-judged."]),
+            ("aief verify", ["Structural and approval checks.", "Never AI-judged."]),
             ("aief close --yes", ["Marks the Change Closed once ready."]),
             ("status --graph / --next", ["Read-only graph view; recommends one", "Change — never executes it."]),
         ],
@@ -159,10 +159,10 @@ def build():
     # Observation & feedback band.
     band_y = COL_Y + col_h + 70
     band_h = 96
-    body.append(group_box(40, band_y, WIDTH - 80, band_h, "Harness / Hooks / Loop — observation & feedback, never executors or gates", "amber"))
+    body.append(group_box(40, band_y, WIDTH - 80, band_h, "Hooks and dependencies — observation only, never executors or gates", "amber"))
     caps = [
-        ("Harness / Hooks", "Append visible, non-blocking notes to prompt/verify output."),
-        ("Loop", "Tracks verify attempts in loop.md; retry is always a manual re-run."),
+        ("Hooks", "Append visible, non-blocking notes to prompt/verify output."),
+        ("Depends on", "close warns while a dependency is open; it never blocks."),
     ]
     cx = 60
     for label, desc in caps:
@@ -191,12 +191,12 @@ def generate(svg_path=SVG_PATH):
         "AIEF Change lifecycle",
         "wl-desc",
         "Three levels: Level 1, Context and Change preparation (doctor, bootstrap, "
-        "analyze/new-change/enrich, prompt); Level 2, Assistant implementation (any AI assistant, "
-        "optionally structured by OpenSpec, writes evidence.md); Level 3, Verification and closing "
+        "analyze/new-change/enrich, prompt); Level 2, Assistant implementation (any AI assistant "
+        "writes evidence.md); Level 3, Verification and closing "
         "(verify, close --yes, status --graph/--next). A failed verify is fixed and re-prompted "
         "manually, never automatically. status --next only recommends the following Change. "
-        "Harness, Hooks, and Loop are opt-in observation and feedback capabilities that append "
-        "notes and track retry counts — none of them executes a command or blocks verify or close.",
+        "Hooks append non-blocking notes, and close warns about open dependencies — neither "
+        "executes a command or blocks verify or close.",
         body,
     )
     write_svg(svg_path, svg)

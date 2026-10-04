@@ -15,12 +15,12 @@ SVG_PATH = "docs/images/graph-engineering.svg"
 PNG_PATH = "docs/images/graph-engineering.png"
 
 PIPELINE = [
-    ("Change manifests\n(dependsOn)", "gray"),
+    ("change.md\n(## Depends on)", "gray"),
     ("Graph builder", "blue"),
     ("Validation", "red"),
     ("Deterministic\ntopological order", "blue"),
     ("Eligibility\nevaluation", "amber"),
-    ("Smart Workflow", "green"),
+    ("Next-Change\nselection", "green"),
     ("status --graph\nstatus --next", "green"),
 ]
 
@@ -83,7 +83,7 @@ def build():
     elig_w = CARD_W + 90
     body.append(arrow(xs[4] + CARD_W / 2, PIPE_Y + CARD_H, xs[4] + CARD_W / 2, branch_y, color="amber"))
     body.append(group_box(elig_x, branch_y, elig_w, branch_h, "Eligibility needs", "amber"))
-    for i, factor in enumerate(["open (not closed)", "dependencies completed", "no workflow blocker", "deterministic order"]):
+    for i, factor in enumerate(["open (not closed)", "dependencies completed", "no graph issue", "deterministic order"]):
         body.append(
             '  <text x="{x}" y="{y}" font-size="11" fill="#92400e">- {t}</text>'.format(
                 x=elig_x + 16, y=branch_y + 44 + i * 20, t=xml_escape(factor)
@@ -137,10 +137,10 @@ def build():
     # Clarifications.
     notes_y = ex_y + ex_h + 34
     notes = [
-        "Only an explicit dependsOn entry creates an edge — the Graph never infers one.",
+        "Only an explicit ## Depends on entry creates an edge — the Graph never infers one.",
         "Zero declared edges means every open Change is independent and immediately eligible.",
-        "The Graph is rebuilt from changes/*/manifest.json on every command — nothing is persisted separately.",
-        "The Graph never writes a Change or a manifest — building it has no side effects.",
+        "The Graph is rebuilt from changes/*/change.md on every command — nothing is persisted separately.",
+        "The Graph never writes a Change — building it has no side effects.",
         "status --graph is read-only; status --next recommends one Change by id and never executes it.",
     ]
     for i, n in enumerate(notes):
@@ -158,12 +158,12 @@ def main():
         "ge-title",
         "AIEF Graph Engineering",
         "ge-desc",
-        "Change manifests declaring dependsOn feed a Graph builder, which validates (missing, "
+        "change.md files declaring ## Depends on feed a Graph builder, which validates (missing, "
         "duplicate, or self dependencies, and cycles) and computes a deterministic topological "
-        "order; eligibility evaluation combines that with open/closed state and Workflow blockers "
-        "to feed Smart Workflow, surfaced by status --graph and status --next. Example: Change B "
+        "order; eligibility evaluation combines that with open/closed state to feed next-Change "
+        "selection, surfaced by status --graph and status --next. Example: Change B "
         "depends on Change A — while A is open, A is eligible and B waits; once A is closed, B "
-        "becomes eligible. Only explicit dependsOn entries create edges, the Graph is rebuilt from "
+        "becomes eligible. Only explicit Depends on entries create edges, the Graph is rebuilt from "
         "disk on every command with no separate persisted state, it never modifies a Change, "
         "status --graph is read-only, and status --next only recommends — it never executes a "
         "Change.",

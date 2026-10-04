@@ -39,3 +39,9 @@ export function aiefWithInput(cwd, args, input, env = {}) {
   });
   return { status: result.status, out: `${result.stdout}${result.stderr}` };
 }
+
+// Declares dependencies the AIEF 4.0 way (ADR-038): a `## Depends on`
+// section appended to the Change's own change.md.
+export function declareDependsOn(changeDir, ids) {
+  fs.appendFileSync(path.join(changeDir, "change.md"), `\n## Depends on\n\n${ids.map((id) => `- ${id}`).join("\n")}\n`);
+}

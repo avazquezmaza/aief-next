@@ -205,6 +205,15 @@ Released by Change 0153.
 - [0152](0152-repo-cleanup-and-history-index/) repo cleanup and history index
 - [0153](0153-aief-3-5-0-release/) aief 3 5 0 release
 
-## Unreleased (after 3.5.0) — 0154+
+## 4.0.0 — 0154–0157
+
+Released by Change 0157.
+
+- [0154](0154-pre-release-simplification/) pre release simplification
+- [0155](0155-detection-and-spec-approvals/) detection and spec approvals
+- [0156](0156-define-4-0-simplification/) define 4 0 simplification
+- [0157](0157-implement-4-0-simplification/) implement 4 0 simplification
+
+## Unreleased (after 4.0.0) — 0158+
 
 Merged on `main`, not yet in a tagged release. None yet.

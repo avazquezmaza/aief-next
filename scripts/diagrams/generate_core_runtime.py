@@ -25,15 +25,15 @@ LAYERS = [
     (
         "Application Services",
         "blue",
-        ["discovery", "Change lifecycle", "prompt composition", "verification", "workflow", "graph and next"],
+        ["discovery", "Change lifecycle", "prompt composition", "verification", "next action", "graph and next"],
     ),
-    ("Domain Models", "violet", ["Change", "Manifest", "Requirement", "Skill", "Hook", "Graph"]),
+    ("Domain Models", "violet", ["Change", "Requirement", "Skill", "Hook", "Graph"]),
     (
         "Registries and Providers",
         "amber",
-        ["workflow tracks", "skills", "standards", "hooks", "verification rules", "requirement providers", "SDD providers"],
+        ["skills", "standards", "hooks", "requirement providers"],
     ),
-    ("Repository Files", "green", ["AGENTS.md", "changes/", "knowledge/", "ai-specs/", "evidence"]),
+    ("Repository Files", "green", ["AGENTS.md", "changes/", "knowledge/", "evidence"]),
 ]
 
 
@@ -109,11 +109,10 @@ def main():
         "cr-desc",
         "Five layers, top to bottom: CLI Commands (doctor, bootstrap, prompt, verify, status, "
         "close) call Application Services (discovery, Change lifecycle, prompt composition, "
-        "verification, workflow, graph and next), which use Domain Models (Change, Manifest, "
-        "Requirement, Skill, Hook, Graph) and Registries and Providers (workflow tracks, skills, "
-        "standards, hooks, verification rules, requirement providers, SDD providers), all of which "
-        "ultimately read and write Repository Files (AGENTS.md, changes/, knowledge/, ai-specs/, "
-        "evidence).",
+        "verification, next action, graph and next), which use Domain Models (Change, "
+        "Requirement, Skill, Hook, Graph) and Registries and Providers (skills, standards, hooks, "
+        "requirement providers), all of which ultimately read and write Repository Files "
+        "(AGENTS.md, changes/, knowledge/, evidence).",
         body,
     )
     write_svg(SVG_PATH, svg)

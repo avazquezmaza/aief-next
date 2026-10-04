@@ -90,16 +90,6 @@ test("appliesTo: applicable to a Definition Change with an architecture-relevant
   assert.deepEqual(appliesTo(context), { applicable: true });
 });
 
-test("appliesTo: a manifest-carrying Change (type is always \"\") is never applicable, even with architecture keywords", () => {
-  const dir = makeChangeDir({
-    ...OTHER_FILES,
-    "change.md": ARCHITECTURE_RELEVANT,
-    "manifest.json": JSON.stringify({ schema: "aief.change/v1", id: "0001", slug: "b2b-saas", title: "x", status: "open", track: "lite" })
-  });
-  const context = buildSkillContext(dir, dir);
-  assert.equal(appliesTo(context).applicable, false);
-});
-
 // Change 0092 (Scenario B) regression: a real architecture contradiction —
 // "each customer must have completely isolated data" vs. "all customers
 // share one schema" — previously matched none of the keywords and produced

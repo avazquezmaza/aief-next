@@ -20,10 +20,9 @@ Prefer not to link a global command? Run it directly: `node cli/bin/aief.js <com
 
 - **Linux, macOS** — fully supported, no caveats. The CLI is POSIX-generic (`path.join`
   throughout, no OS-specific branching needed) and every external tool `aief doctor` checks for
-  (git, npm, OpenSpec, SpecBoot, assistant CLIs) is detected the same way on both.
-- **Windows** — the code has `win32`-specific branches (`cli/src/cli.js`,
-  `cli/src/sdd-providers/openspec.js`: `where` instead of `which`, `shell: true` for spawned
-  processes), but native Windows is not verified end-to-end (no CI runner, no dogfooding evidence).
+  (git, npm, build tools, assistant CLIs) is detected the same way on both.
+- **Windows** — the code has `win32`-specific branches (`cli/src/process-utils.js`: `where`
+  instead of `which`, `shell: true` for spawned processes), but native Windows is not verified end-to-end (no CI runner, no dogfooding evidence).
   **WSL2** is the recommended path today — inside it, `aief` runs exactly as it does on Linux.
 
 ## Check your environment
@@ -32,8 +31,8 @@ Prefer not to link a global command? Run it directly: `node cli/bin/aief.js <com
 aief doctor
 ```
 
-Reports required tools (Node, npm, git), recommended tools (OpenSpec, SpecBoot — both optional),
-and your current project's AIEF readiness. Writes nothing.
+Reports required tools (Node, npm, git), optional tools, and your current project's AIEF
+readiness. Writes nothing.
 
 ## Bootstrap a project
 
@@ -46,10 +45,8 @@ aief analyze     # create an Analysis Change, seeded with everything doctor dete
 ```
 
 `aief bootstrap` creates `AGENTS.md` if missing, `changes/`, `knowledge/` with starter standards
-matched to your stack, and an adoption Change. It also resolves which SDD Provider (OpenSpec or
-local) to use — it only asks when that choice is genuinely ambiguous (both OpenSpec and SpecBoot
-detected); otherwise it decides and reports silently. It is idempotent and never overwrites an
-existing file.
+matched to your stack, and an adoption Change. It is idempotent and never overwrites an existing
+file.
 
 After adoption you'll typically have two open Changes (`adopt-aief` and the Analysis) — that's
 expected. With more than one Change open, commands that act on one require an explicit
@@ -108,16 +105,14 @@ names the ancestor's path — pass `--force` if a nested structure is genuinely 
 command reports "no AIEF project detected" somewhere you expected one, check you're at the actual
 root before assuming something else is wrong.
 
-**What does `doctor` inspect?** Your local toolchain (Node, npm, git, and optional tools like
-OpenSpec/SpecBoot) plus the current project's files — `package.json`, `README.md`, `AGENTS.md`,
-`changes/`, `knowledge/`, `profiles/`, `adapters/`, `ai-specs/`. It never writes anything, in this
+**What does `doctor` inspect?** Your local toolchain (Node, npm, git, and optional build and
+assistant tools) plus the current project's files — `package.json`, `README.md`, `AGENTS.md`,
+`changes/`, `knowledge/`, `profiles/`. It never writes anything, in this
 project or any other.
 
 **What does `bootstrap` create?** `AGENTS.md` (only if missing), `changes/`, `knowledge/`,
 `profiles/`, `knowledge/standards/` starter standards matched to your detected stack,
-`knowledge/skills.md`, and one Adoption Change (`changes/<id>-adopt-aief/`). It also writes
-`knowledge/sdd-provider.json`, but only when the SDD Provider choice is genuinely ambiguous and
-you're prompted for it interactively. It generates no CI configuration — to run `aief verify` in
+`knowledge/skills.md`, and one Adoption Change (`changes/<id>-adopt-aief/`). It generates no CI configuration — to run `aief verify` in
 your CI, see [Configuration — CI gate](configuration.md#ci-gate).
 
 **What does `bootstrap` preserve?** Everything else — application source, tests, package files, CI
@@ -150,10 +145,8 @@ as-is (created only if missing); files inside them are individually checked — 
 template, and an existing `changes/*-adopt-aief/` means bootstrap is idempotent and reports nothing
 new to create.
 
-**What happens when OpenSpec or SpecBoot is already present?** Both are detected but not modified.
-`bootstrap` reports what it found (OpenSpec CLI/project structure, SpecBoot markers) and resolves
-the SDD Provider accordingly — asking only when both are present and the choice is ambiguous.
-Neither tool's own files are ever written or changed by AIEF.
+**What happens when OpenSpec or SpecBoot is already present?** Nothing: AIEF 4.0 does not
+integrate with either (ADR-038), and never writes or changes their files.
 
 **Does AIEF modify application code?** No. No command under `bootstrap`, `analyze`, `doctor`, or
 `verify` writes to source, test, or build files — read only there, in every case.
@@ -182,10 +175,10 @@ other local change.
 | `AGENTS.md` | created only when missing |
 | `changes/` | created only when missing; reused |
 | `knowledge/` | created only when missing; reused |
-| `ai-specs/` | detected but not modified |
+| `ai-specs/` | not read |
 | `CLAUDE.md` / `GEMINI.md` / `CODEX.md` / `CURSOR.md` | not created by bootstrap |
-| OpenSpec (`openspec/`, CLI) | detected but not modified |
-| SpecBoot | detected but not modified |
+| OpenSpec (`openspec/`, CLI) | not read |
+| SpecBoot | not read |
 
 ## Your first Change
 
@@ -328,7 +321,7 @@ state:
 
 ## Next
 
-- [Concepts](concepts.md) — the vocabulary (Change, Track, Gate, Skill, Hook, Verification Rule).
-- [Workflow](workflow.md) — the full lifecycle, tracks, and verification model.
+- [Concepts](concepts.md) — the vocabulary (Change, approvals, Skill, Hook, Graph).
+- [Workflow](workflow.md) — the full lifecycle, dependencies, and verification model.
 - [CLI Reference](cli.md) — every command and flag.
 - [Examples](examples.md) — a worked example project.
