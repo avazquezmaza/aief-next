@@ -3,25 +3,17 @@
 // NOT call renderReport()/runVerifyCompletedHooks() (an assumption from
 // earlier in this modularization effort, corrected after re-reading the
 // real code) — only verify() itself uses them.
-import fs from "node:fs";
 import path from "node:path";
 import { loadChange } from "../core/domain/change.js";
-import { loadChangeUnified } from "../core/domain/change-loader.js";
-import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 import { detectDuplicateChangeIds } from "../core/domain/change-id-collisions.js";
 import { buildResultEnvelope } from "../core/domain/result-envelope.js";
 import { verifyProject, verifyChange } from "../core/services/change-verifier.js";
-import { explain as explainWorkflow } from "../core/services/workflow-service.js";
 import { detectProject } from "../detect.js";
 import { buildEvent, buildHookContext } from "../core/services/hook-context.js";
-import { evaluateEvent } from "../core/services/hook-service.js";
-import { resolveHarnessConfig, partitionOutcome, describeFailingHooks } from "../core/services/harness-service.js";
-import { resolveLoopConfig, countPreviousAttempts, decideLoopOutcome, formatLoopSummary, formatLoopLogEntry } from "../core/services/loop-service.js";
-import { buildVerificationContext } from "../core/services/verification-context.js";
-import { evaluateRequirements, aggregateVerificationResult } from "../core/services/verification-service.js";
+import { evaluateEvent, describeFailingHooks } from "../core/services/hook-service.js";
 import {
-  cwd, exists, read, writeFile, getChangeDirs, buildProjectGraph,
-  resolveExplicitChange, printNext, parseArgs, section, appendHookLog
+  exists, getChangeDirs, buildProjectGraph,
+  resolveExplicitChange, printNext, parseArgs, section
 } from "./shared.js";
 
 export function renderReport(report) {
@@ -35,67 +27,33 @@ export function renderReport(report) {
   printNext(...report.next);
 }
 // Entrega 6 (Change 0048, ADR-020) — emits `verify.completed` after
-// renderReport() has already printed PASS/FAIL and set the exit code
-// (HK-R48: a Hook result can never influence either, so it never runs
-// before both are already decided). `changeDir` is null for the
-// whole-project verify — the Post-Verify Next Action Hook has no single
-// Change to recommend a next action for and reports `not_applicable`, so no
-// Workflow/SDD lookup is performed for that path at all (no explain() call
-// unless a Change was actually targeted). Strictly additive; silent when no
-// Hook matches with real content.
-export function runVerifyCompletedHooks(changeDir, report, inspection) {
+// renderReport() has already printed PASS/FAIL and set the exit code, so a
+// Hook result can never influence either. `change` is null for the
+// whole-project verify; the Post-Verify Next Action Hook then reports
+// `not_applicable`. Silent when no Hook matches with real content.
+export function runVerifyCompletedHooks(changeDir, report, change) {
   const event = buildEvent("verify.completed", "verify");
-  const { change, workflow, sdd } = inspection;
   const context = buildHookContext(event, {
-    project: detectProject(), change, workflow, sdd,
+    project: detectProject(), change,
     operation: { input: { changeId: changeDir ? path.basename(changeDir) : null }, result: report }
   });
-  const outcome = evaluateEvent(event, context);
-  // Change 0056/ADR-026: same disabled-filtering/logging treatment prompt()
-  // gives prompt.prepared — a whole-project verify (changeDir null) has no
-  // Change to read manifest.harness from, so this resolves to configured:
-  // false and behaves exactly as before (no filtering, no log).
-  const harnessConfig = resolveHarnessConfig(change?.manifest);
-  const { active } = partitionOutcome(outcome, harnessConfig);
-  const lines = active.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
+  const { results } = evaluateEvent(event, context);
+  const lines = results.filter((r) => r.status === "matched" && r.instructions.length).flatMap((r) => r.instructions);
   if (lines.length) {
     console.log("\nHook recommendation:");
     for (const l of lines) console.log(`- ${l}`);
   }
-  // Previously silently dropped (spec.md R7) — a failed/invalid Hook is now
-  // visible here too, same framing renderHookResults() uses for prompt.
-  const failing = describeFailingHooks(active);
+  const failing = describeFailingHooks(results);
   if (failing.length) {
     console.log("\nHook issues (non-blocking — verify's own PASS/FAIL is unaffected):");
     for (const line of failing) console.log(`- ${line}`);
   }
-  if (harnessConfig.log && changeDir) appendHookLog(changeDir, { operation: "verify", event: outcome.event, entries: active, passed: report.passed });
-}
-// Loop (Change 0057/ADR-027) — Verify -> Feedback -> Retry (if applicable)
-// -> Final result. Only ever called for a single targeted Change
-// (`aief verify --change <id>`); whole-project verify has no manifest to
-// read Loop config from, so it is never touched. `report.errors` (already
-// computed, already printed by renderReport()) is reused as Feedback —
-// nothing new is derived. Never re-invokes verify, a Hook, or anything else
-// — "retry" is reported as available, never performed.
-function runLoop(changeDir, change, report) {
-  const loopConfig = resolveLoopConfig(change?.manifest);
-  if (!loopConfig.configured) return;
-  const logPath = path.join(changeDir, "loop.md");
-  const already = fs.existsSync(logPath);
-  const attempt = countPreviousAttempts(already ? read(logPath) : "") + 1;
-  const outcome = decideLoopOutcome({ attempt, maxRetries: loopConfig.maxRetries, passed: report.passed });
-  const changeId = path.basename(changeDir);
-  console.log(formatLoopSummary(outcome, changeId));
-  const header = "# Loop Log\n\nVisible, append-only record of `aief verify` attempts for this Change (Change 0057, ADR-027). Feedback lines are Structural Verification's own error messages, reused as-is — nothing else is recorded, and nothing here ever re-runs verify automatically.\n";
-  const entry = formatLoopLogEntry({ timestamp: new Date().toISOString(), outcome, feedback: report.errors });
-  writeFile(logPath, `${already ? read(logPath) : header}\n${entry}`, true);
 }
 // Change 0058/ADR-028 — a small, non-blocking dependency-issue note for the
 // Change `aief verify --change <id>` targeted: printed only when the Graph
 // has an issue naming this Change (as source, or as a cycle member) — never
 // touches report.passed or the exit code (both already decided before this
-// runs). Silent for every Change today (none declares dependsOn).
+// runs).
 function runGraphCheck(changeDir) {
   const changeId = path.basename(changeDir);
   const graph = buildProjectGraph();
@@ -104,45 +62,12 @@ function runGraphCheck(changeDir) {
   console.log("\nDependency Graph issues for this Change (non-blocking):");
   for (const issue of relevant) console.log(`- ${issue.type}: ${issue.detail}`);
 }
-// Change 0095 — a non-blocking note when the targeted Change's manifest.status
-// disagrees with its own change.md ## Status declaration (the documented gap:
-// no command writes/synchronizes manifest.status). Mirrors runGraphCheck()'s
-// own shape: never touches report.passed or the exit code, silent for every
-// Change today (none carries a manifest.json yet).
-function runManifestStatusDriftCheck(change) {
-  const drift = detectManifestStatusDrift(change);
-  if (!drift.drift) return;
-  console.log("\nManifest status disagreement for this Change (non-blocking):");
-  console.log(`- manifest.status says "${drift.manifestStatus}", change.md's own ## Status says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
-}
-// Entrega 7 (Change 0049, ADR-021) — `--requirements` is the one new,
-// opt-in flag: Structural Verification (renderReport, above) always runs
-// first, unchanged; this function only ever ADDS a section after it, never
-// replacing or reordering anything legacy (VR-R43). `inspection` is the
-// SAME `explainWorkflow()` result the caller already computed once (and
-// already handed to runVerifyCompletedHooks) — buildVerificationContext()
-// never calls explain() itself, so a `--change ... --requirements`
-// invocation performs exactly one explain() call total, not two
-// (VR-R21/R24/R45).
-function runRequirementVerification(changeDir, report, inspection) {
-  const context = buildVerificationContext(inspection, changeDir, cwd(), { input: { changeId: path.basename(changeDir) }, result: report });
-  const { requirementResults } = evaluateRequirements(context);
-  const overall = aggregateVerificationResult(report.passed, requirementResults);
-  console.log(`\nRequirement Verification: ${overall}`);
-  if (!requirementResults.length) {
-    console.log("  No requirements declared for this Change (no sdd.requirements).");
+// ADR-038: AIEF 4.0 no longer reads manifest.json. A leftover one is named,
+// never an error, so its author knows it has no effect.
+function printLegacyManifests(changes) {
+  for (const change of changes.filter((c) => c.hasLegacyManifest)) {
+    console.log(`! ${change.basename}: manifest.json is no longer read (AIEF 4.0, ADR-038)`);
   }
-  for (const { requirement, ruleResults } of requirementResults) {
-    for (const rr of ruleResults) {
-      if (rr.status === "not_applicable") continue; // quiet — never render arrays/rows with nothing to say
-      console.log(`  ${requirement.id} — ${rr.rule}: ${rr.status} — ${rr.summary}`);
-    }
-  }
-  // Exit code derives exclusively from the aggregated status (VR-R44) — no
-  // individual rule result can set it directly; PASS/INCOMPLETE are exit 0
-  // (an honest, actionable answer, mirroring Normalized Action's own
-  // blocked/pending precedent, ADR-018 §3), FAIL/INVALID/ERROR are exit 1.
-  if (overall === "FAIL" || overall === "INVALID" || overall === "ERROR") process.exitCode = 1;
 }
 export function verify(args = []) {
   const parsed = parseArgs("verify", args);
@@ -150,10 +75,8 @@ export function verify(args = []) {
   // Change 0138: `--json` replaces every other line of output with exactly
   // one JSON object on stdout (a versioned envelope, result-envelope.js) —
   // for a script/CI consumer, not a human. Everything below this check
-  // (section header, Hooks, Loop, Requirement Verification) is
-  // human-facing narration this Change deliberately does not fold into
-  // the envelope yet — no observed consumer need for it, per this
-  // project's own "no speculative capability" discipline (ADR-008/013).
+  // (section header, Hooks) is human-facing narration, deliberately not
+  // folded into the envelope — no observed consumer need for it (ADR-008/013).
   const wantsJson = Boolean(parsed.json);
   if (!wantsJson) {
     section("AIEF Verify");
@@ -167,35 +90,28 @@ export function verify(args = []) {
       if (wantsJson) { console.log(JSON.stringify(buildResultEnvelope({ operation: "verify", change: parsed.change, result: "ERROR", errors: [`no Change found matching "${parsed.change}"`] }))); process.exitCode = 1; return; }
       printNext("aief status (list open Changes)"); return;
     }
-    const report = verifyChange(loadChange(changeDir), process.cwd(), Boolean(parsed.strict));
+    const change = loadChange(changeDir);
+    const report = verifyChange(change, process.cwd(), Boolean(parsed.strict));
     if (wantsJson) {
       const changeId = path.basename(changeDir);
       const graph = buildProjectGraph();
       const graphIssues = graph.issues.filter((issue) => issue.changeId === changeId || (issue.members && issue.members.includes(changeId)));
-      const drift = detectManifestStatusDrift(loadChangeUnified(changeDir));
       const envelope = buildResultEnvelope({
         operation: "verify",
         change: changeId,
         result: report.passed ? "PASS" : "FAIL",
         errors: report.errors,
         warnings: report.warnings,
-        graphIssues,
-        manifestStatusDrift: drift.drift ? { manifestStatus: drift.manifestStatus, changeMdStatus: drift.changeMdStatus } : null
+        graphIssues
       });
       console.log(JSON.stringify(envelope, null, 2));
       if (!report.passed) process.exitCode = 1;
       return;
     }
     renderReport(report);
-    // Computed exactly once per invocation, shared by the Hook and (if
-    // requested) Requirement Verification — never a second explain() call
-    // (VR-R21/R24/R45).
-    const inspection = explainWorkflow(changeDir, cwd());
-    runVerifyCompletedHooks(changeDir, report, inspection);
-    if (parsed.requirements) runRequirementVerification(changeDir, report, inspection);
-    runLoop(changeDir, inspection.change, report);
+    printLegacyManifests([change]);
+    runVerifyCompletedHooks(changeDir, report, change);
     runGraphCheck(changeDir);
-    runManifestStatusDriftCheck(inspection.change);
     return;
   }
   const changes = getChangeDirs().map(loadChange);
@@ -209,10 +125,6 @@ export function verify(args = []) {
     strict: Boolean(parsed.strict)
   });
   if (wantsJson) {
-    const drifting = getChangeDirs().map(loadChangeUnified).filter((c) => detectManifestStatusDrift(c).drift).map((c) => {
-      const drift = detectManifestStatusDrift(c);
-      return { change: c.basename, manifestStatus: drift.manifestStatus, changeMdStatus: drift.changeMdStatus };
-    });
     const idCollisions = detectDuplicateChangeIds(getChangeDirs().map((dir) => path.basename(dir)));
     const envelope = buildResultEnvelope({
       operation: "verify",
@@ -220,7 +132,6 @@ export function verify(args = []) {
       result: report.passed ? "PASS" : "FAIL",
       errors: report.errors,
       warnings: report.warnings,
-      manifestStatusDrift: drifting,
       duplicateChangeIds: idCollisions
     });
     console.log(JSON.stringify(envelope, null, 2));
@@ -228,21 +139,10 @@ export function verify(args = []) {
     return;
   }
   renderReport(report);
-  // Change 0095 — same non-blocking drift note as the --change path, scanned
-  // across every Change while whole-project verify already iterates them.
-  // Never affects report.passed/exit code (both already decided above).
-  const drifting = getChangeDirs().map(loadChangeUnified).filter((c) => detectManifestStatusDrift(c).drift);
-  if (drifting.length) {
-    console.log("\nChanges with a manifest.status disagreement (non-blocking):");
-    for (const c of drifting) {
-      const drift = detectManifestStatusDrift(c);
-      console.log(`- ${c.basename}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
-    }
-  }
-  // Change 0135 (external-audit finding C0130-F2): same non-blocking,
-  // detection-only posture as the drift note above — a numeric-id
-  // collision is a repository fact, never a reason to fail verify's exit
-  // code or refuse a Change that's otherwise structurally fine.
+  printLegacyManifests(changes);
+  // Change 0135 (external-audit finding C0130-F2): non-blocking,
+  // detection-only — a numeric-id collision is a repository fact, never a
+  // reason to fail verify's exit code.
   const idCollisions = detectDuplicateChangeIds(getChangeDirs().map((dir) => path.basename(dir)));
   if (idCollisions.length) {
     console.log("\nChanges sharing a numeric ID (non-blocking):");
@@ -250,11 +150,5 @@ export function verify(args = []) {
       console.log(`- ${id}: ${basenames.join(", ")} — a bare "--change ${id}" reference is ambiguous; use the full basename.`);
     }
   }
-  runVerifyCompletedHooks(null, report, { change: null, workflow: null, sdd: null });
-  // Requirement Verification is Change-scoped (requirements come from one
-  // Change's own SDD provider) — whole-project `aief verify --requirements`
-  // (no `--change`) cannot silently redefine which structural check ran
-  // (verifyProject() above is untouched either way), so it names the gap
-  // instead of guessing a Change to target.
-  if (parsed.requirements) console.log("\nRequirement Verification: skipped — pass --change <id> to select one Change.");
+  runVerifyCompletedHooks(null, report, null);
 }

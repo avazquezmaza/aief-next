@@ -12,16 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs as nodeParseArgs } from "node:util";
-import { changeTypeFromContent, matchChanges, isEvidencePlaceholderContent } from "../core/domain/change.js";
-import { loadChangeUnified } from "../core/domain/change-loader.js";
-import { loadWorkflowDefinition, KNOWN_TRACKS } from "../core/domain/workflow-definition.js";
-import { evaluateGates } from "../core/services/gate-evaluator.js";
-import { resolveState } from "../core/services/transition-engine.js";
-import { resolveSddProvider } from "../core/domain/sdd-provider-resolver.js";
-import { deriveResourceDescription } from "../core/domain/ai-specs.js";
+import { changeTypeFromContent, matchChanges, isEvidencePlaceholderContent, loadChange } from "../core/domain/change.js";
 import { buildGraph } from "../core/domain/change-graph.js";
-import { formatHookLogSection } from "../core/services/harness-service.js";
-import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
 import { ensureChangeBranch, ChangeBranchError } from "../core/services/git-branch.js";
 
 // --- fs/string primitives ---
@@ -35,8 +27,7 @@ export function writeFile(filePath, content, overwrite = false) {
   fs.writeFileSync(filePath, content, "utf8");
   return true;
 }
-// run()/commandExists() live in ../process-utils.js (Change 0070) — shared
-// with sdd-providers/openspec.js, which used to carry its own copy.
+// run()/commandExists() live in ../process-utils.js (Change 0070).
 export function slugify(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -59,22 +50,10 @@ export function getChangeDirs() {
     .map((name) => path.join(changesPath, name));
 }
 // A Change is closed when its change.md carries a "## Status / Closed" section
-// (written by `aief close --yes`) — or, if the Change carries an optional
-// manifest.json (AIEF Core 3.0, Entrega 1), when the manifest's own `status`
-// field says so; the manifest is authoritative over change.md when present,
-// never merged with it (design.md §3 of Change 0043). Either way, the Change
-// files are the only source of truth; there is no separate state file.
-// Thin wrapper over loadChangeUnified() (core/domain/change-loader.js), used
-// by openChangeDirs() (status/prompt/implicit selection) only. `close` does
-// NOT use this: `markClosed()` (cli.js) checks change.md directly, because
-// `close` only ever writes change.md — a manifest, if present, is untouched
-// and out of scope for Entrega 1 (design.md §9). Sharing this function
-// between the two was Change 0043's review finding B1: a successful
-// change.md write was reported as a failure whenever a manifest still said
-// "open", because this manifest-aware check disagreed with what was just
-// written.
+// (written by `aief close --yes`). The Change files are the only source of
+// truth; there is no separate state file.
 export function isClosed(changeDir) {
-  return loadChangeUnified(changeDir).closed;
+  return loadChange(changeDir).closed;
 }
 export function changeType(changeDir) {
   return changeTypeFromContent(read(path.join(changeDir, "change.md")));
@@ -82,86 +61,23 @@ export function changeType(changeDir) {
 export function openChangeDirs() {
   return getChangeDirs().filter((dir) => !isClosed(dir));
 }
-// AIEF Core 3.0, Entrega 2 (Change 0044, WF-R1/WF-R2 — H2 hardening).
-// A Change whose manifest.json exists but fails to parse or fails
-// validateManifest() is a distinct, first-class state — never the same as
-// "no manifest" (legacy) and never silently reported as a healthy open
-// Change. loadChangeUnified() already computes this (Entrega 1); this is
-// the first place anything reads .manifestError instead of discarding it.
-export function invalidManifestChanges() {
-  return getChangeDirs()
-    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
-    .filter(({ change }) => Array.isArray(change.manifestError) && change.manifestError.length > 0);
-}
-// Change 0095 — every manifest-backed Change whose manifest.status disagrees
-// with its own change.md's ## Status declaration (the known, documented gap:
-// no command writes/synchronizes manifest.status — see docs/concepts.md's
-// "Current limitation"). Detection only, mirroring invalidManifestChanges()'s
-// own additive-section pattern: absent whenever no Change drifts, which is
-// every Change in this repository today (none carries a manifest.json yet).
-export function manifestStatusDriftChanges() {
-  return getChangeDirs()
-    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
-    .map(({ dir, change }) => ({ dir, change, drift: detectManifestStatusDrift(change) }))
-    .filter(({ drift }) => drift.drift);
-}
-// AIEF Core 3.0, Entrega 2 (Change 0044) — the Workflow Engine's only wiring
-// point. A Change is a workflow candidate when it has a valid manifest with
-// a non-empty `track`; everything else (no manifest, manifest with no
-// track) is untouched (WF-R17/WF-R18) and never reaches this function.
-// Reuses loadWorkflowDefinition() / evaluateGates() / resolveState() as-is —
-// this function only wires them together for `status`, per design.md §3's
-// data flow. Never called for a Change with .manifestError (H2 already
-// reports those separately) or with no `.track`.
-export function resolveWorkflowFor(change) {
-  if (!KNOWN_TRACKS.includes(change.track)) {
-    // WF-R7: an unrecognized track is a distinct, explicit error — never
-    // silently ignored, never guessed into one of the three known tracks.
-    return { kind: "unknown_track", error: `unknown track ${JSON.stringify(change.track)} — expected one of ${KNOWN_TRACKS.join(", ")}` };
+// buildProjectGraph() (Change 0058; ADR-038 moved the source to change.md's
+// `## Depends on`) — the only place that gathers real Changes for the
+// dependency Graph. Read-only: rebuilds on every call (ADR-009).
+// A bare numeric reference ("0002") resolves to the one Change with that id;
+// anything else is kept as written, so the Graph reports it as missing.
+export function resolveDependencyRef(ref, basenames) {
+  if (basenames.includes(ref)) return ref;
+  if (/^\d+$/.test(ref)) {
+    const byId = basenames.filter((b) => Number(b.split("-")[0]) === Number(ref));
+    if (byId.length === 1) return byId[0];
   }
-  const definition = loadWorkflowDefinition(change.track);
-  if (!definition.ok) {
-    // AIEF's own shipped workflow file is broken — an internal bug, not a
-    // problem with this Change's manifest (design.md §10).
-    return { kind: "internal_error", error: definition.error };
-  }
-  const gateResults = evaluateGates(change, definition.value);
-  const state = resolveState(change, definition.value, gateResults);
-  return { kind: "resolved", definition: definition.value, gateResults, state };
+  return ref;
 }
-// Every Change whose manifest declares a track — split into ones the engine
-// could resolve and ones it couldn't (unknown track / internal error),
-// mirroring invalidManifestChanges()'s own additive-section pattern.
-export function workflowChanges() {
-  return getChangeDirs()
-    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
-    .filter(({ change }) => !change.manifestError && change.manifest && change.track)
-    .map(({ dir, change }) => ({ dir, change, workflow: resolveWorkflowFor(change) }));
-}
-// AIEF Core 3.0, Entrega 3 (Change 0045) — SDD Provider, `status` wiring.
-// Only Changes whose manifest declares an `sdd` section reach this list
-// (SDD-R34: additive-only). A Change with no `sdd` never resolves a
-// provider here — LocalSddProvider is never shown "automatically" for a
-// Change that didn't ask for SDD information, so the legacy/Entrega-1/2
-// output stays byte-identical for every Change without one (100% of this
-// repository today).
-export function sddChanges() {
-  return getChangeDirs()
-    .map((dir) => ({ dir, change: loadChangeUnified(dir) }))
-    .filter(({ change }) => !change.manifestError && change.manifest?.sdd)
-    .map(({ dir, change }) => ({ dir, change, resolution: resolveSddProvider(change, cwd()) }));
-}
-// buildProjectGraph() (Change 0058/ADR-028) — the only place that gathers
-// real Changes for the dependency Graph. An invalid manifest's dependsOn
-// (if any) is never trusted, same guard sddChanges()/workflowChanges()
-// already use — mirrors their exact pattern. Read-only: never writes a
-// file, never caches, rebuilds on every call (ADR-009).
 export function buildProjectGraph() {
-  const nodes = getChangeDirs().map((dir) => {
-    const change = loadChangeUnified(dir);
-    const dependsOn = !change.manifestError && Array.isArray(change.manifest?.dependsOn) ? change.manifest.dependsOn : [];
-    return { id: path.basename(dir), dependsOn };
-  });
+  const dirs = getChangeDirs();
+  const basenames = dirs.map((dir) => path.basename(dir));
+  const nodes = dirs.map((dir) => ({ id: path.basename(dir), dependsOn: loadChange(dir).dependsOn.map((ref) => resolveDependencyRef(ref, basenames)) }));
   return buildGraph(nodes);
 }
 
@@ -230,7 +146,7 @@ export function parseCommandArgs(command, args, optionsSchema = {}) {
 export const KNOWN_FLAGS = {
   // --no-branch (Change 0114): opt-out of the automatic branch-per-Change
   // switch createChange() otherwise does when run from `main`/`dev`.
-  "new-change": { type: { type: "string" }, "no-branch": { type: "boolean" } },
+  "new-change": { type: { type: "string" }, "no-branch": { type: "boolean" }, "depends-on": { type: "string" } },
   // --no-branch on enrich (Change 0117): same escape hatch new-change has —
   // enrich auto-branches too now (see ensureChangeBranch() call in enrich.js).
   enrich: { file: { type: "string" }, "no-branch": { type: "boolean" } },
@@ -257,7 +173,7 @@ export const KNOWN_FLAGS = {
   // --strict (Change 0083): opt-in objective-completeness checking on top of
   // default verify's structural rules — never on by default (backward
   // compatible), never a quality score (checkStrictCompleteness()).
-  verify: { change: { type: "string" }, requirements: { type: "boolean" }, strict: { type: "boolean" }, json: { type: "boolean" } },
+  verify: { change: { type: "string" }, strict: { type: "boolean" }, json: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
@@ -278,23 +194,6 @@ export function evidenceTemplate() {
 // read the same evidencePlaceholder flag off the already-loaded Change.
 export function evidenceIsPlaceholder(changeDir) {
   return isEvidencePlaceholderContent(read(path.join(changeDir, "evidence.md")));
-}
-
-// --- hook log ---
-
-export function appendHookLog(changeDir, { operation, event, entries, passed }) {
-  const file = path.join(changeDir, "hooks.md");
-  const already = fs.existsSync(file);
-  const header = "# Harness Log\n\nVisible, append-only record of Hook executions for this Change (Change 0056/ADR-026). Only each Hook's own short summary is recorded — never raw command output, full context, or credentials (Hooks structurally cannot produce either).\n";
-  const logSection = formatHookLogSection({
-    timestamp: new Date().toISOString(),
-    operation,
-    changeId: path.basename(changeDir),
-    event,
-    passed,
-    entries: entries.map((r) => ({ hook: r.hook, event: r.event, status: r.status, summary: r.summary }))
-  });
-  writeFile(file, `${already ? read(file) : header}\n${logSection}`, true);
 }
 
 // --- Change scaffolding ---
@@ -363,8 +262,23 @@ export function genericChangeFiles(id, slug, title = "") {
     "evidence.md": evidenceTemplate()
   };
 }
+// Inserts `## Depends on` before `## Success Criteria` (or at the end).
+function withDependsOn(changeMd, ids) {
+  const section = `## Depends on\n\n${ids.map((id) => `- ${id}`).join("\n")}\n\n`;
+  const at = changeMd.search(/^## Success Criteria/m);
+  return at === -1 ? `${changeMd.replace(/\s*$/, "")}\n\n${section}` : `${changeMd.slice(0, at)}${section}${changeMd.slice(at)}`;
+}
 export function createChange(name, options = {}) {
   const slug = slugify(name); if (!slug) { console.error('Change name is required.\n\nExample: aief new-change "Add login"'); process.exitCode = 1; return null; }
+  // --depends-on (ADR-038): every reference must name an existing Change,
+  // checked before anything is written, and is stored as its full basename.
+  const basenames = getChangeDirs().map((dir) => path.basename(dir));
+  const dependsOn = [];
+  for (const ref of String(options.dependsOn || "").split(",").map((r) => r.trim()).filter(Boolean)) {
+    const resolved = resolveDependencyRef(ref, basenames);
+    if (!basenames.includes(resolved)) { console.error(`--depends-on: no Change found matching "${ref}".`); process.exitCode = 1; return null; }
+    if (!dependsOn.includes(resolved)) dependsOn.push(resolved);
+  }
   const id = nextChangeId();
   // Change 0114: switch off `main`/`dev` before any Change file exists, so a
   // failed checkout never leaves scaffolding behind on a protected branch —
@@ -382,6 +296,7 @@ export function createChange(name, options = {}) {
   const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)
       : genericChangeFiles(id, slug, name);
+  if (dependsOn.length) files["change.md"] = withDependsOn(files["change.md"], dependsOn);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
 }
@@ -395,21 +310,7 @@ export function listStandards() {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
 }
-// Maps listStandards()'s bare filenames into the { id, description, path }
-// shape resolveResources() (and resolveStandardRecommendations()) can
-// consume as `builtins` (Change 0055/ADR-025) — id is the filename without
-// `.md` (so it can collide, by id, with an ai-specs/standards/<id>.md);
-// description is derived from the file's own first heading, read from disk
-// exactly once here, never cached, never written back.
-export function builtinStandardsList() {
-  return listStandards().map((file) => {
-    const filePath = cwd("knowledge", "standards", file);
-    return { id: file.replace(/\.md$/i, ""), description: deriveResourceDescription(read(filePath)), path: filePath };
-  });
-}
-
-// --- interactive stdin (multi-consumer: bootstrap's ambiguous-SDD-provider
-// choice, prompt's ambiguous-assistant choice) ---
+// --- interactive stdin (prompt's ambiguous-assistant choice) ---
 
 // Blocking, dependency-free stdin read — only ever called after an isTTY
 // check, so it never hangs a non-interactive shell (CI, piped input, the

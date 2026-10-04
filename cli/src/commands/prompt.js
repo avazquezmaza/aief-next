@@ -12,16 +12,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { detectProject, recommendSkills } from "../detect.js";
 import { ASSISTANT_FILES, hasAssistant, assistantIds, assistantConfigPath, resolveAssistant, readProjectAssistantConfig } from "../core/domain/assistant-resolver.js";
-import { resolveSkillRecommendations, resolveStandardRecommendations } from "../core/domain/ai-specs.js";
-import { explain as explainWorkflow } from "../core/services/workflow-service.js";
+import { explain } from "../core/services/next-action.js";
 import { buildSkillContext } from "../core/services/skill-context.js";
 import { listSkillDescriptors, runSkill, isUnknownSkillError } from "../core/services/skill-service.js";
 import { buildEvent, buildHookContext } from "../core/services/hook-context.js";
-import { evaluateEvent } from "../core/services/hook-service.js";
-import { resolveHarnessConfig, partitionOutcome, formatHookResultsBlock } from "../core/services/harness-service.js";
+import { evaluateEvent, formatHookResultsBlock } from "../core/services/hook-service.js";
 import {
   cwd, exists, read, section, parseArgs, printNext, resolveExplicitChange, resolveImplicitChange,
-  changeType, evidenceIsPlaceholder, builtinStandardsList, appendHookLog, promptSync
+  changeType, evidenceIsPlaceholder, listStandards, promptSync
 } from "./shared.js";
 
 // `aief prompt --set-assistant/--show-assistant/--clear-assistant` (Change
@@ -189,93 +187,33 @@ export function prompt(args) {
   const isAnalysis = type === "analysis";
   const isEnrichment = type === "enrichment";
   const isDefinition = type === "definition";
-  const standardItems = resolveStandardRecommendations(builtinStandardsList(), process.cwd()).items;
+  const standards = listStandards();
   const project = detectProject();
-  // Change 0069: mirrors standardItems above — an ai-specs/skills/ addition
-  // or override (already visible in `aief doctor`, Change 0054/ADR-024) now
-  // also reaches the Skill context actually sent to an assistant. Builtin
-  // fields (promptContext/commonRisks/name) are reattached by id after
-  // resolving, since resolveSkillRecommendations()'s generic output only
-  // carries id/description/because/source/path/overridesBuiltin — swapping
-  // it in directly would silently drop every builtin's operational content.
-  const builtinSkills = recommendSkills(project);
-  const builtinSkillById = new Map(builtinSkills.map((s) => [s.id, s]));
   // Change 0072: a builtin recommended only from a "weak" (keyword-in-doc)
-  // signal is tagged here — the one place this reasoning actually reaches
-  // an assistant. "strong" (real dependency) and the no-signals fallback
-  // (confidence: null, an honest statement, not a guess) are untagged,
-  // keeping output byte-identical to before this Change in both cases.
-  const skills = resolveSkillRecommendations(builtinSkills, process.cwd()).items.map((item) => item.source === "builtin"
-    ? { ...builtinSkillById.get(item.id), tag: builtinSkillById.get(item.id).confidence === "weak" ? " (weak signal — confirm before relying on this)" : "" }
-    // Change 0110: `path` carried through (ai-specs.js already resolves it)
-    // so skillsBlock below can point the assistant at the real file — a
-    // project-sourced Skill (e.g. a Claude Code / Kiro SKILL.md) has no
-    // `promptContext` (that field only ever comes from AIEF's own built-in
-    // skills-catalog.json entries) and previously left the assistant with
-    // no indication of where its actual content lives.
-    : { id: item.id, name: item.id, path: item.path, tag: item.overridesBuiltin ? " [project override]" : " [project]" });
+  // signal is tagged — the one place this reasoning reaches an assistant.
+  const skills = recommendSkills(project).map((s) => ({ ...s, tag: s.confidence === "weak" ? " (weak signal — confirm before relying on this)" : "" }));
   // Re-run guardrail: derived from files, no hidden state. Empty or template
   // ("Pending.") evidence is the normal fresh case and gets no warning.
   const evidenceContent = read(path.join(changeDir, "evidence.md"));
   const hasRealEvidence = evidenceContent.trim().length > 0 && !evidenceIsPlaceholder(changeDir);
   const evidenceGuard = hasRealEvidence ? `\nevidence.md already exists and has real content:\n\n- Do not overwrite it blindly.\n- Review and amend only if needed; preserve existing validated evidence.\n- If no changes are needed, report that the evidence was re-verified.\n` : "";
   const feedbackNote = `\nWhere results belong:\n\n- Project evidence belongs in ${changeName}/evidence.md.\n- Feedback about AIEF or the tooling goes in your response to the user, not in the project evidence, unless the Change explicitly asks for a separate feedback file.\n`;
-  // Change 0055/ADR-025: a builtin renders as `- knowledge/standards/<id>.md`
-  // — reconstructing today's exact `- knowledge/standards/${file}` string
-  // id-for-id, so a project with no ai-specs/standards/ gets byte-identical
-  // output. A resolving project standard renders with its own real path
-  // (never the built-in's), tagged so the assistant knows which file
-  // actually governs.
-  const standardsBlock = standardItems.length ? `\nProject standards to follow:\n\n${standardItems.map((s) => s.source === "builtin"
-    ? `- knowledge/standards/${s.id}.md`
-    : `- ai-specs/standards/${s.id}.md${s.overridesBuiltin ? " [project override]" : " [project]"}`).join("\n")}\n` : "";
-  // Change 0110: a project-sourced Skill with no `promptContext` (every one
-  // does not carry AIEF's own catalog metadata — that field only ever comes
-  // from skills-catalog.json) used to fall through to a generic "no
-  // operational content yet" line with no indication of where its actual
-  // content lives — the assistant had no way to find e.g. a 140-line
-  // camel-quarkus SKILL.md AIEF had already discovered and recommended by
-  // id. Mirrors standardsBlock's own precedent immediately above: point at
-  // the real, relative path so the assistant knows to go read it.
+  const standardsBlock = standards.length ? `\nProject standards to follow:\n\n${standards.map((file) => `- knowledge/standards/${file}`).join("\n")}\n` : "";
   const skillsBlock = skills.length ? `\nRecommended Skills — contextual knowledge for this project (included as context, not executed):\n\n${skills.map((s) => s.promptContext
     ? `- ${s.name || s.id}${s.tag || ""}: ${s.promptContext}${(s.commonRisks || []).length ? `\n  Watch out for: ${s.commonRisks.join("; ")}.` : ""}`
-    : s.path
-      ? `- ${s.name || s.id}${s.tag || ""}: recommended for this project — read ${path.relative(process.cwd(), s.path)} for its full instructions before starting.`
-      : `- ${s.name || s.id}${s.tag || ""}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
-  // Entrega 4 (Change 0046, ADR-018 §"work") — additive Workflow/SDD context,
-  // same discipline as standardsBlock/skillsBlock: empty string, no header,
-  // when the Change never opted in (no track / no sdd). Purely informational
-  // — this text never claims work was performed, never marks a task done,
-  // never asserts a gate passed or a transition occurred (UX-R10).
-  const { change: promptChange, workflow: promptWorkflow, sdd: promptSdd } = explainWorkflow(changeDir, cwd());
-  const workflowBlock = promptWorkflow && promptWorkflow.kind === "resolved"
-    ? `\nWorkflow context (read-only — reflects current state, does not advance it):\n\nStage: ${promptWorkflow.state.stage}\nNext: ${promptWorkflow.state.nextAction === null ? "none (closed)" : promptWorkflow.state.nextAction}\n${promptWorkflow.state.blockers.length ? `Blockers:\n${promptWorkflow.state.blockers.map((g) => `- ${g.id}: ${g.status} — ${g.reason}`).join("\n")}\n` : ""}`
-    : "";
-  const sddBlock = promptSdd && !promptSdd.error
-    ? `\nSDD context (provider: ${promptSdd.providerId}, readiness: ${promptSdd.readiness.status}):\n\n${promptSdd.tasks.filter((t) => !t.completed).length
-        ? `Pending tasks (from the SDD provider, not yet marked complete):\n${promptSdd.tasks.filter((t) => !t.completed).map((t) => `- ${t.id ? `${t.id} ` : ""}${t.text}`).join("\n")}\n`
-        : ""}`
-    : "";
-  // Entrega 6 (Change 0048, ADR-020) — the `prompt.prepared` event fires here:
-  // after every existing context block (standards/Skill Catalog/Workflow/SDD/
-  // Skill Runtime) is computed, before the final render. Hook Context reuses
-  // promptChange/promptWorkflow/promptSdd — the exact same explainWorkflow()
-  // call above, never a second one (HK-R20). Zero writes, strictly additive.
+    : `- ${s.name || s.id}${s.tag || ""}: recommended for this project, but it has no operational content yet — treat it as a topic to keep in mind.`).join("\n")}\n` : "";
+  // Entrega 6 (Change 0048, ADR-020) — the `prompt.prepared` event fires
+  // after every context block is computed, before the final render. Zero
+  // writes, strictly additive.
+  const { change: promptChange } = explain(changeDir);
   const promptPreparedEvent = buildEvent("prompt.prepared", "prompt");
   const hookOutcome = evaluateEvent(promptPreparedEvent, buildHookContext(promptPreparedEvent, {
-    project, change: promptChange, workflow: promptWorkflow, sdd: promptSdd,
+    project, change: promptChange,
     operation: { input: { profile, assistant, changeName }, result: null }
   }));
-  // Change 0056/ADR-026: a Change's manifest.harness (absent for every
-  // Change that predates this) decides which Hook results are excluded
-  // (disabled) and whether this invocation is logged to hooks.md — never
-  // which Hooks were evaluated (hook-service.js/hooks/index.js untouched).
-  const harnessConfig = resolveHarnessConfig(promptChange.manifest);
-  const { active: activeHookResults } = partitionOutcome(hookOutcome, harnessConfig);
-  const hookBlock = formatHookResultsBlock(activeHookResults);
-  if (harnessConfig.log) appendHookLog(changeDir, { operation: "prompt", event: hookOutcome.event, entries: activeHookResults });
+  const hookBlock = formatHookResultsBlock(hookOutcome.results);
   console.log("Copy this prompt into your AI assistant:"); console.log("─".repeat(60));
-  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${workflowBlock}${sddBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\nOnce those acceptance criteria are satisfied, stop — do not opportunistically extend scope into adjacent code or additional artifacts, even when the extra work seems clearly beneficial. Propose it as a follow-up Change instead.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : isDefinition ? `This is a Definition Change (pre-implementation).\n\nDo not implement application code.\nResolve project-definition questions in change.md: Context, Business/Product Constraints, Known Requirements, Assumptions, Open Questions, Decisions Required.\nExplain options and trade-offs in Options Considered; write a Recommendation only when evidence supports one.\nEvery architecture or product Decision requires explicit human approval — never fill in the Decision (human) section yourself, and never mark a task under "Human Approval" done yourself.\nOnce a decision is approved, record it in knowledge/decisions.md and update Implementation Prerequisites / Follow-up Changes.\n\nWhen an item in a bullet list is not simply known or missing, mark it explicitly at the end of the line — never leave the reader to infer this from prose:\n\n- "(decision required)" — a real choice exists and needs a Recommendation.\n- "(ambiguous)" — the requirement/answer is genuinely unclear, not just undecided.\n- "(deferred)" — intentionally left for the implementation Change, not for this one.\n- "(human)" — needs explicit human approval before it counts as decided (same convention as tasks.md).\n\n\`aief status --change ${changeName}\` reports Definition readiness (known/missing sections, and every marked item) derived only from these markers — it never invents a category from prose.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
+  console.log(`Use AGENTS.md.\n\nAct as the ${profile} profile.\n\nWork only on:\n\n${changeName}\n\nRead these files first:\n\n- ${changeName}/change.md\n- ${changeName}/spec.md\n- ${changeName}/tasks.md\n${assistantFile ? `- ${assistantFile}` : ""}\n${exists("README.md") ? "- README.md" : ""}\n${exists("knowledge/skills.md") ? "- knowledge/skills.md" : ""}\n${standardsBlock}${skillsBlock}${skillSection}${hookBlock}${evidenceGuard}${feedbackNote}\nRespect the scope in change.md and the acceptance criteria in spec.md.\nOnce those acceptance criteria are satisfied, stop — do not opportunistically extend scope into adjacent code or additional artifacts, even when the extra work seems clearly beneficial. Propose it as a follow-up Change instead.\n\n${isEnrichment ? `This is an Enrichment Change (Requirement Source: see change.md).\n\nDo not implement application code.\nDo not modify the external requirement source — it is read-only.\nThis Change Requires Human Review before implementation. Help the human by:\n\n- reviewing the Normalized Requirement and [H]/[I]/[S] classification in spec.md;\n- answering or refining Open Questions;\n- never marking Human Review tasks done yourself — only a human clears them.\n` : isAnalysis ? `This is an Analysis Change.\n\nDo not modify application source code.\nAnalyze the project and complete or amend:\n\n- ${changeName}/evidence.md\n\nDo not mark tasks.md items yourself unless the Change or the user explicitly asks — instead, tell the user which tasks appear complete.\n` : isDefinition ? `This is a Definition Change (pre-implementation).\n\nDo not implement application code.\nResolve project-definition questions in change.md: Context, Business/Product Constraints, Known Requirements, Assumptions, Open Questions, Decisions Required.\nExplain options and trade-offs in Options Considered; write a Recommendation only when evidence supports one.\nEvery architecture or product Decision requires explicit human approval — never fill in the Decision (human) section yourself, and never mark a task under "Human Approval" done yourself.\nOnce a decision is approved, record it in knowledge/decisions.md and update Implementation Prerequisites / Follow-up Changes.\n\nWhen an item in a bullet list is not simply known or missing, mark it explicitly at the end of the line — never leave the reader to infer this from prose:\n\n- "(decision required)" — a real choice exists and needs a Recommendation.\n- "(ambiguous)" — the requirement/answer is genuinely unclear, not just undecided.\n- "(deferred)" — intentionally left for the implementation Change, not for this one.\n- "(human)" — needs explicit human approval before it counts as decided (same convention as tasks.md).\n\n\`aief status --change ${changeName}\` reports Definition readiness (known/missing sections, and every marked item) derived only from these markers — it never invents a category from prose.\n` : `Implement only the requested scope.\nAfter implementation, verify acceptance criteria and update ${changeName}/evidence.md.\n`}`); console.log("─".repeat(60));
 }
 // Renders one Skill's result as a clearly-labeled, additive prompt section
 // (Entrega 5, design.md §9) — the ONLY place this framing text is written,

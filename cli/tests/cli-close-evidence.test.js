@@ -158,11 +158,11 @@ test("close --yes marks a ready Change as Closed; the Change stops being active"
   assert.match(next.out, /0002-second/);
 });
 
-test("propose without OpenSpec falls back loudly to a local Change", () => {
+test("propose creates a local Change with proposal.md", () => {
   const dir = makeProject();
   const { status, out } = aief(dir, ["propose", "Add login"], { PATH: path.dirname(process.execPath) });
   assert.equal(status, 0);
-  assert.match(out, /OpenSpec is not installed/);
+  assert.match(out, /Created local proposal\.md/);
   assert.ok(fs.existsSync(path.join(dir, "changes", "0001-add-login", "proposal.md")));
 });
 
@@ -208,23 +208,16 @@ test("propose <idea> without --change still creates a new Change (unchanged beha
   assert.deepEqual(changes, ["0001-manual-test-001", "0002-something-else-entirely"]);
 });
 
-test("propose warns when OpenSpec lacks a propose command", { skip: !POSIX }, () => {
+test("propose never runs an openspec binary, even when one is on PATH (ADR-038)", { skip: !POSIX }, () => {
   const dir = makeProject();
   const fakeBin = path.join(dir, "fakebin");
+  const marker = path.join(dir, "openspec-was-run");
   fs.mkdirSync(fakeBin);
-  fs.writeFileSync(path.join(fakeBin, "openspec"), "#!/bin/sh\ncase \"$1\" in\n--version) echo 1.2.3 ;;\n--help) echo 'usage: openspec [validate]' ;;\n*) exit 1 ;;\nesac\n", { mode: 0o755 });
-  const { out } = aief(dir, ["propose", "Add login"], { PATH: `${fakeBin}:${process.env.PATH}` });
-  assert.match(out, /does not expose a "propose" command/);
-  assert.match(out, /Falling back to local Change generation/);
-});
-
-test("propose reports delegation failure and falls back", { skip: !POSIX }, () => {
-  const dir = makeProject();
-  const fakeBin = path.join(dir, "fakebin");
-  fs.mkdirSync(fakeBin);
-  fs.writeFileSync(path.join(fakeBin, "openspec"), "#!/bin/sh\ncase \"$1\" in\n--version) echo 9.9.9 ;;\n--help) echo 'commands: propose validate' ;;\npropose) exit 7 ;;\n*) exit 1 ;;\nesac\n", { mode: 0o755 });
-  const { out } = aief(dir, ["propose", "Add login"], { PATH: `${fakeBin}:${process.env.PATH}` });
-  assert.match(out, /OpenSpec delegation failed \(exit code 7\)\. Falling back to local Change generation\./);
+  fs.writeFileSync(path.join(fakeBin, "openspec"), `#!/bin/sh\ntouch "${marker}"\nexit 0\n`, { mode: 0o755 });
+  const { status, out } = aief(dir, ["propose", "Add login"], { PATH: `${fakeBin}:${process.env.PATH}` });
+  assert.equal(status, 0);
+  assert.doesNotMatch(out, /OpenSpec/);
+  assert.equal(fs.existsSync(marker), false);
   assert.ok(fs.existsSync(path.join(dir, "changes", "0001-add-login", "proposal.md")));
 });
 
@@ -276,7 +269,7 @@ test("doctor groups tools by level and never fails because of optional tools", (
   const dir = makeProject();
   const { out } = aief(dir, ["doctor"], { PATH: path.dirname(process.execPath) });
   assert.match(out, /Core \(required\):/);
-  assert.match(out, /SDD \(recommended\):/);
+  assert.doesNotMatch(out, /SDD \(recommended\):/);
   assert.match(out, /Build tools \(optional\):/);
   assert.match(out, /Assistants \(optional\):/);
   assert.match(out, /Summary:/);
@@ -301,7 +294,8 @@ test("bootstrap without arguments initializes the current directory with visible
   assert.match(out, /AIEF Bootstrap/);
   assert.match(out, /never modifies application code/);
   assert.match(out, /Next steps:/);
-  assert.match(out, /Install OpenSpec if missing: npm install -g @fission-ai\/openspec@latest/);
+  assert.match(out, /Create your first AIEF change: aief new-change <name>/);
+  assert.doesNotMatch(out, /OpenSpec/);
   assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
   assert.ok(fs.existsSync(path.join(dir, "changes")));
   assert.ok(fs.existsSync(path.join(dir, "knowledge")));
@@ -346,36 +340,6 @@ test("adopt has been replaced by bootstrap: prints a redirect and exits 1, no wr
   assert.match(out, /aief adopt has been replaced by aief bootstrap\. Run: aief bootstrap/);
   assert.ok(!fs.existsSync(path.join(dir, "AGENTS.md")));
   assert.ok(!fs.existsSync(path.join(dir, "changes")));
-});
-
-test("bootstrap in a non-interactive shell never blocks on the SDD Provider prompt and reports the deterministic default", () => {
-  const dir = makeProject();
-  const { status, out } = aief(dir, ["bootstrap"], { PATH: path.dirname(process.execPath) });
-  assert.equal(status, 0);
-  assert.match(out, /SDD Provider:/);
-  assert.match(out, /local \(default\)/);
-  assert.ok(!fs.existsSync(path.join(dir, "knowledge", "sdd-provider.json")));
-});
-
-test("bootstrap reports OpenSpec detection without prompting when SpecBoot is not also present", () => {
-  const dir = makeProject();
-  fs.mkdirSync(path.join(dir, "openspec"));
-  const { status, out } = aief(dir, ["bootstrap"], { PATH: path.dirname(process.execPath) });
-  assert.equal(status, 0);
-  assert.match(out, /openspec \(OpenSpec detected\)/);
-  assert.ok(!fs.existsSync(path.join(dir, "knowledge", "sdd-provider.json")));
-});
-
-test("bootstrap never overwrites an existing knowledge/sdd-provider.json", () => {
-  const dir = makeProject();
-  aief(dir, ["bootstrap"], { PATH: path.dirname(process.execPath) });
-  fs.mkdirSync(path.join(dir, "knowledge"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "knowledge", "sdd-provider.json"), JSON.stringify({ provider: "local", setBy: "manual-test", date: "2000-01-01" }), "utf8");
-  const { status, out } = aief(dir, ["bootstrap"], { PATH: path.dirname(process.execPath) });
-  assert.equal(status, 0);
-  assert.match(out, /from knowledge\/sdd-provider\.json, already configured — never overwritten/);
-  const raw = JSON.parse(fs.readFileSync(path.join(dir, "knowledge", "sdd-provider.json"), "utf8"));
-  assert.equal(raw.setBy, "manual-test");
 });
 
 test("release reports honestly when notes already exist", () => {

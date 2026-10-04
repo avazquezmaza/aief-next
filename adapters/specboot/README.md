@@ -1,5 +1,9 @@
 # SpecBoot Adapter
 
+> **Conceptual reference, not supported in AIEF 4.0** (ADR-038). AIEF no longer integrates with
+> SpecBoot or `ai-specs/`: no provider, no detection, no configuration file. This page describes how the two can be
+> used side by side by hand.
+
 This adapter explains how AIEF can work with SpecBoot-style agent instructions.
 
 SpecBoot is optional.

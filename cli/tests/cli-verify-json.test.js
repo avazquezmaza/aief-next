@@ -29,7 +29,7 @@ test("verify --json: whole-project envelope is valid, parseable JSON on stdout, 
   assert.equal(envelope.result, "PASS");
   assert.deepEqual(envelope.errors, []);
   assert.ok(Array.isArray(envelope.warnings), "warnings is always an array (this project has no knowledge/ dir, so it's non-empty)");
-  assert.deepEqual(envelope.manifestStatusDrift, []);
+  assert.equal("manifestStatusDrift" in envelope, false, "removed in AIEF 4.0 (ADR-038)");
   assert.deepEqual(envelope.duplicateChangeIds, []);
 });
 
@@ -55,7 +55,7 @@ test("verify --json: whole-project envelope reports a real numeric-ID collision"
   assert.deepEqual(envelope.duplicateChangeIds, [{ id: "0001", basenames: ["0001-first-thing", "0001-second-thing"] }]);
 });
 
-test("verify --change --json: envelope names the Change, includes graph issues and manifest drift", () => {
+test("verify --change --json: envelope names the Change and includes graph issues", () => {
   const dir = makeProject({ "README.md": "# x", "AGENTS.md": "# x" });
   aief(dir, ["new-change", "thing"]);
   const { status, stdout, stderr } = aiefSplit(dir, ["verify", "--change", "0001-thing", "--json"]);
@@ -66,7 +66,7 @@ test("verify --change --json: envelope names the Change, includes graph issues a
   assert.equal(envelope.change, "0001-thing");
   assert.equal(envelope.result, "PASS");
   assert.deepEqual(envelope.graphIssues, []);
-  assert.equal(envelope.manifestStatusDrift, null);
+  assert.equal("manifestStatusDrift" in envelope, false);
 });
 
 test("verify --change --json: a Change that doesn't exist returns an ERROR envelope on stdout, exit code 1", () => {

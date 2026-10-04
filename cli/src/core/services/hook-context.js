@@ -1,9 +1,9 @@
 // Hook Context Builder (AIEF Core 3.0, Entrega 6, Change 0048, ADR-020).
 //
 // Deliberately NON-FETCHING — the opposite of skill-context.js's own
-// buildSkillContext(), which calls workflow-service.js's explain() itself.
+// buildSkillContext(), which calls next-action.js's explain() itself.
 // Both `prompt.prepared` and `verify.completed` fire from inside a command
-// that already computed `change`/`workflow`/`sdd` (and, for `prompt`,
+// that already computed `change` (and, for `prompt`,
 // possibly a Skill result) for its own rendering; a Hook Context Builder
 // that fetched independently would recreate Change 0043's B1 "two callers
 // assumed to agree" risk one layer up (HK-R20). This module only normalizes
@@ -30,8 +30,8 @@ export function buildEvent(id, operationLabel, timestamp = new Date().toISOStrin
   return Object.freeze({ id, phase: phaseOf(id), timestamp, operation: operationLabel });
 }
 
-// buildHookContext(event, {project, change, workflow, sdd, skill, operation})
-// -> frozen {event, project, change, workflow, sdd, skill, operation}.
+// buildHookContext(event, {project, change, skill, operation})
+// -> frozen {event, project, change, skill, operation}.
 // Every field beyond `event` is exactly what the caller passed in — no
 // re-derivation, no additional file read, no provider call (HK-R20/R22).
 // `skill` defaults to null (no Skill was already run by the calling
@@ -39,6 +39,6 @@ export function buildEvent(id, operationLabel, timestamp = new Date().toISOStrin
 // {input, result} (e.g. verify.completed's operation.result is the report
 // object; prompt.prepared's operation.result is null, nothing has rendered
 // yet).
-export function buildHookContext(event, { project, change, workflow, sdd, skill = null, operation }) {
-  return deepFreeze({ event, project, change, workflow, sdd, skill, operation });
+export function buildHookContext(event, { project, change, skill = null, operation }) {
+  return deepFreeze({ event, project, change, skill, operation });
 }

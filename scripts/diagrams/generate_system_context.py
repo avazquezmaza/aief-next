@@ -124,7 +124,7 @@ def build():
     band_y = ROW1_Y + ROW1_H + 60
     band_h = 130
     body.append(group_box(40, band_y, WIDTH - 80, band_h, "Visible repository state — the only place AIEF reads or writes", "green"))
-    repo_items = ["AGENTS.md", "changes/", "knowledge/", "ai-specs/", "evidence"]
+    repo_items = ["AGENTS.md", "changes/", "knowledge/", "evidence"]
     ix = 60
     iy = band_y + 48
     for it in repo_items:
@@ -167,7 +167,7 @@ def main():
         "Four zones: external inputs (humans, requirement sources, optional specification "
         "providers) feed AIEF Core (bootstrap, Change management, prompt composition, "
         "verification, Graph and next recommendation), which reads and writes only the visible "
-        "repository state (AGENTS.md, changes/, knowledge/, ai-specs/, evidence) and generates a "
+        "repository state (AGENTS.md, changes/, knowledge/, evidence) and generates a "
         "prompt for the execution environment (AI assistants, project tools, tests, CI, Git and "
         "release tools) without ever executing it itself. Assistants and project tools write "
         "evidence back into the repository. Humans retain scope, merge, release, and publication "

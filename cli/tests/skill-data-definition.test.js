@@ -90,16 +90,6 @@ test("appliesTo: applicable to a Definition Change with a data-governance signal
   assert.deepEqual(appliesTo(context), { applicable: true });
 });
 
-test("appliesTo: a manifest-carrying Change (type is always \"\") is never applicable, even with data keywords", () => {
-  const dir = makeChangeDir({
-    ...OTHER_FILES,
-    "change.md": DATA_RELEVANT,
-    "manifest.json": JSON.stringify({ schema: "aief.change/v1", id: "0001", slug: "b2b-saas", title: "x", status: "open", track: "lite" })
-  });
-  const context = buildSkillContext(dir, dir);
-  assert.equal(appliesTo(context).applicable, false);
-});
-
 // --- domain-boundary applicability adversarial cases ---
 
 test("appliesTo: bare 'data'/'database'/'schema'/'storage' alone never trigger applicability (Change 0094 R4 — avoid Architecture overlap)", () => {

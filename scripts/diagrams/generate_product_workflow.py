@@ -72,8 +72,8 @@ def build():
 
     # Opt-in capabilities band.
     band_y = 400
-    body.append(group_box(40, band_y, WIDTH - 80, 96, "Opt-in capabilities — attach to any Change, never block verify/close", "slate"))
-    caps = ["LIDR", "Skills", "Standards", "Workflow tracks", "Harness / Hooks", "Loop", "Change Graph"]
+    body.append(group_box(40, band_y, WIDTH - 80, 96, "Context and helpers — attach to any Change, never block verify/close", "slate"))
+    caps = ["Skills", "Standards", "Hooks", "Depends on / Change Graph"]
     cx = 60
     cy = band_y + 48
     for cap in caps:
@@ -102,9 +102,8 @@ def main():
         "pw-desc",
         "A requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI "
         "assistant implements it, evidence and verification follow, the Change is closed, and "
-        "status --next recommends the following Change without executing it. Opt-in capabilities "
-        "such as LIDR, Skills, Standards, Workflow tracks, Harness/Hooks, Loop, and the Change "
-        "Graph attach without changing this shape.",
+        "status --next recommends the following Change without executing it. Skills, Standards, "
+        "Hooks and the Change Graph attach without changing this shape.",
         body,
     )
     write_svg(SVG_PATH, svg)

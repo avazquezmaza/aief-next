@@ -16,14 +16,14 @@ function fixture(overrides = {}) {
   };
 }
 
-test("the real registry contains exactly the two Entrega 6 Hooks, in a fixed order", () => {
-  assert.deepEqual(hookIds(), ["prompt-skill-suggestion", "post-verify-next-action"]);
+test("the real registry contains exactly the one built-in Hook", () => {
+  assert.deepEqual(hookIds(), ["post-verify-next-action"]);
 });
 
 test("hasHook/getHook: known ids resolve, unknown ids do not", () => {
-  assert.equal(hasHook("prompt-skill-suggestion"), true);
+  assert.equal(hasHook("post-verify-next-action"), true);
   assert.equal(hasHook("does-not-exist"), false);
-  assert.notEqual(getHook("prompt-skill-suggestion"), null);
+  assert.notEqual(getHook("post-verify-next-action"), null);
   assert.equal(getHook("does-not-exist"), null);
 });
 
@@ -34,14 +34,14 @@ test("getHook: unknown id returns null, never undefined", () => {
 });
 
 test("hooksForEvent: filters correctly for both real events", () => {
-  assert.deepEqual(hooksForEvent("prompt.prepared"), ["prompt-skill-suggestion"]);
+  assert.deepEqual(hooksForEvent("prompt.prepared"), []);
   assert.deepEqual(hooksForEvent("verify.completed"), ["post-verify-next-action"]);
   assert.deepEqual(hooksForEvent("close.requested"), []);
 });
 
 test("describeHook/listDescriptors expose only descriptor metadata, not the implementation methods", () => {
   const descriptors = listDescriptors();
-  assert.equal(descriptors.length, 2);
+  assert.equal(descriptors.length, 1);
   for (const d of descriptors) {
     assert.deepEqual(Object.keys(d).sort(), ["capabilities", "description", "events", "id", "title", "version"]);
   }
@@ -91,8 +91,8 @@ test("createRegistry: registration order is the input array's own order", () => 
 
 test("the registry cannot be mutated by a caller at runtime", () => {
   const before = hookIds();
-  const descriptor = getHook("prompt-skill-suggestion");
+  const descriptor = getHook("post-verify-next-action");
   try { descriptor.id = "hijacked"; } catch { /* frozen module namespace object either way */ }
   assert.deepEqual(hookIds(), before);
-  assert.equal(getHook("prompt-skill-suggestion").id, "prompt-skill-suggestion");
+  assert.equal(getHook("post-verify-next-action").id, "post-verify-next-action");
 });

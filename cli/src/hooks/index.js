@@ -1,6 +1,6 @@
 // The Hook Registry (AIEF Core 3.0, Entrega 6, Change 0048, ADR-020).
-// Mirrors cli/src/requirement-providers/index.js, cli/src/sdd-providers/
-// index.js and cli/src/skills/index.js exactly: a plain, statically-imported
+// Mirrors cli/src/requirement-providers/index.js
+// and cli/src/skills/index.js exactly: a plain, statically-imported
 // module list — no directory scan, no dynamic import() of a path built from
 // user input, no filesystem load, no npm resolution, no runtime mutation.
 //
@@ -12,10 +12,9 @@
 // (HK-R19): the array's own literal order.
 import { validateDescriptor } from "../core/domain/hook.js";
 import { hasSkill } from "../skills/index.js";
-import * as promptSkillSuggestion from "./prompt-skill-suggestion.js";
 import * as postVerifyNextAction from "./post-verify-next-action.js";
 
-const MODULES = [promptSkillSuggestion, postVerifyNextAction];
+const MODULES = [postVerifyNextAction];
 
 // createRegistry(modules) -> { id -> module } or throws. Exported so tests
 // can exercise duplicate-id / invalid-descriptor / forbidden-capability /

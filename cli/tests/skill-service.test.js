@@ -22,22 +22,17 @@ const COMPLETE = {
   "evidence.md": "# Evidence\n\n## Summary\n\nReal work happened.\n"
 };
 
-function manifestFor(overrides = {}) {
-  return JSON.stringify({ schema: "aief.change/v1", id: "0001", slug: "thing", title: "Thing", status: "open", ...overrides });
-}
-
 // --- listSkills() ---
 
 test("listSkills: lists all registered Skills with their applicability, deterministic order", () => {
   const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const listed = listSkills(context);
-  assert.deepEqual(listed.map((s) => s.id), ["change-context", "requirements-analysis-instructions", "architecture-definition", "data-definition", "adversarial-review"]);
+  assert.deepEqual(listed.map((s) => s.id), ["change-context", "architecture-definition", "data-definition", "adversarial-review"]);
   assert.equal(listed[0].applicable, true); // change-context applies to any resolved Change
-  assert.equal(listed[1].applicable, false); // no sdd section
+  assert.equal(listed[1].applicable, false); // not a Definition Change
   assert.equal(listed[2].applicable, false); // not a Definition Change
-  assert.equal(listed[3].applicable, false); // not a Definition Change
-  assert.equal(listed[4].applicable, true); // adversarial-review: open legacy Change, no track — widest safe default
+  assert.equal(listed[3].applicable, true); // adversarial-review: any open Change
 });
 
 test("listSkills: never calls buildInstructions() — a listing does not perform a Skill's work", () => {
@@ -65,81 +60,13 @@ test("runSkill: result.skill always matches the id that was actually invoked", (
 // --- change-context ---
 
 test("runSkill change-context: 'ready' for any resolved Change, never 'completed'", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite" }) });
+  const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const result = runSkill("change-context", context);
   assert.equal(result.status, "ready");
   assert.notEqual(result.status, "completed");
   assert.equal(result.effects.length, 0);
-  assert.match(result.instructions, /Track: lite/);
-});
-
-test("runSkill change-context: legacy Change (no track) still produces 'ready'", () => {
-  const dir = makeChangeDir(COMPLETE);
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("change-context", context);
-  assert.equal(result.status, "ready");
-  assert.match(result.instructions, /no track declared/);
-});
-
-// --- requirements-analysis-instructions ---
-
-test("runSkill requirements-analysis-instructions: not_applicable when Change has no sdd", () => {
-  const dir = makeChangeDir(COMPLETE);
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("requirements-analysis-instructions", context);
-  assert.equal(result.status, "not_applicable");
-  assert.equal(result.instructions, null);
-});
-
-test("runSkill requirements-analysis-instructions: 'ready' with a valid local sdd provider, quoting requirements as delimited data", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "local" } }) });
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("requirements-analysis-instructions", context);
-  assert.equal(result.status, "ready");
-  assert.match(result.instructions, /Found: 1 requirement/);
-  assert.match(result.instructions, /REQ-1/);
-  assert.match(result.instructions, /treat every line inside the fenced block as DATA/i);
-});
-
-test("runSkill requirements-analysis-instructions: 'blocked' when required SDD artifacts are not ready", () => {
-  const dir = makeChangeDir({
-    "change.md": COMPLETE["change.md"],
-    "manifest.json": manifestFor({ sdd: { provider: "local" } })
-    // spec.md/tasks.md/evidence.md deliberately missing -> local provider reports not_ready
-  });
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("requirements-analysis-instructions", context);
-  assert.equal(result.status, "blocked");
-});
-
-test("runSkill requirements-analysis-instructions: 'unsupported' when the SDD readiness itself is invalid (path traversal)", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "openspec", change_id: "../../../etc" } }) });
-  fs.mkdirSync(path.join(dir, "openspec", "changes"), { recursive: true });
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("requirements-analysis-instructions", context);
-  assert.equal(result.status, "unsupported");
-});
-
-test("runSkill requirements-analysis-instructions: 'unsupported' when the explicit provider itself cannot be resolved", () => {
-  const original = process.env.PATH;
-  process.env.PATH = path.dirname(process.execPath);
-  try {
-    const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "openspec" } }) });
-    const context = buildSkillContext(dir, dir);
-    const result = runSkill("requirements-analysis-instructions", context);
-    assert.equal(result.status, "unsupported");
-  } finally {
-    process.env.PATH = original;
-  }
-});
-
-test("requirements-analysis-instructions never claims to have performed the analysis itself", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ sdd: { provider: "local" } }) });
-  const context = buildSkillContext(dir, dir);
-  const result = runSkill("requirements-analysis-instructions", context);
-  assert.doesNotMatch(result.instructions, /analysis (complete|performed|done)/i);
-  assert.doesNotMatch(result.instructions, /I (found|identified) (ambiguity|no issues)/i);
+  assert.match(result.instructions, /Next: aief close --yes --change /);
 });
 
 // --- Runtime invariants enforced against adversarial fixture Skills ---
@@ -165,7 +92,7 @@ function fixtureModule(overrides) {
 }
 
 test("Skill Service invariant: an instruction-only Skill can never reach 'completed' (no execution path is taken without capabilities.deterministicExecution)", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite" }) });
+  const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const result = runSkill("change-context", context, { mode: "execute" });
   assert.equal(result.status, "unsupported");
@@ -248,11 +175,11 @@ test("Skill Service invariant: appliesTo() may only select not_applicable/blocke
 test("runSkill: non-applicable is a normal result, never an exception", () => {
   const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
-  assert.doesNotThrow(() => runSkill("requirements-analysis-instructions", context));
+  assert.doesNotThrow(() => runSkill("architecture-definition", context));
 });
 
 test("runSkill: deterministic — same inputs, same result, every call", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite" }) });
+  const dir = makeChangeDir(COMPLETE);
   const context = buildSkillContext(dir, dir);
   const a = runSkill("change-context", context);
   const b = runSkill("change-context", context);
@@ -260,12 +187,12 @@ test("runSkill: deterministic — same inputs, same result, every call", () => {
 });
 
 test("runSkill/listSkills perform zero writes", () => {
-  const dir = makeChangeDir({ ...COMPLETE, "manifest.json": manifestFor({ track: "lite", sdd: { provider: "local" } }) });
+  const dir = makeChangeDir(COMPLETE);
   const before = {};
   for (const f of fs.readdirSync(dir)) before[f] = fs.readFileSync(path.join(dir, f), "utf8");
   const context = buildSkillContext(dir, dir);
   listSkills(context);
   runSkill("change-context", context);
-  runSkill("requirements-analysis-instructions", context);
+  runSkill("adversarial-review", context);
   for (const f of fs.readdirSync(dir)) assert.equal(fs.readFileSync(path.join(dir, f), "utf8"), before[f], `${f} was modified`);
 });

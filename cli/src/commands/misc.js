@@ -17,26 +17,26 @@ import { assistantIds } from "../core/domain/assistant-resolver.js";
 
 const COMMAND_HELP = {
   doctor: {
-    purpose: "Inspect your local environment (required, recommended and optional tools) and current project readiness for AIEF. Recommended Skills include a project's own ai-specs/skills/*.md alongside AIEF's built-ins (project wins on id collision) — --verbose shows source, file path and overrides.",
+    purpose: "Inspect your local environment (required and optional tools) and current project readiness for AIEF, including recommended Skills. --verbose also lists the registered Hooks.",
     when: "Before adoption or when the project feels misconfigured.",
-    reads: "PATH (node, npm, git, openspec, specboot, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/, adapters/, ai-specs/skills/.",
+    reads: "PATH (node, npm, git, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/.",
     writes: "Nothing.",
     example: "aief doctor   (or: aief doctor --verbose)",
     next: "aief bootstrap (current directory) or aief bootstrap <name> (new project)."
   },
   status: {
-    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (track, stage, blockers, SDD readiness); add --next for its compact next-action. Without --change, --next deterministically recommends the next eligible open Change when more than one is open (or explains why none is eligible). --graph shows the full Change dependency graph (nodes, edges, topological order, issues).",
+    purpose: "Show current AIEF adoption status, recent Changes and all open Changes. With --change <id>, inspect one Change (blockers, dependencies, next action); add --next for its compact next-action. Without --change, --next deterministically recommends the next eligible open Change when more than one is open (or explains why none is eligible). --graph shows the full Change dependency graph (nodes, edges, topological order, issues).",
     when: "When you want to know where the project stands, which Change to select with --change, or what a specific Change's next action is.",
-    reads: "Project structure, package.json, changes/ and every Change's manifest.dependsOn.",
+    reads: "Project structure, package.json, changes/ and every Change's ## Depends on section.",
     writes: "Nothing.",
     example: "aief status --change <id> --next   (or: aief status --next / aief status --graph)",
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
   bootstrap: {
-    purpose: "Bootstrap a project to use AIEF: detects what it can, asks only what it must (the SDD Provider, only when genuinely ambiguous), and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
+    purpose: "Bootstrap a project to use AIEF: detects the stack and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
     when: "Right after cloning, or the first time an existing project starts using AIEF.",
-    reads: "AGENTS.md, changes/, openspec/, specboot markers, PATH (OpenSpec/SpecBoot CLIs, TTY), package.json, README.md and common project files.",
-    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, changes/<next-id>-adopt-aief/, and knowledge/sdd-provider.json only when the SDD Provider choice is ambiguous and you are prompted. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
+    reads: "AGENTS.md, changes/, package.json, README.md and common project files.",
+    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, and changes/<next-id>-adopt-aief/. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
     example: "aief bootstrap   (or: aief bootstrap my-project)",
     next: "aief verify, then aief analyze or aief new-change <name>."
   },
@@ -49,7 +49,7 @@ const COMMAND_HELP = {
     next: "aief prompt --profile architect."
   },
   "new-change": {
-    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton.",
+    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --depends-on <id>[,<id>...] writes a ## Depends on section naming existing Changes. --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton.",
     when: "Whenever you start a meaningful unit of work. Use --type definition before application code exists, when what's unresolved is requirements/architecture/product decisions rather than implementation.",
     reads: "changes/ to compute the next ID.",
     writes: "changes/<next-id>-<name>/.",
@@ -65,10 +65,10 @@ const COMMAND_HELP = {
     next: "Review spec.md and Open Questions (Requires Human Review), then aief propose or aief prompt."
   },
   propose: {
-    purpose: "Create a proposal from an idea (delegating to OpenSpec when available), or continue an existing Change with --change.",
+    purpose: "Create a local Change with proposal.md from an idea, or continue an existing Change with --change.",
     when: "When you have an idea but no Change yet, or when continuing an existing Change (e.g. after aief enrich + Human Review).",
-    reads: "OpenSpec availability and version, changes/. With --change: the existing Change directory.",
-    writes: "OpenSpec output if delegation succeeds, otherwise a local Change plus proposal.md (new idea) — or, with --change, only proposal.md inside that existing Change, never touching its change.md/spec.md/tasks.md and never overwriting an existing proposal.md. Falls back loudly, never silently.",
+    reads: "changes/. With --change: the existing Change directory.",
+    writes: "A local Change plus proposal.md (new idea) — or, with --change, only proposal.md inside that existing Change, never touching its change.md/spec.md/tasks.md and never overwriting an existing proposal.md.",
     example: "aief propose \"Add login\"   (or: aief propose --change 0002-manual-test-001)",
     next: "Review the proposal, then aief prompt."
   },
@@ -81,7 +81,7 @@ const COMMAND_HELP = {
     next: "Paste the prompt into your assistant; afterwards aief verify."
   },
   verify: {
-    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change. --strict adds optional, objective completeness checks (unresolved TODO/TBD, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a Definition decision with no recorded outcome, an unresolved required human decision) on top of the default structural checks — default verify is unchanged either way.",
+    purpose: "Verify required AIEF files and Change structures — the whole project, or one Change with --change. --strict adds optional, objective completeness checks (unresolved TODO/TBD, untouched scaffold placeholders, empty Requirements/Acceptance Criteria, a Definition decision with no recorded outcome, an unresolved (human)/(review) approval in tasks.md or in spec.md's Acceptance Criteria) on top of the default structural checks — default verify is unchanged either way.",
     when: "Before commit or after adoption; with --change <id> to check a single Change and see exactly which one was verified. Add --strict when you want to catch objectively incomplete work, not just structurally broken Changes.",
     reads: "README.md, AGENTS.md, changes/, knowledge/.",
     writes: "Nothing.",
@@ -89,9 +89,9 @@ const COMMAND_HELP = {
     next: "Fix reported gaps, then aief close."
   },
   close: {
-    purpose: "Check that a Change is ready (files, tasks, evidence) and mark it Closed.",
+    purpose: "Check that a Change is ready (files, tasks, (human)/(review) approvals in tasks.md and spec.md, evidence) and mark it Closed. Warns, without blocking, when a ## Depends on Change is still open.",
     when: "After evidence is complete, before commit. With several open Changes, --change <id> is required — close never picks one implicitly.",
-    reads: "The selected Change (implicit only when exactly one is open): change.md, tasks.md, evidence.md. With --evidence-from <path>, also a JUnit XML report at that path (already produced by your own test runner/CI — never executed by AIEF).",
+    reads: "The selected Change (implicit only when exactly one is open): change.md, spec.md, tasks.md, evidence.md, and the status of the Changes it depends on. With --evidence-from <path>, also a JUnit XML report at that path (already produced by your own test runner/CI — never executed by AIEF).",
     writes: "A Status section in change.md — only with --yes and only when all checks pass. With --evidence-from <path> (Change 0071), the Change's evidence.md ## Verification section, filled in with the report's counts — existing content there is never overwritten, only appended to or, on a repeat capture, replaced in place. Without --yes or --evidence-from, writes nothing.",
     example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)\naief close --evidence-from test-results.xml --change 0002-add-login   (capture test counts into evidence.md first)",
     next: "Commit your work, then aief status."

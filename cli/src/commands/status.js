@@ -2,27 +2,23 @@
 // in itself; statusOverview() is exported because doctor.js (next slice)
 // needs it — the one real cross-group dependency confirmed in this whole
 // modularization effort (doctor() calls statusOverview()).
-import fs from "node:fs";
 import path from "node:path";
-import { loadChangeUnified } from "../core/domain/change-loader.js";
-import { detectManifestStatusDrift } from "../core/domain/manifest-status-drift.js";
+import { loadChange } from "../core/domain/change.js";
 import { detectDuplicateChangeIds } from "../core/domain/change-id-collisions.js";
 import { detectProject } from "../detect.js";
-import { nextAction, explain as explainWorkflow } from "../core/services/workflow-service.js";
-import { resolveHarnessConfig, describeHarnessRegistry } from "../core/services/harness-service.js";
+import { nextAction, explain } from "../core/services/next-action.js";
 import { selectNextChange } from "../core/services/next-change-service.js";
 import { analyzeDefinitionSections, DEFINITION_SECTIONS } from "../core/domain/definition-enrichment.js";
 import {
-  section, exists, getChangeDirs, openChangeDirs, invalidManifestChanges, workflowChanges,
-  sddChanges, buildProjectGraph, cwd, printNext, resolveExplicitChange, resolveImplicitChange,
-  parseArgs, resolveWorkflowFor, manifestStatusDriftChanges
+  section, exists, getChangeDirs, openChangeDirs, buildProjectGraph, printNext,
+  resolveExplicitChange, resolveImplicitChange, parseArgs
 } from "./shared.js";
 
 export function statusOverview(project = detectProject(), showNext = true) {
   section("AIEF Status"); console.log("Purpose: show current AIEF adoption status. Writes nothing.\n");
   const required = [["README", exists("README.md")], ["AGENTS", exists("AGENTS.md")], ["Changes", exists("changes")]];
   for (const [n, ok] of required) console.log(`${ok ? "✓" : "!"} ${n}`);
-  const optional = [["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")], ["OpenSpec adapter", exists("adapters/openspec")], ["Specboot adapter", exists("adapters/specboot")]];
+  const optional = [["Knowledge", exists("knowledge")], ["Profiles", exists("profiles")], ["Navigator", exists("NAVIGATOR.md") || exists("docs/navigator/README.md")]];
   for (const [n, ok] of optional) console.log(ok ? `✓ ${n}` : `· ${n}: not present (optional)`);
   const changes = getChangeDirs();
   console.log(`\nChanges: ${changes.length}`);
@@ -35,33 +31,9 @@ export function statusOverview(project = detectProject(), showNext = true) {
     for (const d of open) console.log(`- ${path.basename(d)}`);
     if (open.length > 1) console.log("\nMultiple Changes in progress — commands that act on a Change need an explicit --change <id>. Run `aief status --next` for a recommendation.");
   }
-  // Additive only (WF-R15): this section is absent whenever no Change has an
-  // invalid manifest.json, which is every Change in this repository today.
-  const invalidManifests = invalidManifestChanges();
-  if (invalidManifests.length) {
-    console.log(`\nChanges with an invalid manifest.json: ${invalidManifests.length}`);
-    for (const { dir, change } of invalidManifests) {
-      console.log(`- ${path.basename(dir)}:`);
-      for (const err of change.manifestError) console.log(`    ${err.field}: ${err.message}`);
-    }
-  }
-  // Additive only (Change 0095): absent whenever no manifest-backed Change's
-  // manifest.status disagrees with its own change.md ## Status declaration,
-  // which is every Change in this repository today (none carries a
-  // manifest.json yet). Detection only — nothing here decides which value is
-  // right, and nothing writes to either file (docs/concepts.md's "Current
-  // limitation" stands unchanged).
-  const driftingManifests = manifestStatusDriftChanges();
-  if (driftingManifests.length) {
-    console.log(`\nChanges where manifest.status disagrees with change.md: ${driftingManifests.length}`);
-    for (const { dir, drift } of driftingManifests) {
-      console.log(`- ${path.basename(dir)}: manifest says "${drift.manifestStatus}", change.md says "${drift.changeMdStatus}" — not reconciled automatically, see docs/concepts.md`);
-    }
-  }
   // Additive only (Change 0137, external-audit finding C0130-F2): absent
-  // whenever no two Change directories share a leading numeric id — mirrors
-  // the drift note immediately above exactly (detection only, non-blocking,
-  // same rendering shape). `aief verify` already reports this project-wide;
+  // whenever no two Change directories share a leading numeric id (detection
+  // only, non-blocking). `aief verify` already reports this project-wide;
   // surfacing it here too means a human sees it from `aief status` as well,
   // without having to run verify separately.
   const idCollisions = detectDuplicateChangeIds(changes.map((dir) => path.basename(dir)));
@@ -71,72 +43,9 @@ export function statusOverview(project = detectProject(), showNext = true) {
       console.log(`- ${id}: ${basenames.join(", ")} — a bare "--change ${id}" reference is ambiguous; use the full basename.`);
     }
   }
-  // Additive only (WF-R15): absent whenever no Change declares a recognized
-  // track, which is every Change in this repository today. Distinguishes
-  // stage/track/next action/blockers/warnings/pending gates explicitly
-  // (commissioning instruction, Etapa E) — never shows a transition as
-  // available while a blocking gate remains unsatisfied.
-  const workflows = workflowChanges();
-  const resolvable = workflows.filter((w) => w.workflow.kind === "resolved");
-  const unresolvable = workflows.filter((w) => w.workflow.kind !== "resolved");
-  if (resolvable.length) {
-    console.log(`\nWorkflow status: ${resolvable.length}`);
-    for (const { dir, change, workflow } of resolvable) {
-      const { state, gateResults } = workflow;
-      console.log(`- ${path.basename(dir)} (track: ${change.track}):`);
-      console.log(`    Stage: ${state.stage}`);
-      console.log(`    Next: ${state.nextAction === null ? "none (closed)" : state.nextAction}`);
-      if (state.blockers.length) {
-        console.log("    Blockers:");
-        for (const g of state.blockers) console.log(`      - ${g.id}: ${g.status} — ${g.reason}`);
-      }
-      if (state.warnings.length) {
-        console.log("    Warnings:");
-        for (const g of state.warnings) console.log(`      - ${g.id}: ${g.status} — ${g.reason}`);
-      }
-      const pending = gateResults.filter((g) => g.status === "pending" && !state.blockers.includes(g));
-      if (pending.length) {
-        console.log("    Pending (not yet implemented):");
-        for (const g of pending) console.log(`      - ${g.id}: ${g.reason}`);
-      }
-    }
-  }
-  if (unresolvable.length) {
-    console.log(`\nChanges with an unrecognized or broken workflow track: ${unresolvable.length}`);
-    for (const { dir, workflow } of unresolvable) console.log(`- ${path.basename(dir)}: ${workflow.error}`);
-  }
-  // Additive only (SDD-R34): absent whenever no Change declares manifest.sdd,
-  // which is every Change in this repository today.
-  const sdd = sddChanges();
-  if (sdd.length) {
-    console.log(`\nSDD provider status: ${sdd.length}`);
-    for (const { dir, change, resolution } of sdd) {
-      console.log(`- ${path.basename(dir)}:`);
-      if (resolution.error) {
-        console.log(`    SDD provider: ${resolution.error}`);
-        continue;
-      }
-      console.log(`    SDD provider: ${resolution.provider.PROVIDER_ID}`);
-      const changeResolution = resolution.provider.resolveChange(change, cwd());
-      console.log(`    SDD change: ${changeResolution.resolved ? changeResolution.changeId : `unresolved (${changeResolution.reason})`}`);
-      const readiness = resolution.provider.validate(change, cwd());
-      console.log(`    SDD readiness: ${readiness.status}`);
-      if (readiness.blockers.length) {
-        console.log("    Blockers:");
-        for (const b of readiness.blockers) console.log(`      - ${b}`);
-      }
-      if (readiness.warnings.length) {
-        console.log("    Warnings:");
-        for (const w of readiness.warnings) console.log(`      - ${w}`);
-      }
-    }
-  }
-  // Additive only (Change 0058/ADR-028): absent whenever no Change declares
-  // manifest.dependsOn, which is every Change in this repository today —
-  // same conditional discipline sddChanges()/workflowChanges() above use.
-  // Only Changes that actually declare a dependency are listed here; the
-  // full graph (every Change, with or without dependencies) is
-  // `aief status --graph`.
+  // Additive only (Change 0058; ADR-038 moved the source to `## Depends on`):
+  // absent whenever no Change declares a dependency. Only Changes that
+  // declare one are listed; the full graph is `aief status --graph`.
   const graph = buildProjectGraph();
   const declaring = graph.edges.length ? [...new Set(graph.edges.map((e) => e.from))].sort() : [];
   if (declaring.length || graph.issues.length) {
@@ -155,46 +64,12 @@ export function statusOverview(project = detectProject(), showNext = true) {
   if (!exists("AGENTS.md") || !exists("changes")) { printNext("aief bootstrap"); return; }
   if (!changes.length) { printNext("aief analyze"); return; }
   if (open.length > 1) { printNext("aief status --next", "aief prompt --change <id>", "aief close --yes --change <id>"); return; }
-  // ADR-018 §1 (Change 0046): for the one case where this suggestion and the
-  // "Workflow status" block above could actually disagree — a single open,
-  // track-carrying Change — both now come from the exact same
-  // workflowService.nextAction() call. Every Change without a track (100%
-  // of this repository today) falls through to the unchanged legacy line
-  // below, so real output is untouched; this branch is additive-and-dormant
-  // the same way Entregas 1–3 introduced their own machinery.
-  if (open.length === 1) {
-    const singleChange = loadChangeUnified(open[0]);
-    if (singleChange.manifest && singleChange.track) {
-      const action = nextAction(open[0], cwd());
-      printNext(action.command || "aief status --next");
-      return;
-    }
-  }
   printNext("aief prompt");
 }
-// Renders a single gate/blocker/warning line, shared by the --change deep
-// view and the --next compact view so the two never format the same data
-// two different ways.
-function printGateLine(label, g) {
-  console.log(`  ${label} ${g.id}: ${g.status} — ${g.reason}`);
-}
 // gatherOpenChangeFacts() (Change 0059/ADR-029) — the one place real
-// Changes' {id, closed, manifestError, workflowBlockers} facts are computed
-// for next-change-service.js. Reuses loadChangeUnified()/resolveWorkflowFor()
-// exactly as workflowChanges() already does — no second Workflow resolution.
+// Changes' {id, closed} facts are computed for next-change-service.js.
 function gatherOpenChangeFacts() {
-  return getChangeDirs().map((dir) => {
-    const change = loadChangeUnified(dir);
-    const id = path.basename(dir);
-    let workflowBlockers = [];
-    if (!change.manifestError && change.manifest && change.track) {
-      const workflow = resolveWorkflowFor(change);
-      workflowBlockers = workflow.kind === "resolved"
-        ? workflow.state.blockers.map((g) => `${g.id}: ${g.status} — ${g.reason}`)
-        : [workflow.error];
-    }
-    return { id, closed: change.closed, manifestError: Boolean(change.manifestError), workflowBlockers };
-  });
+  return getChangeDirs().map((dir) => ({ id: path.basename(dir), closed: loadChange(dir).closed }));
 }
 // aief status --next (no --change), only when 2+ Changes are open (Change
 // 0059/ADR-029) — deliberately replaces the prior "select one explicitly"
@@ -228,10 +103,9 @@ function statusNextSmart() {
 //
 // Entrega 4 (Change 0046, ADR-018 §4, Path B): no new command — this is the
 // entire CLI-facing surface Path B introduces, as flags on the existing
-// `status` command. Every branch here is read-only (UX-R5/R17): nothing
-// below writes a file, and workflowService.* is the only thing consulted
-// for workflow/SDD facts (UX-R21/R23) — no gate/track conditional lives in
-// this function itself, only rendering of what workflowService already decided.
+// `status` command. Every branch here is read-only: nothing below writes a
+// file, and next-action.js decides the next step — this function only
+// renders it.
 function statusSingleChange(parsed) {
   if (parsed.next === true && typeof parsed.change !== "string" && openChangeDirs().length > 1) {
     statusNextSmart();
@@ -243,25 +117,14 @@ function statusSingleChange(parsed) {
     : resolveImplicitChange("aief status --next");
   if (!changeDir) { printNext("aief status (list open Changes)"); return; }
   const name = path.relative(process.cwd(), changeDir);
-  const change = loadChangeUnified(changeDir);
+  const change = loadChange(changeDir);
   console.log(`Change: ${name}`);
-
-  if (change.manifestError) {
-    console.log("Manifest: invalid — never falls back to legacy inference (spec.md UX-R24).");
-    for (const err of change.manifestError) console.log(`  ${err.field}: ${err.message}`);
-    process.exitCode = 1;
-    return;
-  }
   console.log(`Status: ${change.closed ? "closed" : "open"}`);
-  const drift = detectManifestStatusDrift(change);
-  if (drift.drift) {
-    console.log(`  Warning: manifest.status ("${drift.manifestStatus}") disagrees with change.md's own ## Status ("${drift.changeMdStatus}") — not reconciled automatically, see docs/concepts.md`);
-  }
+  if (change.dependsOn.length) console.log(`Depends on: ${change.dependsOn.join(", ")}`);
 
   if (parsed.next) {
-    // Compact Normalized Action view — the single computation both this
-    // and statusOverview()'s bottom line consult (ADR-018 §1).
-    const action = nextAction(changeDir, cwd());
+    // Compact Normalized Action view.
+    const action = nextAction(changeDir);
     console.log(`\nNext action:`);
     console.log(`  id: ${action.id}`);
     console.log(`  status: ${action.status}`);
@@ -269,78 +132,29 @@ function statusSingleChange(parsed) {
     console.log(`  blocking: ${action.blocking}`);
     if (action.evidence?.length) {
       console.log("  evidence:");
-      for (const e of action.evidence) console.log(typeof e === "string" ? `    - ${e}` : `    - ${e.id}: ${e.status} — ${e.reason}`);
+      for (const e of action.evidence) console.log(`    - ${e}`);
     }
     console.log(`\nNext:`);
     console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
-    if (action.status === "invalid") process.exitCode = 1;
     return;
   }
 
-  // Deep inspection view — track/stage/gates, SDD provider/readiness, then
-  // the same derived action's suggested command at the end.
-  const { workflow, sdd, action } = explainWorkflow(changeDir, cwd());
-  if (workflow && workflow.kind === "resolved") {
-    console.log(`\nTrack: ${change.track}`);
-    console.log(`Stage: ${workflow.state.stage}`);
-    if (workflow.state.blockers.length) {
-      console.log("Blockers:");
-      for (const g of workflow.state.blockers) printGateLine("-", g);
-    }
-    if (workflow.state.warnings.length) {
-      console.log("Warnings:");
-      for (const g of workflow.state.warnings) printGateLine("-", g);
-    }
-  } else if (workflow) {
-    console.log(`\nWorkflow: invalid — ${workflow.error}`);
-  } else {
-    console.log("\nWorkflow: no track declared (legacy readiness only).");
+  // Deep inspection view: readiness problems, Definition readiness, then the
+  // same derived action's suggested command at the end.
+  const { action } = explain(changeDir);
+  if (action.status === "blocked") {
+    console.log("\nBlockers:");
+    for (const e of action.evidence) console.log(`- ${e}`);
   }
-  if (sdd && !sdd.error) {
-    console.log(`\nSDD provider: ${sdd.providerId}`);
-    console.log(`SDD change: ${sdd.changeResolution.resolved ? sdd.changeResolution.changeId : `unresolved (${sdd.changeResolution.reason})`}`);
-    console.log(`SDD readiness: ${sdd.readiness.status}`);
-    if (sdd.readiness.blockers?.length) { console.log("  Blockers:"); for (const b of sdd.readiness.blockers) console.log(`    - ${b}`); }
-    if (sdd.readiness.warnings?.length) { console.log("  Warnings:"); for (const w of sdd.readiness.warnings) console.log(`    - ${w}`); }
-  } else if (sdd?.error) {
-    console.log(`\nSDD provider: ${sdd.error}`);
-  }
-  printHarnessStatus(changeDir, change);
   printDefinitionReadiness(change);
   console.log(`\nNext:`);
   console.log(`  ${action.command || "(no further action — " + action.status + ")"}`);
-  if (action.status === "invalid") process.exitCode = 1;
-}
-// Called from statusSingleChange() (Change 0056/ADR-026) — present only when
-// this Change's own manifest declares `harness` (R6): every existing Change
-// (none of which does) sees no diff at all here, unlike the Skill/Standard
-// sections in doctor which always show something. Reports configuration —
-// which Hooks would run, which are disabled, any unknown ids — never a
-// fabricated execution-count summary (status never fires a Hook; see
-// spec.md "Non-goals" for why that line from the commissioning brief's own
-// illustrative example is deliberately not implemented here).
-function printHarnessStatus(changeDir, change) {
-  if (!change.manifest || typeof change.manifest !== "object" || !change.manifest.harness) return;
-  const config = resolveHarnessConfig(change.manifest);
-  console.log(`\nHarness: configured (log ${config.log ? "on" : "off"})`);
-  for (const eventId of Object.keys(config.disabledByEvent)) {
-    const registeredForEvent = describeHarnessRegistry().filter((d) => d.events.includes(eventId)).map((d) => d.id);
-    const disabled = new Set(config.disabledByEvent[eventId] || []);
-    const activeIds = registeredForEvent.filter((id) => !disabled.has(id));
-    console.log(`  ${eventId}: ${activeIds.length} active${disabled.size ? `, ${disabled.size} disabled (${[...disabled].join(", ")})` : ""}`);
-  }
-  if (config.unknownHookIds.length) {
-    console.log("  Unknown Hook id(s) in manifest.harness (never disabled anything real):");
-    for (const u of config.unknownHookIds) console.log(`    - "${u.id}" (${u.event})`);
-  }
-  if (config.log && fs.existsSync(path.join(changeDir, "hooks.md"))) console.log(`  Execution log: ${path.relative(process.cwd(), path.join(changeDir, "hooks.md"))}`);
 }
 // aief status --change <id> on a Definition Change (Change 0081): a
 // deterministic, transparent breakdown of its own change.md — never a fake
 // percentage-complete score (§9 of the commissioning brief), only literal
 // section counts and explicitly author-marked items. Present only for
-// `## Type: Definition` Changes, the same "additive, absent otherwise"
-// discipline printHarnessStatus already uses above.
+// `## Type: Definition` Changes (additive, absent otherwise).
 function printDefinitionReadiness(change) {
   if (change.type !== "definition") return;
   const changeMd = change.files ? change.files["change.md"] : "";

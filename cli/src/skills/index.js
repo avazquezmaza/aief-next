@@ -1,6 +1,6 @@
 // The Skill Registry (AIEF Core 3.0, Entrega 5, Change 0047, ADR-019).
 // Mirrors cli/src/requirement-providers/index.js and
-// cli/src/sdd-providers/index.js exactly: a plain, statically-imported
+// the other static registries exactly: a plain, statically-imported
 // module list — no directory scan, no dynamic import() of a path built from
 // user input, no filesystem load, no npm resolution, no runtime mutation.
 // Adding a third Skill means adding one file here and one entry in
@@ -15,12 +15,11 @@
 // static and deterministic (SK-R8/R30): the array's own literal order.
 import { validateDescriptor } from "../core/domain/skill.js";
 import * as changeContext from "./change-context.js";
-import * as requirementsAnalysisInstructions from "./requirements-analysis-instructions.js";
 import * as architectureDefinition from "./architecture-definition.js";
 import * as dataDefinition from "./data-definition.js";
 import * as adversarialReview from "./adversarial-review.js";
 
-const MODULES = [changeContext, requirementsAnalysisInstructions, architectureDefinition, dataDefinition, adversarialReview];
+const MODULES = [changeContext, architectureDefinition, dataDefinition, adversarialReview];
 
 // createRegistry(modules) -> { id -> module } or throws. Exported (in
 // addition to the static registry built from it below) so tests can exercise

@@ -53,10 +53,10 @@ function baseResult(mod, event, overrides) {
 // Builds a Skill-Context-shaped object purely from Hook Context's own
 // already-loaded fields — no new fetch (HK-R20/R22): Hook Context already
 // carries exactly the facts skill-context.js's buildSkillContext() would
-// have fetched (`project`/`change`/`workflow`/`sdd`). `action` is omitted
-// (neither shipped Skill reads it) rather than re-derived.
+// have fetched (`project`/`change`). `action` is omitted rather than
+// re-derived.
 function skillContextFrom(hookContext) {
-  return Object.freeze({ project: hookContext.project, change: hookContext.change, workflow: hookContext.workflow, sdd: hookContext.sdd, action: null });
+  return Object.freeze({ project: hookContext.project, change: hookContext.change, action: null });
 }
 
 // Pre-invokes every id in a Hook's own `allowedSkills` — never any other id
@@ -185,4 +185,27 @@ export function evaluateEvent(event, context) {
     blockers: matched.flatMap((r) => r.blockers),
     instructions: matched.flatMap((r) => r.instructions)
   };
+}
+
+// Rendering for Hook results (moved from the removed harness-service.js,
+// ADR-038). formatHookResultsBlock() is prompt's additive section;
+// describeFailingHooks() is verify's compact one-line form. Never a stack
+// trace, never raw context.
+export function formatHookResultsBlock(results) {
+  return results
+    .filter((r) => (r.status === "matched" && (r.instructions.length || r.warnings.length)) || r.status === "failed" || r.status === "invalid")
+    .map((r) => {
+      if (r.status === "failed" || r.status === "invalid") {
+        return `\n─── Hook: ${r.hook} (${r.status}) ───\n${r.errors.length ? r.errors.join("; ") : r.summary}\n`;
+      }
+      const lines = [...r.warnings.map((w) => `Warning: ${w}`), ...r.instructions];
+      return `\n─── Hook: ${r.hook} ───\n${r.summary}\n\n${lines.map((l) => `- ${l}`).join("\n")}\n`;
+    })
+    .join("");
+}
+
+export function describeFailingHooks(results) {
+  return results
+    .filter((r) => r.status === "failed" || r.status === "invalid")
+    .map((r) => `${r.hook} (${r.event}, ${r.status}): ${r.errors.length ? r.errors.join("; ") : r.summary}`);
 }

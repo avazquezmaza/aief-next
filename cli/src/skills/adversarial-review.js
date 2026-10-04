@@ -9,8 +9,7 @@
 //
 // This Skill never runs a review itself (no AI, no diff-parsing) — it
 // produces instructions for a human or assistant to run one, reusing the
-// facts the Skill Context already computed (change.basename, workflow
-// stage, sdd requirements/tasks where present) exactly as change-context.js
+// facts the Skill Context already computed (change.basename) exactly as change-context.js
 // and requirements-analysis-instructions.js already do.
 
 export const id = "adversarial-review";
@@ -26,38 +25,12 @@ export const capabilities = Object.freeze({
   assistantRequired: false
 });
 
-// Deliberately widest lifecycle window this Entrega's Skill Context can
-// express without inventing a new contract field (SK-R... same discipline
-// as requirements-analysis-instructions.js's not_applicable/blocked/
-// unsupported split): a closed Change is past the point this review exists
-// for — "before archiving" (real specboot skill's own stated window) — so
-// `not_applicable` once `change.closed` is true, for every Change shape.
-//
-// For a Change with a resolved Workflow (track declared, manifest-carrying),
-// the "work" stage is excluded: this review is for something implemented
-// and ready to be checked, not for something still being built — `blocked`,
-// with the current stage named, rather than silently offering a review of
-// nothing yet. Every later stage (verify/security_review/review/close) is
-// applicable, matching "after implementation, before archiving" precisely
-// because those are exactly the stages the Workflow Engine places after
-// "work" and up to and including "close" (cli/src/workflows/*.json).
-//
-// A legacy Change (no track, `workflow` is null) carries no stage signal at
-// all in the Skill Context by design (skill-context.js) — this Skill does
-// not call evaluateGates()/resolveState() itself to manufacture one (that
-// would duplicate workflow-service.js's own resolution, the same
-// discipline every other Skill in this registry already follows). It is
-// `applicable` whenever such a Change is simply open, an honest widest-safe
-// default, not a guess at an unavailable stage.
+// Applies to any open Change: the review is for before archiving.
 export function appliesTo(context) {
   const change = context?.change;
   if (!change) return { applicable: false, status: "not_applicable", reason: "no Change resolved" };
   if (change.closed) return { applicable: false, status: "not_applicable", reason: "Change is already closed — this review is for before archiving" };
 
-  const workflow = context?.workflow;
-  if (workflow && workflow.kind === "resolved" && workflow.state.stage === "work") {
-    return { applicable: false, status: "blocked", reason: `Change is still at the "work" stage — nothing implemented yet to review` };
-  }
   return { applicable: true };
 }
 
@@ -74,7 +47,7 @@ const GUARDRAILS = [
 ].join(" ");
 
 export function buildInstructions(context) {
-  const { change, sdd } = context;
+  const { change } = context;
   const lines = [];
   lines.push(`Act as an independent adversarial reviewer of ${change.basename}.`);
   lines.push("Assume gaps, flaws or unsafe behavior exist until you have argued against them with evidence — do not rubber-stamp.");
@@ -95,14 +68,6 @@ export function buildInstructions(context) {
   lines.push("## 5. Verdict");
   lines.push("End with PASS (no blockers or majors), PASS WITH GAPS (minors only, tracked), or FAIL (at least one blocker or major) — and whether closing this Change is advisable in its current state.");
 
-  if (sdd && !sdd.error) {
-    const requirements = sdd.requirements || [];
-    const tasks = sdd.tasks || [];
-    if (requirements.length || tasks.length) {
-      lines.push("");
-      lines.push(`This Change's SDD provider (${sdd.providerId}) reports ${requirements.length} requirement(s) and ${tasks.length} task(s) — use them as the acceptance-criteria source in step 1 rather than re-deriving your own list.`);
-    }
-  }
 
   return lines.join("\n");
 }

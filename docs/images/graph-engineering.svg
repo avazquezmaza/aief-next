@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 698" width="1300" height="698" role="img" aria-labelledby="ge-title ge-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <title id="ge-title">AIEF Graph Engineering</title>
-  <desc id="ge-desc">Change manifests declaring dependsOn feed a Graph builder, which validates (missing, duplicate, or self dependencies, and cycles) and computes a deterministic topological order; eligibility evaluation combines that with open/closed state and Workflow blockers to feed Smart Workflow, surfaced by status --graph and status --next. Example: Change B depends on Change A — while A is open, A is eligible and B waits; once A is closed, B becomes eligible. Only explicit dependsOn entries create edges, the Graph is rebuilt from disk on every command with no separate persisted state, it never modifies a Change, status --graph is read-only, and status --next only recommends — it never executes a Change.</desc>
+  <desc id="ge-desc">change.md files declaring ## Depends on feed a Graph builder, which validates (missing, duplicate, or self dependencies, and cycles) and computes a deterministic topological order; eligibility evaluation combines that with open/closed state to feed next-Change selection, surfaced by status --graph and status --next. Example: Change B depends on Change A — while A is open, A is eligible and B waits; once A is closed, B becomes eligible. Only explicit Depends on entries create edges, the Graph is rebuilt from disk on every command with no separate persisted state, it never modifies a Change, status --graph is read-only, and status --next only recommends — it never executes a Change.</desc>
   <defs>
     <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
@@ -32,8 +32,8 @@
   <text x="40" y="58" font-size="12" fill="#64748b">How declared dependsOn edges shape eligibility and the next-Change recommendation</text>
   <g transform="translate(42.0,80)">
     <rect width="160" height="74" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" filter="url(#card-shadow)"/>
-    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">Change manifests</text>
-    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">(dependsOn)</text>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">change.md</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">(## Depends on)</text>
   </g>
   <g transform="translate(218.0,80)">
     <rect width="160" height="74" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#card-shadow)"/>
@@ -55,7 +55,8 @@
   </g>
   <g transform="translate(922.0,80)">
     <rect width="160" height="74" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
-    <text x="80.0" y="41.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">Smart Workflow</text>
+    <text x="80.0" y="33.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">Next-Change</text>
+    <text x="80.0" y="50.0" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">selection</text>
   </g>
   <g transform="translate(1098.0,80)">
     <rect width="160" height="74" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#card-shadow)"/>
@@ -84,7 +85,7 @@
   </g>
   <text x="717.0" y="248" font-size="11" fill="#92400e">- open (not closed)</text>
   <text x="717.0" y="268" font-size="11" fill="#92400e">- dependencies completed</text>
-  <text x="717.0" y="288" font-size="11" fill="#92400e">- no workflow blocker</text>
+  <text x="717.0" y="288" font-size="11" fill="#92400e">- no graph issue</text>
   <text x="717.0" y="308" font-size="11" fill="#92400e">- deterministic order</text>
   <g transform="translate(40,384)">
     <rect width="1220" height="150" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="0"/>
@@ -103,9 +104,9 @@
     <text x="14" y="42" font-size="11" fill="#166534">A: closed</text>
     <text x="14" y="60" font-size="11" fill="#166534">B: dependency satisfied -&gt; eligible</text>
   </g>
-  <text x="40" y="568" font-size="12" fill="#64748b">- Only an explicit dependsOn entry creates an edge — the Graph never infers one.</text>
+  <text x="40" y="568" font-size="12" fill="#64748b">- Only an explicit ## Depends on entry creates an edge — the Graph never infers one.</text>
   <text x="40" y="588" font-size="12" fill="#64748b">- Zero declared edges means every open Change is independent and immediately eligible.</text>
-  <text x="40" y="608" font-size="12" fill="#64748b">- The Graph is rebuilt from changes/*/manifest.json on every command — nothing is persisted separately.</text>
-  <text x="40" y="628" font-size="12" fill="#64748b">- The Graph never writes a Change or a manifest — building it has no side effects.</text>
+  <text x="40" y="608" font-size="12" fill="#64748b">- The Graph is rebuilt from changes/*/change.md on every command — nothing is persisted separately.</text>
+  <text x="40" y="628" font-size="12" fill="#64748b">- The Graph never writes a Change — building it has no side effects.</text>
   <text x="40" y="648" font-size="12" fill="#64748b">- status --graph is read-only; status --next recommends one Change by id and never executes it.</text>
 </svg>

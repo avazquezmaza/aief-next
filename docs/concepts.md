@@ -14,13 +14,11 @@ changes/0001-add-login/
 ├── change.md      # why and what — objective, scope, success criteria
 ├── spec.md        # requirements and acceptance criteria
 ├── tasks.md       # implementation checklist
-├── evidence.md    # what actually happened, verified
-└── manifest.json  # optional — opts into Workflow Engine / SDD Provider features
+└── evidence.md    # what actually happened, verified
 ```
 
 A Change is **open** until its `change.md` carries a `## Status / Closed` section (written only by
-`aief close --yes`), or — if it has a `manifest.json` — until the manifest's own `status` field says
-`closed`. Either way, **the files are the only source of truth**: there is no database, no session
+`aief close --yes`). **The files are the only source of truth**: there is no database, no session
 state, no hidden flag. Selection is always derived by reading `changes/` fresh.
 
 `change.md`'s `## Type` names which of these a Change is (`General` by default; `Analysis`,
@@ -73,77 +71,13 @@ front) and an **Applies once implementation starts** section (conventional code-
 Definition-stage project is never held to implementation-only guidance it hasn't reached yet; other
 standards (frontend, backend, documentation) are not maturity-split because they only apply once
 implementation exists.
-## Change Manifest
+## Approvals
 
-An optional `manifest.json` next to `change.md`. A Change with no manifest behaves exactly as it
-always has — this is a strictly additive, opt-in layer. A Change with a manifest gets it as the
-authoritative source for the fields it declares (never merged with `change.md`'s prose). Minimal
-shape:
-
-```json
-{
-  "schema": "aief.change/v1",
-  "id": "0001-add-login",
-  "slug": "add-login",
-  "title": "Add login",
-  "status": "open",
-  "track": "standard"
-}
-```
-
-`track` is what opts a Change into the **Workflow Engine** below; `sdd` opts it into the
-**SDD Provider**. Both are optional and independent. Full field reference:
-[Configuration](configuration.md).
-
-**Current limitation — manifest status has no writer yet.** No AIEF command today creates,
-writes, or synchronizes `manifest.json` or its `status` field — `aief close --yes` writes only
-`change.md`'s `## Status` section. If a Change carries a manifest, closing it through `aief close`
-leaves `manifest.status` exactly as it was; `status`/`status --next`/`prompt` (which read the
-manifest as authoritative when present) will keep treating that Change as open until the manifest
-is updated by hand or by an external tool. `aief verify` and `aief close` are unaffected — both
-always read `change.md` directly, never the manifest, for the closed/open question. Treat a
-manifest's `status` field as advisory today, and keep `change.md`'s own `## Status` as the
-practical way to close a Change.
-
-This gap is now at least **detected**, never silently reconciled (Change 0095): when a
-manifest-backed Change's `manifest.status` disagrees with its own `change.md`'s `## Status`
-declaration, `aief status` (overview and `--change`) and `aief verify` (targeted and
-whole-project) print a non-blocking warning naming both values. Nothing is written to either
-file by this detection, and neither command's closed/open decision or PASS/FAIL changes because
-of it — the same "unverified hint, disagreement reported, never silently resolved" pattern this
-document's own [Loop](#loop)/[Graph](#graph) sections describe for other non-blocking signals.
-An automatic writer or reconciliation command was deliberately rejected as a fix here: it would
-re-introduce the second-source-of-truth problem ADR-009 already ruled out once (for a proposed
-`.aief/state.json`) and ADR-016 rules out explicitly for the manifest itself.
-
-## Workflow Engine — Track, Stage, Gate
-
-A Change that declares a `track` gets a small state machine layered on top of it, read-only from
-the outside — it narrates where the Change stands, it never forces a transition:
-
-- **Track** — one of `lite`, `standard`, `governed`. Chooses which stages and gates apply. See
-  [Workflow](workflow.md#tracks) for when to use each.
-- **Stage** — a named point in the track's sequence (`work`, `verify`, `review`, `approval`,
-  `security_review`, `close`, depending on the track).
-- **Gate** — a named condition a stage may require before advancing (e.g. `readiness`, `review`,
-  `approval`, `security_review`). A gate is `pending` (not yet satisfied), `passed`, or a `blocker`
-  for the next transition.
-
-`aief status --change <id>` shows the resolved stage, the next action, and which gates are blocking
-or merely pending — never claims a transition happened that a gate is still blocking.
-
-## SDD Provider
-
-An abstraction over "where does this Change's specification/tasks actually live." Two providers
-exist:
-
-- **`local`** — the Change's own `spec.md`/`tasks.md` (the default; every Change already has this).
-- **`openspec`** — an OpenSpec change under `openspec/changes/<name>/`, when the Change opts in via
-  `manifest.json`'s `sdd` section.
-
-AIEF's core never reads a provider's native files directly — it always goes through the provider
-boundary, so adding a third SDD tool later means adding one provider module, not touching every
-command that inspects readiness.
+Two task labels mark checkboxes an assistant must not check on its own: `(human)` (only a human)
+and `(review)` (someone other than the implementer). They may appear in `tasks.md` or as an
+Acceptance Criterion in `spec.md`. `aief close` refuses while one is unchecked or marked `[-]`, and
+lists every checked one under "Approvals relied on". AIEF cannot verify *who* checked a box — see
+[Security model](security-model.md).
 
 ## Requirement Source / Normalized Requirement
 
@@ -175,65 +109,38 @@ relying on this)`) so the assistant reading it can tell a speculative match from
 `aief doctor`'s report lists strong-confidence recommendations first for the same reason.
 
 A Skill's context (the Skill Context Builder's `buildSkillContext()`) always carries
-`project`/`change`/`workflow`/`sdd`/`action`, plus `definitionEnrichment` (Change 0090) — the
+`project`/`change`/`action`, plus `definitionEnrichment` (Change 0090) — the
 Definition Change's own Known/Missing sections and `(deferred)`/`(ambiguous)`/`(decision
 required)`/`(human)`-marked items, reusing `analyzeDefinitionSections()` (the same classification
 `aief status --change <id>`'s "Definition readiness:" block already reports). `null` for every
 non-Definition Change — a Skill never gets a fabricated result for a Change that isn't one.
 
-## Hook / Harness
+## Hook
 
 A **Hook** is a versioned observer that reacts to one of a small, closed set of lifecycle events
 (`prompt.prepared`, `verify.completed`). A Hook can only add an observation to the output — it
 never blocks a command, never changes an exit code, and never mutates a file itself. Hooks are
-internally registered (not user-authored) — a Change's `manifest.json` cannot define a new one.
-
-The **Harness** (Change 0056) is what a Change *can* configure over the existing Hooks: disable
-specific ones per event (`manifest.harness.hooks.<event>.disabled`) and opt into a visible,
-append-only execution log (`manifest.harness.log`, written to `<changeDir>/hooks.md`). `aief doctor
---verbose` shows every registered Hook; `aief status --change <id>` shows a Change's effective
-Harness configuration, only when declared. See [Workflow — Harness](workflow.md#harness--hooks-runtime-visibility-and-configuration).
-
-## Loop
-
-Opt-in, per-Change attempt tracking over `aief verify --change <id>` (Change 0057):
-**Verify → Feedback → Retry (if applicable) → Final result.** Feedback reuses Structural
-Verification's own error lines; the outcome (`passed`/`retry_available`/`exhausted`) is a pure
-decision over the attempt number (derived from `<changeDir>/loop.md` itself) and
-`manifest.loop.verify.maxRetries`. "Retry" is always a manual re-invocation — Loop never re-runs
-`verify`, a Hook, or anything else automatically, and never changes `verify`'s own PASS/FAIL or
-exit code. See [Workflow — Loop](workflow.md#loop--verify-feedback-retry).
+internally registered, not user-authored. `aief doctor --verbose` shows every registered Hook. See
+[Workflow — Hooks](workflow.md#hooks).
 
 ## Graph
 
-The official Change dependency model (Change 0058): a Change's `manifest.json` may declare
-`dependsOn`, naming other Changes it depends on. `change-graph.js`'s `buildGraph()` derives, on
+The Change dependency model (Change 0058; ADR-038 moved it into `change.md`): a Change lists the
+Changes it depends on under `## Depends on`. `change-graph.js`'s `buildGraph()` derives, on
 every invocation, a deterministic node/edge structure, a topological order (dependencies first),
 and any issues (`missing_dependency`, `self_dependency`, `duplicate_dependency`, `cycle`) — never
 persisted, never cached. `aief status`/`aief status --graph` read it; `aief verify --change <id>`
-prints a non-blocking note when the targeted Change has an issue. This is the foundation `aief
+prints a non-blocking note when the targeted Change has an issue, and `aief close` warns while a
+dependency is still open. This is the foundation `aief
 status --next`'s smart selection (Change 0059, below) builds on.
 See [Workflow — Graph](workflow.md#graph--the-change-dependency-model).
 
 ## Smart next-Change selection
 
 `aief status --next`, when 2+ Changes are open (Change 0059), deterministically recommends one:
-open, valid manifest, every dependency exists and is closed, not a Graph cycle member, no
-unsatisfied Workflow gate blocker. Ties break on the lowest Change id. Loop and Harness are never
-consulted — both are non-blocking by design (ADR-026/027). With 0 or 1 open Changes, behavior is
-unchanged from before this Change. See
+open, every dependency exists and is closed, not a Graph cycle member. Ties break on the lowest
+Change id. With 0 or 1 open Changes, it shows that Change's next action. See
 [Workflow — Smart next-Change selection](workflow.md#smart-next-change-selection--aief-status---next).
-
-## Verification Rule / Requirement Verification
-
-`aief verify --requirements` runs **Requirement Verification**: for each requirement a Change's
-SDD artifacts declare, a **Verification Rule** produces a deterministic, evidence-grounded verdict
-(`passed`, `failed`, `not_applicable`, `blocked`, `unsupported`, `invalid`, `error`). Rules never
-use AI, never execute a command, never reach the network — they only read already-produced
-Evidence (e.g. an SDD artifact's state, or a file that must exist). This is a distinct layer from
-**Structural Verification** (`aief verify`'s default output), which checks that the Change's own
-files and structure are intact. Structural Verification always runs; Requirement Verification is
-additive and opt-in. See [Workflow — Verification](workflow.md#verification).
 
 ## Evidence
 

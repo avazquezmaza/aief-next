@@ -224,11 +224,22 @@ export function matchChanges(selector, dirs) {
   return pairs.filter(([, base]) => base.includes(value)).map(([dir]) => dir);
 }
 
+// `## Depends on` in change.md (ADR-038, Change 0157): one Change id per
+// bullet, e.g. "- 0002-base-api" or "- 0002". Text after the id (a dash, a
+// note) is ignored. Replaces the manifest's `dependsOn` field.
+export function parseDependsOn(changeMd) {
+  const match = String(changeMd || "").match(/^##\s+Depends on\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/im);
+  if (!match) return [];
+  const ids = [];
+  for (const line of match[1].split(/\r?\n/)) {
+    const item = line.match(/^\s*[-*+]\s+`?(\d+(?:-[a-z0-9][a-z0-9-]*)?)`?/i);
+    if (item) ids.push(item[1]);
+  }
+  return ids;
+}
+
 // Reads the four required Change files and reports which are missing or
-// empty. Extracted from loadChange() (Change 0043 review finding H1) so the
-// optional-manifest loader (change-loader.js) can report the same presence
-// facts instead of silently claiming nothing is missing — a manifest does
-// not exempt a Change from carrying these four files (spec.md R7).
+// empty.
 export function readChangeFiles(changeDir) {
   const files = {};
   const missing = [];
@@ -268,6 +279,10 @@ export function loadChange(changeDir) {
     // "placeholder" | "partial" | "complete" (finding F3).
     evidenceState,
     evidencePlaceholder: evidenceState === "placeholder",
-    openTasksCount: countOpenTasks(files["tasks.md"])
+    openTasksCount: countOpenTasks(files["tasks.md"]),
+    dependsOn: parseDependsOn(files["change.md"]),
+    // AIEF 4.0 no longer reads manifest.json (ADR-038); verify names a
+    // leftover one so its author knows it has no effect.
+    hasLegacyManifest: fs.existsSync(path.join(changeDir, "manifest.json"))
   };
 }

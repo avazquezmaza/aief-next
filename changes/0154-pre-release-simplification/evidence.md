@@ -143,18 +143,18 @@ automatic format/typecheck, proactive agents, `ecc2` daemon and database).
 
 | ID | Finding | Severity | Status |
 |---|---|---|---|
-| F1 | Opt-in engine unused in all projects and in this repo | High | Open: wave 1 |
-| F2 | Dependencies needed but only reachable through a hand-written manifest | Medium | Open: wave 1 |
-| F3 | Gates duplicate approval labels | Medium | Open: wave 1 |
+| F1 | Opt-in engine unused in all projects and in this repo | High | Resolved: Change 0157 (removed, ADR-038) |
+| F2 | Dependencies needed but only reachable through a hand-written manifest | Medium | Resolved: Change 0157 (`## Depends on`) |
+| F3 | Gates duplicate approval labels | Medium | Resolved: Change 0157 (gates removed) |
 | F4 | AIEF files kept out of git in 6 of 9 repos, with no supported private mode or backup | High | Open: wave 2 |
 | F5 | Team use needs grouping and conflict-free status. Built outside AIEF in `trk-herbie-bot` | High | Open: wave 3 |
 | F6 | Claude Code integration is copy-paste only | Medium | Open: wave 2 |
 | F7 | Standards and Skills add little per project | Medium | Open: wave 3 |
 | F8 | Process weight: one-line fixes carry 130+ lines of Change docs | Medium | Open: wave 1 (lighter Fix Changes) |
-| B1 | Loop count and message | Low | Open: resolved by removing the loop |
-| B2 | Manifest example vs identity rule | Low | Open: resolved by removing the manifest |
-| B3 | Detection walks into nested repositories | Medium | Open: wave 1 |
-| B4 | `spec.md` Acceptance Criteria, including `(human)`, not enforced by `close` or `--strict` | Medium | Open: wave 1 |
+| B1 | Loop count and message | Low | Resolved: Change 0157 (Loop removed) |
+| B2 | Manifest example vs identity rule | Low | Resolved: Change 0157 (manifest removed) |
+| B3 | Detection walks into nested repositories | Medium | Resolved: Change 0155 |
+| B4 | `spec.md` Acceptance Criteria, including `(human)`, not enforced by `close` or `--strict` | Medium | Resolved: Change 0155 |
 
 ## Risks
 

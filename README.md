@@ -1,4 +1,4 @@
-# AIEF — Assistant-Agnostic AI Engineering Workflow Engine
+# AIEF — Assistant-Agnostic AI Engineering Framework
 
 [![CI](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml/badge.svg)](https://github.com/avazquezmaza/aief-next/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -15,8 +15,9 @@ session ends. Assistants are excellent at implementing and remember nothing betw
 same discipline gap starts even earlier for a project that has no code yet — architecture and
 product decisions get made in chat and never survive the conversation that made them.
 
-AIEF is a **workflow engine**, not an assistant. It doesn't write code — it composes context, keeps
-the record, and checks the evidence. It is a dependency-free Node.js CLI (`aief`) plus a set of
+AIEF is **the contract between a person and their assistant**, not an assistant and not a workflow
+engine (ADR-038): what is in scope, when to stop, what was proven, and what a human decided. It
+doesn't write code — it composes context, keeps the record, and checks the evidence. It is a dependency-free Node.js CLI (`aief`) plus a set of
 visible conventions (`AGENTS.md`, `changes/`, `knowledge/`) that make that discipline survive
 across assistants, sessions, and teammates. The repository is always the source of truth — no
 daemon, no database, no hidden state.
@@ -28,11 +29,10 @@ specification, a task checklist, and evidence of what actually happened.
 
 ![AIEF product workflow: a requirement becomes an AIEF Change, AIEF composes a context-complete prompt, an AI assistant implements it, evidence and verification follow, the Change is closed, and status --next recommends the following Change without executing it](docs/images/product-workflow.svg)
 
-AIEF composes the prompt, your assistant implements, and humans decide what's next. The opt-in band
-above — LIDR project intelligence, Skills, Standards, staged Workflow tracks, Harness/Hooks
-visibility, Loop retry tracking, and the Change dependency Graph — layers onto this same loop
-without changing its shape; none of it blocks `verify` or `close`, and `status --next` only ever
-prints a recommendation. Full detail: [docs/workflow.md](docs/workflow.md) and
+AIEF composes the prompt, your assistant implements, and humans decide what's next. Skills,
+Standards, Hooks and the Change dependency Graph layer onto this same loop without changing its
+shape; none of them blocks `verify` or `close`, and `status --next` only ever prints a
+recommendation. Full detail: [docs/workflow.md](docs/workflow.md) and
 [docs/architecture.md](docs/architecture.md).
 
 ## Definition and Analysis: two starting points
@@ -70,7 +70,7 @@ aief analyze
 ```
 
 Full walkthrough — what each command reads/writes, what happens if `AGENTS.md` or `changes/`
-already exist, and how this coexists with OpenSpec/SpecBoot:
+already exist:
 [docs/getting-started.md — Adopting an existing project](docs/getting-started.md#adopting-an-existing-project).
 
 ## Start a software initiative before code exists
@@ -117,12 +117,12 @@ Full install steps and a first-Change walkthrough: [docs/getting-started.md](doc
 - **Pre-implementation governance** — `aief analyze` detects when a project is still Definition
   (no application source yet) and routes it to a Definition Change instead of an Analysis one, with
   human-approved decisions gating close.
-- **Change management** — every unit of work is a Change directory; optional `manifest.json` opts
-  it into staged tracks and gates.
-- **Evidence and verification** — `aief verify` checks structure unconditionally, and can
-  additionally verify declared requirements against recorded evidence.
-- **Dependency visibility** — declare `dependsOn` between Changes and inspect the resulting graph
-  with `aief status --graph`.
+- **Change management** — every unit of work is a Change directory; `(human)`/`(review)` labels
+  mark approvals only a person may give, and `aief close` refuses until they are given.
+- **Evidence and verification** — `aief verify` checks structure, and `--strict` checks objective
+  completeness, including pending approvals.
+- **Dependency visibility** — list dependencies under `## Depends on` in `change.md` (or with
+  `aief new-change --depends-on`) and inspect the resulting graph with `aief status --graph`.
 - **Next-work recommendation** — `aief status --next` recommends one eligible Change when several
   are open; it never executes anything.
 
@@ -135,12 +135,12 @@ doesn't replace any of them.
 |---|---|
 | **Humans** | Scope, trade-offs, architecture decisions, release readiness |
 | **AIEF** | Context, Change lifecycle, prompt composition, evidence, verification |
-| **Specification sources** | OpenSpec, Jira, or plain Markdown — optional, feed the Change |
+| **Specification sources** | Jira exports or plain Markdown — optional, feed the Change |
 | **AI assistants** | Implementation, refactoring, tests, review — any assistant, equally |
 | **CI / test tools** | Produce the evidence AIEF's verification reads |
 | **Git / release tools** | Commits, PRs, tags, releases — always a human decision |
 
-OpenSpec is optional. CI and Git remain external systems AIEF never touches directly. Details:
+CI and Git remain external systems AIEF never touches directly. Details:
 [docs/architecture.md](docs/architecture.md#system-context).
 
 ## Assistant compatibility
@@ -166,8 +166,8 @@ Adapter files, fallback behavior, and how compatibility was verified: [docs/cli.
 |---|---|
 | Get from zero to a verified Change | [Getting Started](docs/getting-started.md) |
 | Start a project from a PRD, no code yet | [Getting Started — Starting from a PRD](docs/getting-started.md#starting-from-a-prd-no-code-yet) |
-| Learn the vocabulary (Change, Track, Gate, SDD Provider, Skill, Hook, Verification Rule, Project Maturity) | [Concepts](docs/concepts.md) ([Cheat Sheet](docs/cheat-sheet.md) for a one-page lookup) |
-| Understand the full lifecycle, tracks, and verification model | [Workflow](docs/workflow.md) |
+| Learn the vocabulary (Change, approvals, Skill, Hook, Graph, Project Maturity) | [Concepts](docs/concepts.md) ([Cheat Sheet](docs/cheat-sheet.md) for a one-page lookup) |
+| Understand the full lifecycle, dependencies, and verification model | [Workflow](docs/workflow.md) |
 | Understand the implemented architecture | [Architecture](docs/architecture.md) |
 | Look up a CLI command or flag | [CLI Reference](docs/cli.md) |
 | Find every configuration file AIEF reads | [Configuration](docs/configuration.md) |
@@ -185,16 +185,17 @@ Recommended reading order: this README → [Getting Started](docs/getting-starte
 
 Every unit of work in this repository is itself an AIEF Change — see
 [docs/maintainer.md](docs/maintainer.md) for the contribution workflow, how to add a Skill, Hook,
-Verification Rule, or provider, and the documentation rules that keep this set small. Please open
+or Requirement provider, and the documentation rules that keep this set small. Please open
 an issue before major changes ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Status
 
-AIEF 3.5 is implemented and validated on real projects: Change management, prompt composition,
-structural and requirement verification, staged Workflow tracks, opt-in Harness/Hooks visibility,
-Loop retry tracking, the Change dependency Graph, Smart Workflow's `status --next`, and
-pre-implementation Definition governance (project maturity detection, Definition Changes, human
-decision gating, `verify --strict`) all work together as one coherent release. Progress is tracked
+AIEF 4.0 is implemented and validated on real projects: Change management, prompt composition,
+structural verification, approval enforcement in `tasks.md` and `spec.md`, the Change dependency
+Graph with `status --next`, and pre-implementation Definition governance (project maturity
+detection, Definition Changes, human decision gating, `verify --strict`). 4.0 removed the
+manifest-based features no project used — tracks, Loop, Harness, SDD providers, requirement
+verification and `ai-specs` (ADR-038, from Analysis 0154). Progress is tracked
 as Changes in [changes/](changes/) — that history **is** the project's roadmap; each closed Change
 records what it delivered.
 

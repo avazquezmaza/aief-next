@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 600" width="1300" height="600" role="img" aria-labelledby="sc-title sc-desc" style="background-color:#ffffff;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <title id="sc-title">AIEF system context</title>
-  <desc id="sc-desc">Four zones: external inputs (humans, requirement sources, optional specification providers) feed AIEF Core (bootstrap, Change management, prompt composition, verification, Graph and next recommendation), which reads and writes only the visible repository state (AGENTS.md, changes/, knowledge/, ai-specs/, evidence) and generates a prompt for the execution environment (AI assistants, project tools, tests, CI, Git and release tools) without ever executing it itself. Assistants and project tools write evidence back into the repository. Humans retain scope, merge, release, and publication authority throughout.</desc>
+  <desc id="sc-desc">Four zones: external inputs (humans, requirement sources, optional specification providers) feed AIEF Core (bootstrap, Change management, prompt composition, verification, Graph and next recommendation), which reads and writes only the visible repository state (AGENTS.md, changes/, knowledge/, evidence) and generates a prompt for the execution environment (AI assistants, project tools, tests, CI, Git and release tools) without ever executing it itself. Assistants and project tools write evidence back into the repository. Humans retain scope, merge, release, and publication authority throughout.</desc>
   <defs>
     <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
@@ -118,10 +118,6 @@
     <text x="12" y="21" font-size="12" font-weight="600" fill="#166534">knowledge/</text>
   </g>
   <g transform="translate(464,484)">
-    <rect width="120" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
-    <text x="12" y="21" font-size="12" font-weight="600" fill="#166534">ai-specs/</text>
-  </g>
-  <g transform="translate(598,484)">
     <rect width="120" height="34" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
     <text x="12" y="21" font-size="12" font-weight="600" fill="#166534">evidence</text>
   </g>

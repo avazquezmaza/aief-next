@@ -16,17 +16,17 @@ test("selectNextChange: empty input recommends nothing, no evaluations", () => {
 });
 
 test("selectNextChange: a single open, dependency-free, track-free Change is eligible and recommended", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] }];
+  const changes = [{ id: "0001-a", closed: false }];
   const result = selectNextChange(changes, buildGraph([{ id: "0001-a", dependsOn: [] }]));
   assert.equal(result.recommended, "0001-a");
   assert.equal(result.evaluations[0].eligible, true);
-  assert.deepEqual(result.evaluations[0].reasons, ["status: open", "dependencies: none declared", "graph: valid", "workflow: no blocking gates"]);
+  assert.deepEqual(result.evaluations[0].reasons, ["status: open", "dependencies: none declared", "graph: valid"]);
 });
 
 test("selectNextChange: closed Changes are excluded from evaluations entirely", () => {
   const changes = [
-    { id: "0001-a", closed: true, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: true },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: [] }]);
   const result = selectNextChange(changes, graph);
@@ -36,8 +36,8 @@ test("selectNextChange: closed Changes are excluded from evaluations entirely", 
 
 test("selectNextChange: a Change depending on an open Change is ineligible; the independent one is recommended", () => {
   const changes = [
-    { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: false },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   const result = selectNextChange(changes, graph);
@@ -49,8 +49,8 @@ test("selectNextChange: a Change depending on an open Change is ineligible; the 
 
 test("selectNextChange: the same scenario with the dependency closed makes the dependent eligible", () => {
   const changes = [
-    { id: "0001-a", closed: true, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: true },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   const result = selectNextChange(changes, graph);
@@ -59,15 +59,8 @@ test("selectNextChange: the same scenario with the dependency closed makes the d
   assert.match(result.evaluations[0].reasons[1], /dependencies: all closed \(0001-a\)/);
 });
 
-test("selectNextChange: an invalid manifest is never eligible", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: true, workflowBlockers: [] }];
-  const result = selectNextChange(changes, buildGraph([{ id: "0001-a", dependsOn: [] }]));
-  assert.equal(result.recommended, null);
-  assert.match(result.evaluations[0].reasons[0], /manifest is invalid/);
-});
-
 test("selectNextChange: a missing dependency makes the Change ineligible", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] }];
+  const changes = [{ id: "0001-a", closed: false }];
   const graph = buildGraph([{ id: "0001-a", dependsOn: ["0099-ghost"] }]);
   const result = selectNextChange(changes, graph);
   assert.equal(result.recommended, null);
@@ -75,7 +68,7 @@ test("selectNextChange: a missing dependency makes the Change ineligible", () =>
 });
 
 test("selectNextChange: a self-dependency makes the Change ineligible", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] }];
+  const changes = [{ id: "0001-a", closed: false }];
   const graph = buildGraph([{ id: "0001-a", dependsOn: ["0001-a"] }]);
   const result = selectNextChange(changes, graph);
   assert.equal(result.recommended, null);
@@ -84,8 +77,8 @@ test("selectNextChange: a self-dependency makes the Change ineligible", () => {
 
 test("selectNextChange: a duplicate dependency makes the Change ineligible even though the underlying dependency is closed", () => {
   const changes = [
-    { id: "0001-a", closed: true, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: true },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: ["0001-a", "0001-a"] }]);
   const result = selectNextChange(changes, graph);
@@ -96,8 +89,8 @@ test("selectNextChange: a duplicate dependency makes the Change ineligible even 
 
 test("selectNextChange: a cycle member is never eligible, even with an individually plausible dependsOn", () => {
   const changes = [
-    { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: false },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: ["0002-b"] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   const result = selectNextChange(changes, graph);
@@ -112,9 +105,9 @@ test("selectNextChange: a cycle member is never eligible, even with an individua
 // but must not be reported as itself being a cycle member.
 test("selectNextChange: a Change blocked by a cyclic dependency is ineligible for the dependency reason, not misreported as a cycle member", () => {
   const changes = [
-    { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0003-c", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0001-a", closed: false },
+    { id: "0002-b", closed: false },
+    { id: "0003-c", closed: false }
   ];
   const graph = buildGraph([
     { id: "0001-a", dependsOn: ["0002-b"] },
@@ -137,24 +130,11 @@ test("selectNextChange: a Change blocked by a cyclic dependency is ineligible fo
   assert.ok(c.reasons.some((r) => r.includes("dependencies not closed: 0002-b")));
 });
 
-test("selectNextChange: an unsatisfied Workflow gate blocker makes the Change ineligible", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: ["approval: pending — needs human sign-off"] }];
-  const result = selectNextChange(changes, buildGraph([{ id: "0001-a", dependsOn: [] }]));
-  assert.equal(result.recommended, null);
-  assert.match(result.evaluations[0].reasons[0], /workflow: approval: pending/);
-});
-
-test("selectNextChange: a Change with no track (empty workflowBlockers) is unaffected by the workflow condition", () => {
-  const changes = [{ id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] }];
-  const result = selectNextChange(changes, buildGraph([{ id: "0001-a", dependsOn: [] }]));
-  assert.equal(result.evaluations[0].eligible, true);
-});
-
 test("selectNextChange: with multiple eligible Changes, the lowest id wins and others are still listed as eligible", () => {
   const changes = [
-    { id: "0003-c", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+    { id: "0003-c", closed: false },
+    { id: "0001-a", closed: false },
+    { id: "0002-b", closed: false }
   ];
   const graph = buildGraph(changes.map((c) => ({ id: c.id, dependsOn: [] })));
   const result = selectNextChange(changes, graph);
@@ -165,10 +145,10 @@ test("selectNextChange: with multiple eligible Changes, the lowest id wins and o
 
 test("selectNextChange: zero eligible among several open Changes explains every one individually", () => {
   const changes = [
-    { id: "0001-a", closed: false, manifestError: true, workflowBlockers: [] },
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: ["approval: pending"] }
+    { id: "0001-a", closed: false },
+    { id: "0002-b", closed: false }
   ];
-  const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: [] }]);
+  const graph = buildGraph([{ id: "0001-a", dependsOn: ["0009-missing"] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   const result = selectNextChange(changes, graph);
   assert.equal(result.recommended, null);
   assert.equal(result.evaluations.length, 2);
@@ -177,8 +157,8 @@ test("selectNextChange: zero eligible among several open Changes explains every 
 
 test("selectNextChange: is deterministic across repeated calls", () => {
   const changes = [
-    { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] },
-    { id: "0001-a", closed: true, manifestError: false, workflowBlockers: [] }
+    { id: "0002-b", closed: false },
+    { id: "0001-a", closed: true }
   ];
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: ["0001-a"] }]);
   const first = selectNextChange(changes, graph);
@@ -190,17 +170,17 @@ test("selectNextChange: reordering the input changes array produces the same res
   const graph = buildGraph([{ id: "0001-a", dependsOn: [] }, { id: "0002-b", dependsOn: [] }, { id: "0003-c", dependsOn: [] }]);
   const a = selectNextChange(
     [
-      { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-      { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] },
-      { id: "0003-c", closed: false, manifestError: false, workflowBlockers: [] }
+      { id: "0001-a", closed: false },
+      { id: "0002-b", closed: false },
+      { id: "0003-c", closed: false }
     ],
     graph
   );
   const b = selectNextChange(
     [
-      { id: "0003-c", closed: false, manifestError: false, workflowBlockers: [] },
-      { id: "0001-a", closed: false, manifestError: false, workflowBlockers: [] },
-      { id: "0002-b", closed: false, manifestError: false, workflowBlockers: [] }
+      { id: "0003-c", closed: false },
+      { id: "0001-a", closed: false },
+      { id: "0002-b", closed: false }
     ],
     graph
   );

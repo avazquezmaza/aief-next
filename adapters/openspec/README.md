@@ -1,5 +1,9 @@
 # OpenSpec Adapter
 
+> **Conceptual reference, not supported in AIEF 4.0** (ADR-038). AIEF no longer integrates with
+> OpenSpec: no provider, no detection, no configuration file. This page describes how the two can be
+> used side by side by hand.
+
 This adapter explains how to use AIEF with OpenSpec.
 
 OpenSpec is optional. In the [three-level AIEF workflow](../../docs/workflow.md), OpenSpec powers **level 2 (the Feature Workflow)**: turning ideas into proposals, specs and tasks. AIEF keeps level 1 (context) and level 3 (governance).

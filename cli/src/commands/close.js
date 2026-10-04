@@ -1,34 +1,24 @@
 // Command handler: close (modularization, sixth slice). Self-contained —
-// confirmed independent of verify.js (does not call renderReport()/
-// runVerifyCompletedHooks(), corrected assumption from earlier in this
-// modularization effort).
-//
-// ADR-037 (Change 0125): a Change that declares a `track` now has its
-// readiness decided by the Workflow Engine (via workflow-service.js's
-// nextAction(), reused as-is — not reimplemented here) instead of only
-// checkChangeReadiness(). A Change with no track keeps calling
-// checkChangeReadiness() directly, exactly as before this Change — that
-// path is untouched below, byte-identical (ADR-037/D1's opt-in-by-track
-// requirement).
+// confirmed independent of verify.js. Readiness is checkChangeReadiness()
+// for every Change (ADR-038).
 import fs from "node:fs";
 import path from "node:path";
 import { loadChange, isClosedContent, parseApprovalLines, parseSpecApprovalLines } from "../core/domain/change.js";
-import { loadChangeUnified, markManifestClosed } from "../core/domain/change-loader.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
-import { nextAction } from "../core/services/workflow-service.js";
 import { parseJUnitReport, renderCapturedVerification } from "../core/domain/junit-report.js";
 import { buildProvenance } from "../core/domain/evidence-provenance.js";
 import { replaceOrAppendEvidenceSection } from "../core/domain/evidence-sections.js";
-import { read, writeFile, section, parseArgs, resolveExplicitChange, resolveImplicitChange, printNext } from "./shared.js";
+import { read, writeFile, section, parseArgs, resolveExplicitChange, resolveImplicitChange, printNext, buildProjectGraph, isClosed, getChangeDirs } from "./shared.js";
 
-// A tracked Change's blocked/pending nextAction() carries GateResult objects
-// as `evidence` (not the plain problem strings checkChangeReadiness()
-// returns) — rendered as "<gate id>: <reason>" so a human sees exactly
-// which gate is unresolved, the same information `aief status` already
-// shows for the same Change.
-function trackedProblemLines(action) {
-  if (!action.evidence || !action.evidence.length) return [action.reason];
-  return action.evidence.map((e) => (typeof e === "string" ? e : `${e.id}: ${e.reason}`));
+// ADR-038 (Q2 in Change 0156): an open dependency is a notice, never a
+// block — the human decides whether closing out of order is fine.
+function printOpenDependencies(changeId) {
+  const graph = buildProjectGraph();
+  const dirs = new Map(getChangeDirs().map((dir) => [path.basename(dir), dir]));
+  for (const edge of graph.edges.filter((e) => e.from === changeId)) {
+    const dir = dirs.get(edge.to);
+    if (dir && !isClosed(dir)) console.log(`! depends on ${edge.to}, which is still open`);
+  }
 }
 
 // Change 0150 (Analysis 0149): AIEF cannot verify who checked an approval,
@@ -100,39 +90,18 @@ export function close(args) {
     }
   }
   // Same rules aief verify uses (core/services/change-verifier.js), never a
-  // second, diverging implementation of "is this Change ready" — for a
-  // Change with no track. A Change that declares one instead asks the
-  // Workflow Engine (ADR-037): nextAction() already wraps
-  // checkChangeReadiness() inside its own "readiness" gate for that case,
-  // so no readiness rule is skipped, only gate rules (review/approval/
-  // security_review) are added on top.
-  const unified = loadChangeUnified(changeDir);
-  const isTracked = Boolean(unified.manifest && unified.track);
-  const problems = isTracked ? [] : checkChangeReadiness(change);
-  const action = isTracked ? nextAction(changeDir, process.cwd()) : null;
-  const blocked = isTracked ? action.status !== "available" : problems.length > 0;
+  // second, diverging implementation of "is this Change ready".
+  const problems = checkChangeReadiness(change);
+  const blocked = problems.length > 0;
   console.log(`Change: ${name}\n`);
   if (!blocked) {
     console.log("✓ All readiness checks passed.");
     printApprovalsReliedOn(change.files["tasks.md"], change.files["spec.md"]);
   }
-  else if (isTracked) for (const problem of trackedProblemLines(action)) console.log(`○ ${problem}`);
   else for (const problem of problems) console.log(`○ ${problem}`);
+  printOpenDependencies(change.basename);
   if (!parsed.yes) { printNext(blocked ? "resolve the items above, then: aief close --yes" : "aief close --yes"); return; }
   if (blocked) { console.error("\nNot closed: resolve the items above first."); process.exitCode = 1; return; }
-  // Change 0131 (external-audit finding C0130-F1): manifest.json, when
-  // present, is the sole authority for `closed` (change-loader.js's own
-  // contract) — attempted BEFORE change.md is touched, so a manifest that
-  // can't be safely updated aborts the whole close atomically, rather than
-  // reporting "Closed" while leaving the authoritative state silently
-  // stale (the exact split-brain the finding reproduced: `aief status`
-  // would immediately contradict a "successful" close).
-  const manifestResult = markManifestClosed(changeDir);
-  if (manifestResult === false) {
-    console.error(`\nCould not mark ${name} as Closed — manifest.json exists but could not be safely read, parsed, or validated. Fix manifest.json, then retry.`);
-    process.exitCode = 1;
-    return;
-  }
   if (!markClosed(changeDir)) { console.error(`\nCould not mark ${name} as Closed — check the Status section in change.md.`); process.exitCode = 1; return; }
   console.log(`\n✓ Closed ${name}.`);
   printNext("git status", "aief status");
