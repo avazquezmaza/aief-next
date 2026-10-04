@@ -4,6 +4,32 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-039: AIEF ships a self-contained `aief-change` skill to assistants that support skills; `AGENTS.md` keeps policy, the skill carries procedure
+
+**Status: Accepted (2026-10-04), by the project owner. Decided in [Change 0158](../changes/0158-define-assistant-native-skill/), from Analysis 0154 (F6).**
+
+**Decision.**
+
+> One canonical, self-contained skill template (`cli/templates/skills/aief-change/SKILL.md`) is
+> copied verbatim to `.claude/skills/`, `.kiro/skills/` and `.agents/skills/`. `aief bootstrap`
+> installs it for the configured assistant, or for all three when none is configured; `aief skill
+> install [assistant]` installs or re-installs one explicitly. An installed file is overwritten only
+> when it is byte-identical to a previous AIEF version; a modified one is left alone and `aief
+> doctor` reports it as outdated. `AGENTS.md` keeps policy (Prime Directive, rules, approvals,
+> guardrails, ~110 lines); the procedure (workflow steps, completion checklist, evidence guidance)
+> moves to the skill. `aief prompt` stays for assistants without skills and carries the procedure.
+
+**Context.** Analysis 0154 found 1 of 11 projects with an `aief-change` skill, and this
+repository's own skills pointed to `docs/assistant-workflow.md`, which no adopting project has.
+`bootstrap` wrote no assistant file or skill, so the procedure reached assistants by copy-paste or
+hand-written files.
+
+**Consequences.** New template directory, `aief skill install`, skill installation in `bootstrap`,
+an outdated notice in `doctor`. Every adopting project's `AGENTS.md` changes on its next bootstrap.
+Implemented in Change 0159.
+
+---
+
 ## ADR-038: AIEF 4.0 is the Change contract, not a workflow engine — manifest-gated features are removed and dependencies move to `change.md`
 
 **Status: Accepted (2026-10-04), by the project owner. Decided in [Change 0156](../changes/0156-define-4-0-simplification/), from the evidence in [Analysis 0154](../changes/0154-pre-release-simplification/).**
