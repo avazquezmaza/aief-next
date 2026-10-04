@@ -12,7 +12,7 @@
 // requirement).
 import fs from "node:fs";
 import path from "node:path";
-import { loadChange, isClosedContent, parseApprovalLines } from "../core/domain/change.js";
+import { loadChange, isClosedContent, parseApprovalLines, parseSpecApprovalLines } from "../core/domain/change.js";
 import { loadChangeUnified, markManifestClosed } from "../core/domain/change-loader.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
 import { nextAction } from "../core/services/workflow-service.js";
@@ -33,11 +33,16 @@ function trackedProblemLines(action) {
 
 // Change 0150 (Analysis 0149): AIEF cannot verify who checked an approval,
 // so it shows the human exactly which checked approvals a close relies on.
-function printApprovalsReliedOn(tasksMd) {
-  const approvals = parseApprovalLines(tasksMd).filter((line) => line.state === "checked");
+// Change 0155: spec.md Acceptance Criteria approvals are listed too, marked
+// with their file so the human sees where each one was checked.
+function printApprovalsReliedOn(tasksMd, specMd) {
+  const approvals = [
+    ...parseApprovalLines(tasksMd).filter((line) => line.state === "checked").map((line) => `(${line.label}) ${line.text}`),
+    ...parseSpecApprovalLines(specMd).filter((line) => line.state === "checked").map((line) => `(${line.label}) ${line.text} [spec.md]`)
+  ];
   if (!approvals.length) { console.log("Approvals relied on: none"); return; }
   console.log("Approvals relied on:");
-  for (const line of approvals) console.log(`  - (${line.label}) ${line.text}`);
+  for (const line of approvals) console.log(`  - ${line}`);
 }
 
 function markClosed(changeDir) {
@@ -109,7 +114,7 @@ export function close(args) {
   console.log(`Change: ${name}\n`);
   if (!blocked) {
     console.log("✓ All readiness checks passed.");
-    printApprovalsReliedOn(change.files["tasks.md"]);
+    printApprovalsReliedOn(change.files["tasks.md"], change.files["spec.md"]);
   }
   else if (isTracked) for (const problem of trackedProblemLines(action)) console.log(`○ ${problem}`);
   else for (const problem of problems) console.log(`○ ${problem}`);

@@ -33,6 +33,13 @@ const WALK_MAX_YAML_FILES = 500;
 const WALK_MAX_YAML_BYTES = 256 * 1024;
 const WALK_SKIP_DIRS = new Set([".git", "node_modules", "target", "build", "dist", "out", ".gradle", ".idea", ".venv", "venv", "vendor", "graphify-out"]);
 
+// A subdirectory with its own `.git` (a directory, or a file for submodules
+// and worktrees) is another repository: its files describe that project, not
+// this one (Change 0155, B3 from Analysis 0154). The root is never checked.
+function isNestedRepository(dir) {
+  return fs.existsSync(path.join(dir, ".git"));
+}
+
 function walkProject(rootDir) {
   const entries = [];
   const yamlFiles = [];
@@ -50,7 +57,7 @@ function walkProject(rootDir) {
       const full = path.join(dir, dirent.name);
       const rel = path.relative(rootDir, full).split(path.sep).join("/");
       if (dirent.isDirectory()) {
-        if (WALK_SKIP_DIRS.has(dirent.name)) continue;
+        if (WALK_SKIP_DIRS.has(dirent.name) || isNestedRepository(full)) continue;
         entries.push({ name: dirent.name, rel });
         if (depth + 1 <= WALK_MAX_DEPTH) queue.push({ dir: full, depth: depth + 1 });
       } else if (dirent.isFile()) {
