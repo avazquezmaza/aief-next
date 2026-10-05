@@ -6,7 +6,7 @@
 import path from "node:path";
 import { createVerificationReport, addLine, setNext } from "../domain/verification-report.js";
 import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
-import { parseApprovalLines, parseSpecApprovalLines } from "../domain/change.js";
+import { parseApprovalLines, parseSpecApprovalLines, CHANGE_TYPES } from "../domain/change.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
@@ -285,6 +285,11 @@ function addChangeLines(report, change, cwd, strict = false) {
       }
       if (change.closed) {
         for (const p of specApprovalProblems(change.files?.["spec.md"])) addLine(report, "warn", `! ${name}: [strict] closed with ${p}`);
+      }
+      // Change 0161: a notice, never an error — history holds free-text
+      // values, and an unknown one already behaves as general.
+      if (change.typeInfo && !change.typeInfo.recognized) {
+        addLine(report, "warn", `! ${name}: [strict] Type "${change.typeInfo.raw}" is not a known value — use one of: ${CHANGE_TYPES.map((t) => t[0].toUpperCase() + t.slice(1)).join(", ")}`);
       }
     }
   } else {

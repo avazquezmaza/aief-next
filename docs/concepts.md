@@ -24,7 +24,16 @@ state, no hidden flag. Selection is always derived by reading `changes/` fresh.
 `change.md`'s `## Type` names which of these a Change is (`General` by default; `Analysis`,
 `Enrichment` or `Definition` when created by the command that sets one) — read by `aief prompt`,
 `aief status`, and `aief verify` to decide what guidance/checks apply, never by a second
-classification field. The shapes below carry distinct purposes and are worth naming:
+classification field.
+
+`## Type` is a closed list (Change 0161): `General`, `Analysis`, `Definition`, `Enrichment`, `Fix`,
+`Feature`, `Documentation`. The first word decides, ignoring case and accents, so `General
+(consolidation)` is General. Spanish aliases are accepted: `Definición`, `Análisis`,
+`Enriquecimiento`, `Corrección`/`Arreglo`, `Funcionalidad`, `Documentación`; `Implementation` counts
+as General. Only Analysis, Definition and Enrichment change what AIEF does; the rest are labels. An
+unknown value behaves as General and `aief verify --strict` names it.
+
+The shapes below carry distinct purposes and are worth naming:
 
 - **Adoption Change** — created once by `aief bootstrap` (`changes/<id>-adopt-aief/`). Registers
   that AIEF was added to the project: its `evidence.md` is generated automatically from what

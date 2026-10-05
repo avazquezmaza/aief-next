@@ -33,7 +33,7 @@ test("replaceOrAppendEvidenceSection: re-capture after a human-prose-origin capt
   const first = replaceOrAppendEvidenceSection(evidenceMd(humanText), "Verification", MARKER, bodyV1);
   const second = replaceOrAppendEvidenceSection(first, "Verification", MARKER, bodyV2);
   assert.equal((second.match(/### Captured Test Report/g) || []).length, 1);
-  assert.match(second, new RegExp(humanText.replace(/\./g, "\\.")), "human prose must survive a second capture");
+  assert.ok(second.includes(humanText), "human prose must survive a second capture");
   assert.match(second, /Failed: 0/);
   assert.doesNotMatch(second, /Failed: 1/);
 });

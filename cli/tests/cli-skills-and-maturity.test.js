@@ -290,7 +290,7 @@ test("prompt accepts the assistant as a positional argument for all five assista
   for (const [name, file] of [["gemini", "GEMINI.md"], ["claude", "CLAUDE.md"], ["codex", "CODEX.md"], ["cursor", "CURSOR.md"], ["kiro", ".kiro/skills/aief-change/SKILL.md"]]) {
     const r = aief(dir, ["prompt", name]);
     assert.equal(r.status, 0, `prompt ${name} must succeed`);
-    assert.match(r.out, new RegExp(`- ${file.replace(/[.\/]/g, "\\$&")}`), `prompt ${name} must include ${file}`);
+    assert.ok(r.out.includes(`- ${file}`), `prompt ${name} must include ${file}`);
   }
 });
 

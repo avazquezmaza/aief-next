@@ -105,9 +105,45 @@ export function isClosedContent(changeMd) {
 
 // Single source of truth for a Change's declared `## Type` (Analysis,
 // Enrichment, General, ...) — CRLF-tolerant.
+// `## Type` is a closed list (Change 0161). The first word decides, case
+// and accents ignored, so "General (consolidation)" is general and
+// "Definición" is definition. Only analysis, definition and enrichment
+// change what AIEF does; the others are labels. An unknown value behaves as
+// general and `verify --strict` names it.
+export const CHANGE_TYPES = ["general", "analysis", "definition", "enrichment", "fix", "feature", "documentation"];
+const TYPE_ALIASES = {
+  definicion: "definition",
+  analisis: "analysis",
+  enriquecimiento: "enrichment",
+  correccion: "fix", arreglo: "fix", bugfix: "fix",
+  funcionalidad: "feature",
+  documentacion: "documentation", docs: "documentation",
+  implementation: "general", implementacion: "general"
+};
+
+function rawTypeFromContent(changeMd) {
+  const match = String(changeMd || "").match(/^##\s*type\s*(?:\r?\n)+\s*([^\r\n]+)/im);
+  return match ? match[1].trim() : "";
+}
+
+// normalizeChangeType("Definición") -> { type: "definition", recognized: true }
+export function normalizeChangeType(raw) {
+  const first = String(raw || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/^[a-z]+/);
+  if (!first) return { type: "", recognized: !raw };
+  const word = first[0];
+  if (CHANGE_TYPES.includes(word)) return { type: word, recognized: true };
+  if (TYPE_ALIASES[word]) return { type: TYPE_ALIASES[word], recognized: true };
+  return { type: word, recognized: false };
+}
+
 export function changeTypeFromContent(changeMd) {
-  const match = changeMd.match(/^##\s*type\s*(?:\r?\n)+\s*([^\r\n]+)/im);
-  return match ? match[1].trim().toLowerCase() : "";
+  return normalizeChangeType(rawTypeFromContent(changeMd)).type;
+}
+
+// The `## Type` text as written, and whether it is in the closed list.
+export function changeTypeInfo(changeMd) {
+  const raw = rawTypeFromContent(changeMd);
+  return { raw, ...normalizeChangeType(raw) };
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +312,7 @@ export function loadChange(changeDir) {
     statusState: status.state,
     statusRaw: status.raw,
     type: changeTypeFromContent(files["change.md"]),
+    typeInfo: changeTypeInfo(files["change.md"]),
     // "placeholder" | "partial" | "complete" (finding F3).
     evidenceState,
     evidencePlaceholder: evidenceState === "placeholder",
