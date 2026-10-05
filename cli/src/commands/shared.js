@@ -176,7 +176,8 @@ export const KNOWN_FLAGS = {
   verify: { change: { type: "string" }, strict: { type: "boolean" }, json: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
-  bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
+  bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" }, assistant: { type: "string" } },
+  skill: {}
 };
 export function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});

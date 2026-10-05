@@ -9,6 +9,7 @@ import { detectProject, recommendSkills, loadCatalog } from "../detect.js";
 import { cwd, exists, writeFile, section, parseArgs, getChangeDirs, nextChangeId, genericChangeFiles } from "./shared.js";
 import { analyze } from "./analyze.js";
 import { newChange } from "./new-change.js";
+import { configuredAssistant, installSkills } from "./skill.js";
 
 // One extra ".." vs. cli.js's own original version of these paths: this
 // file lives one directory deeper (cli/src/commands/, not cli/src/) — same
@@ -151,7 +152,7 @@ Run \`aief analyze\` to create the analysis Change.
 // changes/, knowledge/, profiles/) — never a hidden .aief/ directory
 // (ADR-009: no hidden state) and never application code. Returns the list of
 // newly created artifacts (empty when everything already existed).
-function runAdoption() {
+function runAdoption(assistant = null) {
   const project = detectProject();
   const skills = recommendSkills(project);
   const artifacts = [];
@@ -170,6 +171,9 @@ function runAdoption() {
   else console.log("Skills documentation already exists: knowledge/skills.md");
   // No CI config is generated: it is host-specific (GitHub/GitLab/Bitbucket…) and
   // wiring `aief verify` into CI is the team's choice — docs/configuration.md "CI gate" (Change 0139).
+  // ADR-039: the aief-change skill for the configured assistant, or for
+  // every skill-capable assistant when none is configured.
+  for (const result of installSkills(assistant)) if (result.status === "created" || result.status === "updated") artifacts.push(result.path);
   if (!getChangeDirs().some((dir) => path.basename(dir).includes("adopt-aief"))) {
     // Use the next free ID so adoption never collides with existing Changes.
     const id = nextChangeId();
@@ -184,7 +188,7 @@ function runAdoption() {
   } else console.log("✓ Adoption Change already exists");
   return artifacts;
 }
-function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}\n\nChoose a different name, or cd into it and run aief bootstrap there.`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), fs.readFileSync(AGENTS_TEMPLATE, "utf8")); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); }
+function initProject(name, opts = {}) { if (!name) return bootstrapHere(opts); const projectPath = path.resolve(name); if (fs.existsSync(projectPath)) { console.error(`Project already exists: ${projectPath}\n\nChoose a different name, or cd into it and run aief bootstrap there.`); process.exitCode = 1; return; } writeFile(path.join(projectPath, "README.md"), `# ${name}\n\nThis project uses AIEF.\n`); writeFile(path.join(projectPath, "AGENTS.md"), fs.readFileSync(AGENTS_TEMPLATE, "utf8")); fs.mkdirSync(path.join(projectPath, "changes"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "knowledge"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "src"), { recursive: true }); fs.mkdirSync(path.join(projectPath, "tests"), { recursive: true }); console.log(`Created AIEF project: ${projectPath}`); installSkills(opts.assistant ?? null, projectPath); }
 // `aief bootstrap` (current directory) replaces `init`/`adopt` (Change
 // 0052). It creates only visible structure via runAdoption() and ends with
 // one recommended next command.
@@ -226,7 +230,7 @@ function bootstrapHere(opts = {}) {
   console.log("Detected:");
   console.log(exists("AGENTS.md") ? "✓ AGENTS.md" : "○ AGENTS.md: not present (will be created)");
   console.log(exists("changes") ? "✓ changes/" : "○ changes/: not present (will be created)");
-  const artifacts = runAdoption();
+  const artifacts = runAdoption(opts.assistant ?? null);
   console.log(`\n${"─".repeat(60)}`);
   console.log(artifacts.length
     ? `Bootstrap complete — created ${artifacts.length} new artifact(s) (see above).`
@@ -284,5 +288,9 @@ function bootstrapInteractiveNextStep() {
 export function bootstrap(args) {
   const parsed = parseArgs("bootstrap", args);
   if (!parsed) return;
-  initProject(parsed._[0], { interactive: parsed.interactive === true, force: parsed.force === true });
+  // A new project (`bootstrap <name>`) has no knowledge/assistant.json yet:
+  // only an explicit --assistant applies there.
+  const resolved = parsed._[0] && parsed.assistant === undefined ? { assistant: null } : configuredAssistant(parsed.assistant);
+  if (resolved.error) { console.error(`--assistant: ${resolved.error}`); process.exitCode = 1; return; }
+  initProject(parsed._[0], { interactive: parsed.interactive === true, force: parsed.force === true, assistant: resolved.assistant });
 }

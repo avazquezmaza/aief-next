@@ -112,7 +112,9 @@ project or any other.
 
 **What does `bootstrap` create?** `AGENTS.md` (only if missing), `changes/`, `knowledge/`,
 `profiles/`, `knowledge/standards/` starter standards matched to your detected stack,
-`knowledge/skills.md`, and one Adoption Change (`changes/<id>-adopt-aief/`). It generates no CI configuration — to run `aief verify` in
+`knowledge/skills.md`, one Adoption Change (`changes/<id>-adopt-aief/`), and the `aief-change`
+skill for your assistant (`--assistant <id>`), or for Claude Code, Kiro and Codex when none is
+configured. It generates no CI configuration — to run `aief verify` in
 your CI, see [Configuration — CI gate](configuration.md#ci-gate).
 
 **What does `bootstrap` preserve?** Everything else — application source, tests, package files, CI

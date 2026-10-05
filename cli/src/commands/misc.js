@@ -17,7 +17,7 @@ import { assistantIds } from "../core/domain/assistant-resolver.js";
 
 const COMMAND_HELP = {
   doctor: {
-    purpose: "Inspect your local environment (required and optional tools) and current project readiness for AIEF, including recommended Skills. --verbose also lists the registered Hooks.",
+    purpose: "Inspect your local environment (required and optional tools) and current project readiness for AIEF, including recommended Skills and the installed aief-change skill (outdated copies flagged). --verbose also lists the registered Hooks.",
     when: "Before adoption or when the project feels misconfigured.",
     reads: "PATH (node, npm, git, java, maven, gradle, docker, assistants), package.json, README.md, AGENTS.md, changes/, knowledge/, profiles/.",
     writes: "Nothing.",
@@ -33,10 +33,10 @@ const COMMAND_HELP = {
     next: "aief prompt (one open Change) or aief prompt --change <id> (several open)."
   },
   bootstrap: {
-    purpose: "Bootstrap a project to use AIEF: detects the stack and creates AIEF's visible structure without changing application code. Replaces the former init/adopt commands.",
+    purpose: "Bootstrap a project to use AIEF: detects the stack, creates AIEF's visible structure without changing application code, and installs the aief-change skill for the configured assistant (--assistant <id> or knowledge/assistant.json), or for Claude Code, Kiro and Codex when none is configured. Replaces the former init/adopt commands.",
     when: "Right after cloning, or the first time an existing project starts using AIEF.",
     reads: "AGENTS.md, changes/, package.json, README.md and common project files.",
-    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, and changes/<next-id>-adopt-aief/. With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
+    writes: "Current directory (no argument): AGENTS.md if missing, changes/, knowledge/, profiles/, knowledge/standards/, knowledge/skills.md, changes/<next-id>-adopt-aief/, and .claude/, .kiro/ or .agents/skills/aief-change/SKILL.md (never overwriting an edited copy). With a name: <project-name>/ with README.md, AGENTS.md, changes/, knowledge/, src/, tests/. Never modifies application code, never overwrites existing files, never a hidden .aief/ directory.",
     example: "aief bootstrap   (or: aief bootstrap my-project)",
     next: "aief verify, then aief analyze or aief new-change <name>."
   },
@@ -96,6 +96,14 @@ const COMMAND_HELP = {
     example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)\naief close --evidence-from test-results.xml --change 0002-add-login   (capture test counts into evidence.md first)",
     next: "Commit your work, then aief status."
   },
+  skill: {
+    purpose: "Install or refresh the aief-change skill (the Change procedure) for Claude Code, Kiro or Codex. Without an argument: the configured assistant, else all three.",
+    when: "After adopting AIEF in a project bootstrapped before 4.1, or when aief doctor reports an older copy.",
+    reads: "knowledge/assistant.json and the installed skill files.",
+    writes: ".claude/, .kiro/ or .agents/skills/aief-change/SKILL.md — only when missing or an unmodified older AIEF version. An edited copy is never overwritten.",
+    example: "aief skill install   (or: aief skill install claude)",
+    next: "aief doctor."
+  },
   release: {
     purpose: "Create release notes for a version.",
     when: "When preparing a release.",
@@ -137,7 +145,7 @@ function printCommandHelp(command) {
 }
 export function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap             (bootstrap the current directory)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [${assistantIds().join("|")}] [--profile architect] [--change change-id]
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap [--assistant id]  (bootstrap the current directory)\n  aief skill install [assistant]  (install or refresh the aief-change skill)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [${assistantIds().join("|")}] [--profile architect] [--change change-id]
               (long form: --assistant gemini; no name given: resolves automatically)
               (aief prompt --set-assistant <name> | --show-assistant | --clear-assistant)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }

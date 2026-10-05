@@ -1,0 +1,10 @@
+{
+  "description": "sha256 of every aief-change SKILL.md AIEF shipped before the current template (ADR-039). An installed file matching one of these is unmodified and safe to replace.",
+  "sha256": [
+    "0eea406ccf38094c96b73f2c751be786230a509ac79c9fd1009a943dd7dd6fe9",
+    "417c3f912997d093f3982b30fa1050e2350e86a890681a27198b4cd4ea747324",
+    "8451a8127102a2baf630c35d32dc69cb51f396f0f4c59b8bfd1f3d4ee69ccba6",
+    "9e68d37f5fbe60f5d6a7ce90c0f3d966637f9517bad9622f6b58b04c5209d7a1",
+    "e7d88803542ae48257b60883744ffa6b1d69e7b77259f23046b6480a50bf59df"
+  ]
+}

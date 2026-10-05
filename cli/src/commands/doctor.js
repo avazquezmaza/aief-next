@@ -5,6 +5,7 @@ import { run, commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills } from "../detect.js";
 import { listDescriptors } from "../hooks/index.js";
 import { assistantIds } from "../core/domain/assistant-resolver.js";
+import { skillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
 import { statusOverview } from "./status.js";
 import { exists, section, parseArgs, printNext } from "./shared.js";
 
@@ -31,6 +32,22 @@ function printHookRegistry() {
   for (const d of descriptors) {
     console.log(`- ${d.id}: fires on ${d.events.join(", ")} — ${d.description}`);
   }
+}
+// ADR-039: the aief-change skill per assistant. Silent when none is
+// installed. An unmodified older AIEF copy is refreshed by `aief skill
+// install`; an edited one is never touched, so doctor says when it is behind.
+function printSkillInstalls() {
+  const lines = [];
+  for (const id of skillAssistantIds()) {
+    const s = inspectSkill(process.cwd(), id);
+    if (s.state === "current") lines.push(`✓ ${s.path} (v${s.currentVersion})`);
+    else if (s.state === "shipped-older") lines.push(`! ${s.path} is an older AIEF version — run: aief skill install ${id}`);
+    else if (s.state === "modified" && isOlderVersion(s.installedVersion, s.currentVersion)) lines.push(`! ${s.path} was edited and is older than AIEF's (v${s.installedVersion || "?"} < v${s.currentVersion}) — to update, move it aside, run aief skill install ${id}, and re-apply your edits`);
+    else if (s.state === "modified") lines.push(`✓ ${s.path} (edited, v${s.installedVersion})`);
+  }
+  if (!lines.length) return;
+  console.log("\naief-change skill:");
+  for (const line of lines) console.log(line);
 }
 function printSignals(project) {
   console.log("\nDetected project signals:");
@@ -92,4 +109,4 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printSkillInstalls(); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }

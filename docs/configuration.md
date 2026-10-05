@@ -43,6 +43,14 @@ to add project-specific notes. This is the Skill *Catalog* (static, contextual, 
 to be confused with the Skills *Runtime* (`aief prompt --skill <id>`), which is a registered,
 invocable contract with no per-project configuration file.
 
+## `aief-change` skill — `.claude/`, `.kiro/`, `.agents/skills/aief-change/SKILL.md`
+
+The Change procedure as a native skill for Claude Code, Kiro and Codex (ADR-039). Installed by
+`aief bootstrap` and `aief skill install`, from one template. Edit it freely: AIEF rewrites only a
+missing file or an unmodified older AIEF version, never an edited one, and `aief doctor` tells you
+when an edited copy falls behind. An unmodified copy does not count as a sign that the project uses
+that assistant.
+
 ## Assistant instruction files
 
 `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md` at the project root — one per assistant, selected

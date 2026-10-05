@@ -145,16 +145,17 @@ CI and Git remain external systems AIEF never touches directly. Details:
 
 ## Assistant compatibility
 
-`AGENTS.md` is the one universal instruction file every `aief prompt` output tells the assistant to
-read first, generated identically regardless of which assistant (if any) you name.
+`AGENTS.md` is the one universal policy file, identical for every assistant. The step-by-step Change
+procedure ships as the `aief-change` skill for assistants that support skills, and inside `aief
+prompt`'s output for the rest (ADR-039).
 
 | Assistant | Mode | Command |
 |---|---|---|
-| Claude Code | Native target | `aief prompt claude` |
+| Claude Code | Native target + `aief-change` skill | `aief prompt claude` |
 | Gemini CLI | Native target | `aief prompt gemini` |
-| Codex CLI | Native target | `aief prompt codex` |
+| Codex CLI | Native target + `aief-change` skill | `aief prompt codex` |
 | Cursor | Native target | `aief prompt cursor` |
-| Kiro | Native target | `aief prompt kiro` |
+| Kiro | Native target + `aief-change` skill | `aief prompt kiro` |
 | OpenCode | Generic prompt compatible | `aief prompt` |
 | Other prompt-driven assistants | Generic prompt compatible | `aief prompt` |
 

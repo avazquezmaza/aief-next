@@ -12,4 +12,4 @@ Gemini-specific guidance:
 - Keep responses practical and implementation-oriented.
 - Do not duplicate `AGENTS.md`; treat it as the source of truth.
 
-For Change work, read [the shared procedure](docs/assistant-workflow.md).
+For Change work, follow the procedure in [`cli/templates/skills/aief-change/SKILL.md`](cli/templates/skills/aief-change/SKILL.md) (Gemini CLI has no skill mechanism).

@@ -47,11 +47,10 @@ const CANONICAL_RULES = [
   "(human) Human-only approval",
   "(review) Independent review",
   "Both stay blocking for `aief close`",
-  "## Required Completion Checklist",
   "## Coding Guidance",
   "## Documentation Guidance",
-  "## Evidence Guidance",
   "## Human Responsibilities",
+  "aief-change",
   "release readiness",
   "CLAUDE.md",
   "GEMINI.md",
@@ -79,6 +78,28 @@ test("adopted AGENTS.md contains 100% of the canonical normative rules", () => {
   const generated = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
   for (const rule of CANONICAL_RULES) {
     assert.ok(generated.includes(rule), `adopted AGENTS.md is missing the rule: "${rule}"`);
+  }
+});
+
+// ADR-039 (Change 0159): the procedure — completion checklist, evidence
+// questions, approval handling — left AGENTS.md for the aief-change skill.
+// It must still reach every adopted project, through the installed skill.
+const CANONICAL_PROCEDURE = [
+  "Before calling the work complete, confirm",
+  "What changed?",
+  "How was it verified",
+  "What remains pending?",
+  "What was learned?",
+  "Never check a `(human)` or `(review)` item",
+  "never fill `Decision (human)` yourself"
+];
+
+test("bootstrap installs a skill that carries 100% of the procedure AGENTS.md no longer holds", () => {
+  const dir = makeProject({ "package.json": '{"name":"x"}' });
+  aief(dir, ["bootstrap"]);
+  for (const target of [".claude", ".kiro", ".agents"]) {
+    const skill = fs.readFileSync(path.join(dir, target, "skills", "aief-change", "SKILL.md"), "utf8");
+    for (const rule of CANONICAL_PROCEDURE) assert.ok(skill.includes(rule), `${target} skill is missing: "${rule}"`);
   }
 });
 
