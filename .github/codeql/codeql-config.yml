@@ -1,0 +1,8 @@
+name: AIEF CodeQL config
+
+# Change 0161: changes/**/fixtures/** holds sample applications written for
+# usability studies (e.g. Change 0096), some deliberately flawed (no tenant
+# filter, no rate limiting) so a reviewer has something to find. They are
+# not product code; scanning them only produces alerts nobody should fix.
+paths-ignore:
+  - changes/**/fixtures/**
