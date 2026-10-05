@@ -52,7 +52,8 @@ procedure lives in the skill and in `aief prompt` for assistants without one. Ve
 | F1 | Installing all three skills would have made passive detection pick Kiro in every project | Fixed in this Change (R6) |
 | F2 | `bootstrap` never overwrites `AGENTS.md`, so existing projects keep the 208-line version until replaced by hand | Open: candidate follow-up — the same "unmodified shipped version" rule could refresh `AGENTS.md` |
 | F3 | The first draft of `doctor`'s message pointed to `cli/templates/…`, a path that exists only in AIEF's repository | Fixed before review |
-| F4 | CodeQL on PR #110 flagged incomplete regex escaping in a new test (`assistant-skill.test.js`, alert 7) | Fixed: plain substring check instead of a built RegExp. The other open alerts predate this PR (on `main` since 2026-09-10) |
+| F4 | CodeQL on PR #110 flagged incomplete regex escaping in a new test (`assistant-skill.test.js`, alert 7) | Fixed: plain substring check instead of a built RegExp |
+| F5 | CodeQL then counted alert 1 (polynomial ReDoS in `slugify`, on `main` since 2026-09-10) against this PR because it touches `shared.js` | Fixed: after the first replace each end holds at most one dash, so `/^-/` and `/-$/` replace `/^-+\|-+$/` with identical output. Other pre-existing alerts (2, 3, 5, 6) are in files this PR does not touch |
 
 ## Risks
 

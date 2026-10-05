@@ -28,8 +28,11 @@ export function writeFile(filePath, content, overwrite = false) {
   return true;
 }
 // run()/commandExists() live in ../process-utils.js (Change 0070).
+// After the first replace no two dashes are adjacent, so each end holds at
+// most one: two anchored single-character patterns trim it in linear time
+// (CodeQL js/polynomial-redos flagged the former /^-+|-+$/).
 export function slugify(value) {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-/, "").replace(/-$/, "");
 }
 
 // --- `changes/` directory queries ---
