@@ -180,7 +180,8 @@ export const KNOWN_FLAGS = {
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" }, assistant: { type: "string" } },
-  skill: {}
+  skill: {},
+  update: {}
 };
 export function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});

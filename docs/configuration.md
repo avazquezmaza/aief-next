@@ -51,6 +51,13 @@ missing file or an unmodified older AIEF version, never an edited one, and `aief
 when an edited copy falls behind. An unmodified copy does not count as a sign that the project uses
 that assistant.
 
+## Keeping AIEF-shipped files current — `aief update`
+
+`AGENTS.md` and the installed `aief-change` skills are files AIEF ships. After upgrading AIEF,
+`aief update` replaces each one that is still byte-identical to a version AIEF shipped before, and
+leaves any file you edited exactly as it is. `aief doctor` lists which ones are behind. Review the
+result with `git diff`; AIEF never commits.
+
 ## Assistant instruction files
 
 `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md` at the project root — one per assistant, selected
