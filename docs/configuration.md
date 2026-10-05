@@ -51,6 +51,20 @@ missing file or an unmodified older AIEF version, never an edited one, and `aief
 when an edited copy falls behind. An unmodified copy does not count as a sign that the project uses
 that assistant.
 
+## Claude Code guardrails — `aief guardrails install`
+
+Adds `permissions.deny` rules to `.claude/settings.json` (or `.claude/settings.local.json` with
+`--local`, which Claude Code does not share with the team) so an assistant cannot read credentials:
+`.env` files except examples, `~/.aws`, `~/.ssh`, keys and certificates, Terraform state and
+variables, AWS credential CSVs, and the AWS CLI commands that print credentials. The list lives in
+`cli/templates/guardrails/claude-deny.json`. AIEF only adds missing rules; Claude Code merges deny
+lists across settings files, so yours stay in effect.
+
+`--approval-hook` also installs `.claude/hooks/aief-approval-guard.mjs` and registers it as a
+PreToolUse hook (ADR-041). It refuses an Edit/Write/MultiEdit on a Change's `tasks.md` or `spec.md`
+that would check, abandon or delete a `(human)`/`(review)` item, and tells the assistant to ask you.
+Restart Claude Code after installing it.
+
 ## Keeping AIEF-shipped files current — `aief update`
 
 `AGENTS.md` and the installed `aief-change` skills are files AIEF ships. After upgrading AIEF,

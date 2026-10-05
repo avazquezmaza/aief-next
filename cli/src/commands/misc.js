@@ -96,6 +96,14 @@ const COMMAND_HELP = {
     example: "aief close --yes --change 0002-add-login   (single open Change: aief close --yes)\naief close --evidence-from test-results.xml --change 0002-add-login   (capture test counts into evidence.md first)",
     next: "Commit your work, then aief status."
   },
+  guardrails: {
+    purpose: "Add Claude Code permissions.deny rules that keep credentials out of an assistant's reach; with --approval-hook, also install a PreToolUse hook that refuses an edit checking, abandoning or deleting a (human)/(review) item.",
+    when: "Once per project that uses Claude Code; again after an AIEF upgrade to pick up new rules.",
+    reads: ".claude/settings.json (or .claude/settings.local.json with --local).",
+    writes: "That settings file, adding only missing rules and the hook entry; with --approval-hook, .claude/hooks/aief-approval-guard.mjs (never overwriting an edited copy). Writes nothing if the settings file is not valid JSON.",
+    example: "aief guardrails install --approval-hook   (or: aief guardrails install --local)",
+    next: "git diff .claude/, then restart Claude Code."
+  },
   update: {
     purpose: "Refresh AGENTS.md and installed aief-change skills that are unmodified older AIEF versions. An edited file is never touched; a missing one is not created (aief bootstrap / aief skill install do that).",
     when: "After upgrading AIEF, or when aief doctor reports an older AIEF version.",
@@ -153,7 +161,7 @@ function printCommandHelp(command) {
 }
 export function help(topic) {
   if (topic) return printCommandHelp(topic);
-  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap [--assistant id]  (bootstrap the current directory)\n  aief skill install [assistant]  (install or refresh the aief-change skill)\n  aief update                     (refresh unmodified AGENTS.md and skills)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [${assistantIds().join("|")}] [--profile architect] [--change change-id]
+  console.log(`AIEF CLI\n\nUsage:\n  aief help [command]\n  aief explain <command>\n  aief --help | --version\n\nDiscovery:\n  aief doctor [--verbose]\n  aief status [--change change-id] [--next] [--graph]\n\nBootstrap:\n  aief bootstrap [--assistant id]  (bootstrap the current directory)\n  aief skill install [assistant]  (install or refresh the aief-change skill)\n  aief update                     (refresh unmodified AGENTS.md and skills)\n  aief guardrails install [--local] [--approval-hook]  (Claude Code secret rules, approval hook)\n  aief analyze [name]\n\nWork:\n  aief new-change <name>\n  aief enrich manual|jira <source-id> [--file path]\n  aief propose <idea> [--change change-id]\n  aief prompt [${assistantIds().join("|")}] [--profile architect] [--change change-id]
               (long form: --assistant gemini; no name given: resolves automatically)
               (aief prompt --set-assistant <name> | --show-assistant | --clear-assistant)\n  aief verify [--change change-id]\n  aief close [--yes] [--change change-id]\n\nProject:\n  aief bootstrap <project-name>  (create a new project skeleton)\n  aief release <version>\n`);
 }

@@ -1,0 +1,28 @@
+{
+  "description": "Claude Code permissions.deny rules AIEF merges into .claude/settings.json (Change 0162). They keep an assistant from reading credentials. Edit the project's settings freely: AIEF only adds missing rules and never removes one.",
+  "deny": [
+    "Read(~/.aws/**)",
+    "Read(**/.aws/**)",
+    "Read(~/.ssh/**)",
+    "Read(**/.env)",
+    "Read(**/.env.local)",
+    "Read(**/.env.*.local)",
+    "Read(**/.env.production)",
+    "Read(**/.env.development)",
+    "Read(**/*.tfstate)",
+    "Read(**/*.tfstate.*)",
+    "Read(**/*.tfvars)",
+    "Read(**/*.pem)",
+    "Read(**/*.key)",
+    "Read(**/*.p12)",
+    "Read(**/*.pfx)",
+    "Read(**/id_rsa)",
+    "Read(**/id_ed25519)",
+    "Read(**/accessKeys.csv)",
+    "Read(**/rootkey.csv)",
+    "Read(**/*credentials*.csv)",
+    "Bash(cat ~/.aws/*)",
+    "Bash(aws configure export-credentials*)",
+    "Bash(aws configure get *)"
+  ]
+}
