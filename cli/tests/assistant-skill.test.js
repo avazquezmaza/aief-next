@@ -146,9 +146,9 @@ test("doctor reports an edited copy older than AIEF's, and an unmodified older o
   const editedOld = `${OLD_SHIPPED}\nlocal edit\n`;
   const dir = makeProject({ [SKILL_TARGETS.kiro]: editedOld, [SKILL_TARGETS.codex]: OLD_SHIPPED, [SKILL_TARGETS.claude]: skillTemplate() });
   const { out } = aief(dir, ["doctor"]);
-  assert.match(out, /aief-change skill:/);
+  assert.match(out, /AIEF-shipped files:/);
   assert.match(out, /! \.kiro\/skills\/aief-change\/SKILL\.md was edited and is older than AIEF's \(v1\.1\.0 < v2\.0\.0\)/);
-  assert.match(out, /! \.agents\/skills\/aief-change\/SKILL\.md is an older AIEF version — run: aief skill install codex/);
+  assert.match(out, /! \.agents\/skills\/aief-change\/SKILL\.md is an older AIEF version — run: aief update/);
   assert.match(out, /✓ \.claude\/skills\/aief-change\/SKILL\.md \(v2\.0\.0\)/);
 });
 

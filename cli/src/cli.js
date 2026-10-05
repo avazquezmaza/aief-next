@@ -10,6 +10,7 @@ import { status } from "./commands/status.js";
 import { doctor } from "./commands/doctor.js";
 import { prompt } from "./commands/prompt.js";
 import { skill } from "./commands/skill.js";
+import { update } from "./commands/update.js";
 
 // The full command dispatch. Every handler now lives in its own
 // cli/src/commands/<command>.js — this is the pure dispatch the original
@@ -19,4 +20,4 @@ import { skill } from "./commands/skill.js";
 // commands/enrich.js, commands/propose.js, commands/analyze.js,
 // commands/bootstrap.js, commands/verify.js, commands/close.js,
 // commands/status.js, commands/doctor.js, commands/prompt.js).
-export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "bootstrap": bootstrap(rest); break; case "adopt": commandRemoved("adopt"); break; case "analyze": analyze(rest); break; case "init": commandRemoved("init"); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; case "skill": skill(rest); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}
+export function main(args) { const [command, ...rest] = args; switch (command) { case "help": case "--help": case "-h": case undefined: help(rest[0]); break; case "--version": case "-v": printVersion(); break; case "explain": help(rest[0]); break; case "doctor": doctor(rest); break; case "status": status(rest); break; case "bootstrap": bootstrap(rest); break; case "adopt": commandRemoved("adopt"); break; case "analyze": analyze(rest); break; case "init": commandRemoved("init"); break; case "new-change": newChange(rest); break; case "enrich": enrich(rest); break; case "propose": propose(rest); break; case "prompt": prompt(rest); break; case "close": close(rest); break; case "use-profile": useProfile(rest[0]); break; case "verify": verify(rest); break; case "release": release(rest[0]); break; case "skill": skill(rest); break; case "update": update(rest); break; default: console.error(`Unknown command: ${command}`); help(); process.exitCode = 1; }}

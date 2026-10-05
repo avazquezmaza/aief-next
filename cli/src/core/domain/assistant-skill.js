@@ -3,10 +3,10 @@
 // the current template says, and whether an installed copy is current, an
 // unmodified older AIEF version, or edited by someone. Writing lives in
 // core/services/skill-installer.js.
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sha256, readPreviousHashes, classifyShipped } from "./shipped-file.js";
 
 const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "templates", "skills", "aief-change");
 
@@ -24,12 +24,8 @@ export function skillTemplate() {
   return fs.readFileSync(path.join(TEMPLATE_DIR, "SKILL.md"), "utf8");
 }
 
-function sha256(content) {
-  return crypto.createHash("sha256").update(content).digest("hex");
-}
-
 function previousHashes() {
-  return new Set(JSON.parse(fs.readFileSync(path.join(TEMPLATE_DIR, "previous-versions.json"), "utf8")).sha256);
+  return readPreviousHashes(path.join(TEMPLATE_DIR, "previous-versions.json"));
 }
 
 // `metadata.version` from a SKILL.md frontmatter, or null.
@@ -59,12 +55,9 @@ export function inspectSkill(projectDir, assistant) {
   const relative = SKILL_TARGETS[assistant];
   const file = path.join(projectDir, relative);
   const currentVersion = skillVersion(skillTemplate());
-  if (!fs.existsSync(file)) return { path: relative, state: "missing", installedVersion: null, currentVersion };
-  const content = fs.readFileSync(file, "utf8");
-  const installedVersion = skillVersion(content);
-  if (content === skillTemplate()) return { path: relative, state: "current", installedVersion, currentVersion };
-  if (previousHashes().has(sha256(content))) return { path: relative, state: "shipped-older", installedVersion, currentVersion };
-  return { path: relative, state: "modified", installedVersion, currentVersion };
+  const content = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
+  const state = classifyShipped(content, skillTemplate(), previousHashes());
+  return { path: relative, state, installedVersion: content === null ? null : skillVersion(content), currentVersion };
 }
 
 // Compares dotted numeric versions; a missing version counts as older.

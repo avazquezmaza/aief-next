@@ -221,6 +221,12 @@ Released by Change 0159.
 - [0158](0158-define-assistant-native-skill/) define assistant native skill
 - [0159](0159-implement-assistant-native-skill/) implement assistant native skill
 
-## Unreleased (after 4.1.0) — 0160+
+## 4.2.0 — 0160
+
+Released by Change 0160.
+
+- [0160](0160-aief-update-command/) aief update command
+
+## Unreleased (after 4.2.0) — 0161+
 
 Merged on `main`, not yet in a tagged release. None yet.

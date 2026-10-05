@@ -4,6 +4,26 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-040: `aief update` refreshes AIEF-shipped files that nobody edited; `bootstrap` keeps never overwriting
+
+**Status: Accepted (2026-10-05), by the project owner. Decided in [Change 0160](../changes/0160-aief-update-command/).**
+
+**Decision.** A new command, `aief update`, replaces `AGENTS.md` and every installed `aief-change`
+skill that is byte-identical to a version AIEF shipped before (known sha256 hashes). An edited file
+is never written; a missing file is not created. `aief bootstrap` keeps its rule of never
+overwriting an existing file, and `aief skill install` keeps its own scope. `aief doctor` reports
+an older unmodified `AGENTS.md` or skill and points to `aief update`.
+
+**Context.** Change 0159 (F2): every one of 11 local projects had an unmodified older `AGENTS.md`
+(173–219 lines), several still describing tracks and gates removed in 4.0, and `bootstrap` never
+replaces an existing file. Options were a new command, extending `aief skill install`, or relaxing
+`bootstrap`; the owner chose the new command.
+
+**Consequences.** One place to bring a project up to date after an upgrade. The same classifier
+(`core/domain/shipped-file.js`) now serves `AGENTS.md` and the skill.
+
+---
+
 ## ADR-039: AIEF ships a self-contained `aief-change` skill to assistants that support skills; `AGENTS.md` keeps policy, the skill carries procedure
 
 **Status: Accepted (2026-10-04), by the project owner. Decided in [Change 0158](../changes/0158-define-assistant-native-skill/), from Analysis 0154 (F6).**

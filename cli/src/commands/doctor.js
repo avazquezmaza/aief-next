@@ -6,6 +6,7 @@ import { detectProject, recommendSkills } from "../detect.js";
 import { listDescriptors } from "../hooks/index.js";
 import { assistantIds } from "../core/domain/assistant-resolver.js";
 import { skillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
+import { inspectAgents } from "../core/domain/agents-file.js";
 import { statusOverview } from "./status.js";
 import { exists, section, parseArgs, printNext } from "./shared.js";
 
@@ -38,15 +39,19 @@ function printHookRegistry() {
 // install`; an edited one is never touched, so doctor says when it is behind.
 function printSkillInstalls() {
   const lines = [];
+  // Change 0160: AGENTS.md follows the same shipped-file rule.
+  const agents = inspectAgents(process.cwd());
+  if (agents.state === "shipped-older") lines.push("! AGENTS.md is an older AIEF version — run: aief update");
+  else if (agents.state === "current") lines.push("✓ AGENTS.md (current)");
   for (const id of skillAssistantIds()) {
     const s = inspectSkill(process.cwd(), id);
     if (s.state === "current") lines.push(`✓ ${s.path} (v${s.currentVersion})`);
-    else if (s.state === "shipped-older") lines.push(`! ${s.path} is an older AIEF version — run: aief skill install ${id}`);
+    else if (s.state === "shipped-older") lines.push(`! ${s.path} is an older AIEF version — run: aief update`);
     else if (s.state === "modified" && isOlderVersion(s.installedVersion, s.currentVersion)) lines.push(`! ${s.path} was edited and is older than AIEF's (v${s.installedVersion || "?"} < v${s.currentVersion}) — to update, move it aside, run aief skill install ${id}, and re-apply your edits`);
     else if (s.state === "modified") lines.push(`✓ ${s.path} (edited, v${s.installedVersion})`);
   }
   if (!lines.length) return;
-  console.log("\naief-change skill:");
+  console.log("\nAIEF-shipped files:");
   for (const line of lines) console.log(line);
 }
 function printSignals(project) {

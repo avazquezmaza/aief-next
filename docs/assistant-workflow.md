@@ -17,7 +17,8 @@ The procedure for working a Change — select, read, plan, build, verify, docume
 `aief bootstrap` installs the skill for the configured assistant (`--assistant <id>` or
 `knowledge/assistant.json`), or for all three when none is configured. `aief skill install
 [assistant]` installs or refreshes it later. An installed copy someone edited is never overwritten;
-`aief doctor` reports it when it falls behind AIEF's version.
+`aief doctor` reports it when it falls behind AIEF's version. After upgrading AIEF, `aief update`
+refreshes `AGENTS.md` and installed skills that nobody edited.
 
 ## Validating an assistant
 
