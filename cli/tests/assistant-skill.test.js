@@ -96,7 +96,7 @@ test("bootstrap with no configured assistant installs the skill for all three", 
   assert.equal(status, 0);
   for (const target of TARGETS) {
     assert.equal(fs.readFileSync(path.join(dir, target), "utf8"), skillTemplate());
-    assert.match(out, new RegExp(`Installed ${target.replace(/\./g, "\\.")}`));
+    assert.ok(out.includes(`Installed ${target}`), `missing "Installed ${target}"`);
   }
 });
 
