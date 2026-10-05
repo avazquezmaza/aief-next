@@ -28,8 +28,11 @@ export function writeFile(filePath, content, overwrite = false) {
   return true;
 }
 // run()/commandExists() live in ../process-utils.js (Change 0070).
+// After the first replace no two dashes are adjacent, so each end holds at
+// most one: two anchored single-character patterns trim it in linear time
+// (CodeQL js/polynomial-redos flagged the former /^-+|-+$/).
 export function slugify(value) {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-/, "").replace(/-$/, "");
 }
 
 // --- `changes/` directory queries ---
@@ -176,7 +179,8 @@ export const KNOWN_FLAGS = {
   verify: { change: { type: "string" }, strict: { type: "boolean" }, json: { type: "boolean" } },
   status: { change: { type: "string" }, next: { type: "boolean" }, graph: { type: "boolean" } },
   doctor: { verbose: { type: "boolean" } },
-  bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" } }
+  bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" }, assistant: { type: "string" } },
+  skill: {}
 };
 export function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});

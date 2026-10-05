@@ -21,6 +21,7 @@
 // silently replaced (same discipline as SDD-R9/R10).
 import fs from "node:fs";
 import path from "node:path";
+import { isShippedSkill } from "./assistant-skill.js";
 
 // Kiro (Change 0112) has no root instruction file the way Claude/Gemini/Codex/Cursor do — Kiro
 // discovers every AGENTS.md in the workspace on its own (confirmed against a real installation,
@@ -68,9 +69,14 @@ export function readProjectAssistantConfig(cwd) {
 
 // Symmetric passive detection: every registered assistant is checked the
 // same way (native file present in cwd) — no assistant gets a structural
-// advantage over another.
+// advantage over another. A file AIEF itself installed, unmodified (the
+// aief-change skill, ADR-039), says nothing about which assistant the
+// project uses, so it does not count.
 function detectAssistants(cwd) {
-  return assistantIds().filter((id) => fs.existsSync(path.join(cwd, ASSISTANT_FILES[id])));
+  return assistantIds().filter((id) => {
+    const file = path.join(cwd, ASSISTANT_FILES[id]);
+    return fs.existsSync(file) && !isShippedSkill(fs.readFileSync(file, "utf8"));
+  });
 }
 
 // Resolves layers 1-4. `explicit` and `env` are expected already

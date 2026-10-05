@@ -214,6 +214,13 @@ Released by Change 0157.
 - [0156](0156-define-4-0-simplification/) define 4 0 simplification
 - [0157](0157-implement-4-0-simplification/) implement 4 0 simplification
 
-## Unreleased (after 4.0.0) — 0158+
+## 4.1.0 — 0158–0159
+
+Released by Change 0159.
+
+- [0158](0158-define-assistant-native-skill/) define assistant native skill
+- [0159](0159-implement-assistant-native-skill/) implement assistant native skill
+
+## Unreleased (after 4.1.0) — 0160+
 
 Merged on `main`, not yet in a tagged release. None yet.

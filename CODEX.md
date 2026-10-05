@@ -10,4 +10,4 @@ Codex-specific guidance:
 - Keep patches small.
 - Do not duplicate `AGENTS.md`; treat it as the source of truth.
 
-For Change work, read [the shared procedure](docs/assistant-workflow.md).
+For Change work, use the `aief-change` skill ([source](cli/templates/skills/aief-change/SKILL.md)).

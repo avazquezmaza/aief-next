@@ -20,4 +20,4 @@ Claude-specific guidance:
 - Never run `git push`, delete files/branches, or perform another destructive or irreversible Git
   operation without the user's explicit confirmation for that specific action.
 
-For Change work, read [the shared procedure](docs/assistant-workflow.md).
+For Change work, use the `aief-change` skill ([source](cli/templates/skills/aief-change/SKILL.md)).

@@ -148,7 +148,7 @@ test("prompt --skill <id> appends exactly one clearly-labeled section for an app
   // the Skill's own instructions may contain arbitrary text) recovers the
   // byte-identical legacy prompt.
   const skillStart = out.indexOf("\n─── Skill: change-context");
-  const afterMarker = "\nWhere results belong:";
+  const afterMarker = "\nChange procedure (aief-change):";
   const skillEnd = out.indexOf(afterMarker, skillStart);
   assert.ok(skillStart > -1 && skillEnd > -1);
   const withoutSkillSection = out.slice(0, skillStart) + out.slice(skillEnd);

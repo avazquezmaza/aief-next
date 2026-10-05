@@ -34,79 +34,18 @@ Never treat AI output as automatically approved. The human owner is responsible 
 
 ---
 
-## AIEF Workflow
-
-```text
-Understand -> Plan -> Build -> Verify -> Document
-```
-
-### Understand
-
-Read:
-
-- `change.md`
-- `spec.md`
-- `tasks.md`
-- relevant project documentation
-
-### Plan
-
-Before changing files, identify:
-
-- what will change,
-- what will not change,
-- risks or assumptions,
-- validation approach.
-
-### Build
-
-Implement only what the Change requires.
-
-Avoid unrelated refactoring.
-
-### Verify
-
-Check the acceptance criteria.
-
-Run relevant tests when available.
-
-### Document
-
-Update:
-
-- `evidence.md`
-- README or docs if behavior changed
-- known issues if something remains pending
-
----
-
 ## Working with Changes
 
-Every meaningful implementation belongs to one Change.
+Every meaningful implementation belongs to one Change. The step-by-step procedure (select, read,
+plan, build, verify, document, close) is the `aief-change` skill that `aief bootstrap` installs for
+Claude Code, Kiro and Codex; other assistants get it in `aief prompt`'s output.
 
-`aief new-change` (and `analyze`/`propose`/`enrich`, which all scaffold Changes) switches off
-`main`/`dev` onto a dedicated branch (`<type>/<id>-<slug>`) automatically before writing any Change
-file. On an existing feature branch (including a worktree), the CLI preserves the current branch;
-it does not enforce a one-to-one mapping between Changes and branches. Select the intended
-checkout before scaffolding a Change. `--no-branch` opts out of the main/dev switch when the
-Change belongs on the current branch. Do not reimplement this switch per assistant.
+`aief new-change` (and `analyze`/`propose`/`enrich`) switches off `main`/`dev` onto
+`<type>/<id>-<slug>` before writing any file, keeps any other branch or worktree, and skips the
+switch with `--no-branch`. Do not reimplement this switch per assistant.
 
-A Change should contain:
-
-```text
-change.md
-spec.md
-tasks.md
-evidence.md
-```
-
-Optional files may include:
-
-```text
-design.md
-adr.md
-notes.md
-```
+A Change contains `change.md`, `spec.md`, `tasks.md` and `evidence.md`, and may add files such as
+`design.md` or `notes.md`.
 
 ### Tasks and approvals
 
@@ -122,20 +61,6 @@ Both stay blocking for `aief close` while unchecked, in `tasks.md` or as an Acce
 A Change that depends on another lists it under `## Depends on` in `change.md`, one id per bullet
 (`aief new-change <name> --depends-on <id>` writes it). `aief close` warns while a dependency is
 still open, and `aief status --next` recommends Changes whose dependencies are closed.
-
----
-
-## Required Completion Checklist
-
-Before marking a Change complete, confirm:
-
-- [ ] Goal is understood.
-- [ ] Requirements are implemented.
-- [ ] Tasks are complete or remaining work is documented.
-- [ ] Tests or manual verification were performed.
-- [ ] Evidence was updated.
-- [ ] Documentation was updated if needed.
-- [ ] No unrelated changes were introduced.
 
 ---
 
@@ -160,21 +85,6 @@ Documentation should be:
 - example-driven.
 
 Avoid long theoretical explanations in starter documents.
-
----
-
-## Evidence Guidance
-
-`evidence.md` should answer:
-
-1. What changed?
-2. How was it verified?
-3. What remains pending?
-4. What was learned?
-
-An Analysis Change's `evidence.md` keeps a living `## Findings Status` table so later Changes that
-resolve a finding record it there instead of leaving the list to go stale — see [governance
-conventions §9](https://github.com/avazquezmaza/aief-next/blob/main/docs/history/governance-conventions.md#9-findings-status--tracking-resolution-across-changes).
 
 ---
 

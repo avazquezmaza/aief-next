@@ -148,7 +148,7 @@ automatic format/typecheck, proactive agents, `ecc2` daemon and database).
 | F3 | Gates duplicate approval labels | Medium | Resolved: Change 0157 (gates removed) |
 | F4 | AIEF files kept out of git in 6 of 9 repos, with no supported private mode or backup | High | Open: wave 2 |
 | F5 | Team use needs grouping and conflict-free status. Built outside AIEF in `trk-herbie-bot` | High | Open: wave 3 |
-| F6 | Claude Code integration is copy-paste only | Medium | Open: wave 2 |
+| F6 | Claude Code integration is copy-paste only | Medium | Resolved: Change 0159 (`aief-change` skill, ADR-039) |
 | F7 | Standards and Skills add little per project | Medium | Open: wave 3 |
 | F8 | Process weight: one-line fixes carry 130+ lines of Change docs | Medium | Open: wave 1 (lighter Fix Changes) |
 | B1 | Loop count and message | Low | Resolved: Change 0157 (Loop removed) |
