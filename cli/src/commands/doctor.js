@@ -1,12 +1,14 @@
 // Command handler: doctor (modularization, eighth and final "core" slice).
 // Imports statusOverview from ./status.js — the one real cross-group
 // dependency confirmed in this whole modularization effort.
+import path from "node:path";
 import { run, commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills } from "../detect.js";
 import { listDescriptors } from "../hooks/index.js";
 import { assistantIds } from "../core/domain/assistant-resolver.js";
 import { skillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
 import { inspectAgents } from "../core/domain/agents-file.js";
+import { denyRules, readSettings, isHookRegistered, inspectHook, settingsPath } from "../core/domain/guardrails.js";
 import { statusOverview } from "./status.js";
 import { exists, section, parseArgs, printNext } from "./shared.js";
 
@@ -53,6 +55,28 @@ function printSkillInstalls() {
   if (!lines.length) return;
   console.log("\nAIEF-shipped files:");
   for (const line of lines) console.log(line);
+}
+// Change 0162: Claude Code guardrails, only when the project has a .claude/
+// directory (otherwise there is nothing for them to apply to).
+function printGuardrails() {
+  if (!exists(".claude")) return;
+  const present = new Set();
+  let registered = false;
+  for (const local of [false, true]) {
+    const read = readSettings(path.join(process.cwd(), settingsPath(local)));
+    if (read.error) { console.log(`\nGuardrails:\n! ${settingsPath(local)} ${read.error}`); return; }
+    for (const rule of read.value.permissions?.deny || []) present.add(rule);
+    registered = registered || isHookRegistered(read.value);
+  }
+  const rules = denyRules();
+  const have = rules.filter((r) => present.has(r)).length;
+  console.log("\nGuardrails:");
+  console.log(have === rules.length ? `✓ ${have}/${rules.length} AIEF deny rules for credentials` : `! ${have}/${rules.length} AIEF deny rules for credentials — run: aief guardrails install`);
+  const hook = inspectHook(process.cwd());
+  if (hook === "missing" && !registered) console.log("○ Approval guard hook not installed (optional: aief guardrails install --approval-hook)");
+  else if (hook === "missing") console.log("! Approval guard is registered but .claude/hooks/aief-approval-guard.mjs is missing — run: aief guardrails install --approval-hook");
+  else if (!registered) console.log("! .claude/hooks/aief-approval-guard.mjs exists but is not registered — run: aief guardrails install --approval-hook");
+  else console.log(`✓ Approval guard hook installed and registered${hook === "modified" ? " (edited)" : ""}`);
 }
 function printSignals(project) {
   console.log("\nDetected project signals:");
@@ -114,4 +138,4 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printSkillInstalls(); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printSkillInstalls(); printGuardrails(); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }

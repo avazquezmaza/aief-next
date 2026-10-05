@@ -4,6 +4,27 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-041: An optional Claude Code hook enforces approval labels on the assistant's side, outside the AIEF engine
+
+**Status: Accepted (2026-10-05), by the project owner. Decided and implemented in [Change 0162](../changes/0162-guardrails-install/).**
+
+**Decision.** `aief guardrails install --approval-hook` installs `.claude/hooks/aief-approval-guard.mjs`
+(Node, no dependencies) and registers it as a Claude Code PreToolUse hook for Edit, Write and
+MultiEdit. The hook computes the file after the edit and exits 2 — blocking the tool call — when a
+`(human)` or `(review)` item in a Change's `tasks.md` or `spec.md` goes from `[ ]` to `[x]` or `[-]`,
+or disappears. It is opt-in, never overwritten once edited, and lives in the project, not in the
+engine: the AIEF engine still has no blocking authority (ADR-038).
+
+**Context.** Analysis 0149 accepted as residual risk that an assistant can check an approval box,
+and its five options did not consider an assistant-side hook. Analysis 0154 proposed it from ECC's
+pattern; the owner approved it as optional.
+
+**Consequences.** Narrows the risk for Claude Code users: a shell command (`sed -i`) can still
+bypass it, so it is a mitigation, not identity verification. `aief doctor` reports whether it is
+installed and registered.
+
+---
+
 ## ADR-040: `aief update` refreshes AIEF-shipped files that nobody edited; `bootstrap` keeps never overwriting
 
 **Status: Accepted (2026-10-05), by the project owner. Decided in [Change 0160](../changes/0160-aief-update-command/).**

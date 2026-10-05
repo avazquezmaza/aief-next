@@ -80,7 +80,9 @@ Named explicitly, not left implicit:
     (Change 0155).
 
   Still possible: an assistant checking `[x]` against `AGENTS.md`, or deleting an approval line
-  from an ordinary Change. For a solo owner the control is reviewing the close output and the PR
+  from an ordinary Change. In Claude Code, `aief guardrails install --approval-hook` (ADR-041,
+  Change 0162) adds a PreToolUse hook that refuses an Edit/Write/MultiEdit doing either; a shell
+  command can still bypass it, so it narrows the risk rather than closing it. For a solo owner the control is reviewing the close output and the PR
   before merging. **Teams** should add platform controls that AIEF cannot read but that do bind an
   assistant: branch protection on `main`, at least one required review from a different account,
   CODEOWNERS covering `changes/**`, and an assistant token that cannot approve or merge.

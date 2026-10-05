@@ -181,7 +181,8 @@ export const KNOWN_FLAGS = {
   doctor: { verbose: { type: "boolean" } },
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" }, assistant: { type: "string" } },
   skill: {},
-  update: {}
+  update: {},
+  guardrails: { local: { type: "boolean" }, "approval-hook": { type: "boolean" } }
 };
 export function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});
