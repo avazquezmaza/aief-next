@@ -158,7 +158,16 @@ function runGeminiHook(dir, event) {
   const env = { ...process.env, GEMINI_PROJECT_DIR: dir };
   delete env.CLAUDE_PROJECT_DIR;
   const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify(event), encoding: "utf8", env, cwd: dir });
-  return { status: r.status, stderr: r.stderr };
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
+// Change 0167: Gemini blocks on exit 0 + {"decision":"deny"}; returns the parsed decision or null.
+function geminiDenial(r) {
+  assert.equal(r.status, 0, r.stderr);
+  if (r.stdout === "") return null;
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.decision, "deny");
+  return out.reason;
 }
 
 test("registerGeminiHook adds one BeforeTool entry, keeps others, and is idempotent", () => {
@@ -190,7 +199,12 @@ test("guardrails install --assistant gemini installs and registers the hook once
   assert.equal(settingsOf(dir, GEMINI_SETTINGS_PATH).hooks.BeforeTool.length, 1);
 });
 
-test("guardrails install --assistant gemini refreshes the 0162 hook, never an edited one", () => {
+test("guardrails install --assistant gemini refreshes the 0162 and 0166 hooks, never an edited one", () => {
+  const v0166 = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "aief-approval-guard-0166.mjs"), "utf8");
+  assert.notEqual(v0166, hookTemplate());
+  const older = makeProject({ [GEMINI_HOOK_PATH]: v0166 });
+  assert.match(aief(older, ["guardrails", "install", "--assistant", "gemini"]).out, /✓ Updated \.gemini\/hooks/);
+  assert.equal(fs.readFileSync(path.join(older, GEMINI_HOOK_PATH), "utf8"), hookTemplate());
   const dir = makeProject({ [GEMINI_HOOK_PATH]: OLD_HOOK });
   assert.match(aief(dir, ["guardrails", "install", "--assistant", "gemini"]).out, /✓ Updated \.gemini\/hooks/);
   assert.equal(fs.readFileSync(path.join(dir, GEMINI_HOOK_PATH), "utf8"), hookTemplate());
@@ -240,18 +254,25 @@ test("doctor reports the Gemini hook state when .gemini/ exists", () => {
   assert.doesNotMatch(aief(makeProject(), ["doctor"]).out, /Gemini CLI guardrails:/, "silent without .gemini/");
 });
 
-test("hook blocks a Gemini write_file or replace that checks or removes an approval, with a relative path", () => {
+test("hook denies a Gemini write_file or replace that checks or removes an approval, as JSON on exit 0", () => {
   const { dir } = changeProject();
   const replace = runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/tasks.md", instruction: "approve", old_string: "- [ ] (human) Owner approves", new_string: "- [x] (human) Owner approves" } });
-  assert.equal(replace.status, 2);
-  assert.match(replace.stderr, /This edit to changes\/0001-x\/tasks\.md would change:\n  - checked: \(human\) Owner approves/);
-  assert.equal(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: path.join(dir, "changes/0001-x/tasks.md"), content: "# Tasks\n\n- [x] Work\n" } }).status, 2);
-  assert.equal(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/spec.md", old_string: "- [ ]", new_string: "- [-]", allow_multiple: true } }).status, 2);
+  assert.match(geminiDenial(replace), /^AIEF approval guard: .*\nThis edit to changes\/0001-x\/tasks\.md would change:\n  - checked: \(human\) Owner approves\n/);
+  assert.equal(replace.stderr, "");
+  assert.match(geminiDenial(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: path.join(dir, "changes/0001-x/tasks.md"), content: "# Tasks\n\n- [x] Work\n" } })), /removed: \(human\) Owner approves/);
+  assert.match(geminiDenial(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/spec.md", old_string: "- [ ]", new_string: "- [-]", allow_multiple: true } })), /checked: \(human\) Owner signs off/);
+});
+
+test("Claude Code events still block with exit 2 and nothing on stdout", () => {
+  const { dir, tasks } = changeProject();
+  const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify({ tool_name: "Edit", tool_input: { file_path: tasks, old_string: "- [ ] (human)", new_string: "- [x] (human)" } }), encoding: "utf8", env: { ...process.env, CLAUDE_PROJECT_DIR: dir } });
+  assert.equal(r.status, 2);
+  assert.equal(r.stdout, "");
 });
 
 test("hook allows Gemini edits that keep approvals unchecked, other tools, and files outside changes/", () => {
   const { dir } = changeProject();
-  assert.equal(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/tasks.md", old_string: "- [x] Work", new_string: "- [x] Work done" } }).status, 0);
-  assert.equal(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: "src/app.js", content: "b\n" } }).status, 0);
-  assert.equal(runGeminiHook(dir, { tool_name: "run_shell_command", tool_input: { command: "ls" } }).status, 0);
+  assert.equal(geminiDenial(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/tasks.md", old_string: "- [x] Work", new_string: "- [x] Work done" } })), null);
+  assert.equal(geminiDenial(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: "src/app.js", content: "b\n" } })), null);
+  assert.equal(geminiDenial(runGeminiHook(dir, { tool_name: "run_shell_command", tool_input: { command: "ls" } })), null);
 });
