@@ -260,9 +260,11 @@ export function definitionChangeFiles(id, slug, title = "") {
     "evidence.md": evidenceTemplate()
   };
 }
-export function genericChangeFiles(id, slug, title = "") {
+// `type` is a normalized Change type (Change 0164); written capitalized.
+export function genericChangeFiles(id, slug, title = "", type = "general") {
+  const label = type.charAt(0).toUpperCase() + type.slice(1);
   return {
-    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\nGeneral\n\n## Objective\n\n${title || slug}\n\n## Scope\n\n### In scope\n\n-\n\n### Out of scope\n\n-\n\n## Success Criteria\n\n-\n`,
+    "change.md": `# Change\n\n## ID\n\n\`${id}-${slug}\`\n\n## Type\n\n${label}\n\n## Objective\n\n${title || slug}\n\n## Scope\n\n### In scope\n\n-\n\n### Out of scope\n\n-\n\n## Success Criteria\n\n-\n`,
     "spec.md": `# Specification\n\n## Goal\n\nWhat should be true after this Change?\n\n## Requirements\n\n-\n\n## Acceptance Criteria\n\n- [ ]\n`,
     "tasks.md": `# Tasks\n\n## Implementation\n\n- [ ]\n\n## Documentation\n\n- [ ]\n\n## Verification\n\n- [ ]\n\n## Evidence\n\n- [ ] Update evidence.md\n`,
     "evidence.md": evidenceTemplate()
@@ -301,7 +303,7 @@ export function createChange(name, options = {}) {
   const changeDir = cwd("changes", `${id}-${slug}`);
   const files = options.type === "analysis" ? analysisChangeFiles(id, slug, options.context)
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)
-      : genericChangeFiles(id, slug, name);
+      : genericChangeFiles(id, slug, name, options.type);
   if (dependsOn.length) files["change.md"] = withDependsOn(files["change.md"], dependsOn);
   for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
   console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
