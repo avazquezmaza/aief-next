@@ -12,6 +12,9 @@
 //
 // Edit tools: Claude Code Write / Edit / MultiEdit; Gemini CLI write_file
 // (whole content) and replace (old_string/new_string, allow_multiple).
+// Claude Code blocks on exit 2 (reason on stderr); Gemini CLI blocks on
+// exit 0 with {"decision":"deny","reason":...} on stdout, which it reports
+// as a denial instead of a hook failure (Change 0167).
 import fs from "node:fs";
 import path from "node:path";
 
@@ -32,6 +35,8 @@ function applyEdit(text, oldString, newString, replaceAll) {
 }
 
 const PROJECT_DIR = process.env.GEMINI_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+
+const GEMINI_TOOLS = new Set(["write_file", "replace"]);
 
 function main(raw) {
   let event;
@@ -60,12 +65,16 @@ function main(raw) {
     else if (now.get(item) !== "unchecked") blocked.push(`checked: ${item}`);
   }
   if (!blocked.length) return 0;
-  process.stderr.write(
+  const reason =
     `AIEF approval guard: (human) and (review) items are approvals a person gives, not an assistant (AGENTS.md).\n` +
     `This edit to ${path.relative(PROJECT_DIR, file)} would change:\n` +
     blocked.map((b) => `  - ${b}`).join("\n") +
-    `\nAsk the user to check it themselves, and make the rest of the edit without touching that line.\n`
-  );
+    `\nAsk the user to check it themselves, and make the rest of the edit without touching that line.\n`;
+  if (GEMINI_TOOLS.has(event.tool_name)) {
+    process.stdout.write(JSON.stringify({ decision: "deny", reason }));
+    return 0;
+  }
+  process.stderr.write(reason);
   return 2;
 }
 
