@@ -72,11 +72,13 @@ test("new-change outside a git repo is a no-op, not a crash", () => {
 
 test("new-change on main aborts (no scaffolding written) when the checkout itself fails", () => {
   const dir = makeGitProject();
-  // Pre-create the exact branch name new-change would try to check out —
-  // `git checkout -b` then fails ("branch already exists"), which used to
-  // be silently swallowed: createChange() ignored ensureChangeBranch()'s
-  // failure and wrote the Change to `main` anyway.
-  git(dir, ["branch", "general/0001-add-login"]);
+  // Make `git checkout -b general/0001-add-login` fail — which used to be
+  // silently swallowed: createChange() ignored ensureChangeBranch()'s
+  // failure and wrote the Change to `main` anyway. A branch named `general`
+  // blocks every `general/...` ref. (Before Change 0169 this pre-created
+  // `general/0001-add-login` itself; ID allocation now skips a number an
+  // AIEF branch already holds, so that no longer collides.)
+  git(dir, ["branch", "general"]);
   const { status, out } = aief(dir, ["new-change", "Add login"]);
   assert.notEqual(status, 0);
   assert.match(out, /Could not create branch general\/0001-add-login/);
@@ -110,7 +112,7 @@ test("enrich --no-branch opts out even on main", () => {
 
 test("enrich on main aborts (no scaffolding written) when the checkout itself fails", () => {
   const dir = makeGitProject();
-  git(dir, ["branch", "enrichment/0001-manual-test-001"]);
+  git(dir, ["branch", "enrichment"]); // blocks every enrichment/... ref (see the new-change test above)
   const { status, out } = aief(dir, ["enrich", "manual", "TEST-001"]);
   assert.notEqual(status, 0);
   assert.match(out, /Could not create branch enrichment\/0001-manual-test-001/);

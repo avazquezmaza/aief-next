@@ -10,7 +10,10 @@
 // — only `checkout -b` from a protected branch, which is trivially
 // reversible (AGENTS.md's git-discipline guardrail on destructive/
 // irreversible operations does not apply to a plain branch creation).
+import fs from "node:fs";
+import path from "node:path";
 import { run } from "../../process-utils.js";
+import { CHANGE_TYPES } from "../domain/change.js";
 
 export const PROTECTED_BRANCHES = ["main", "dev"];
 
@@ -58,4 +61,44 @@ export function ensureChangeBranch(id, slug, type, options = {}) {
   }
   console.log(`Created and switched to branch ${name}`);
   return name;
+}
+
+// Change 0169: Change IDs this repository already knows about outside the
+// current checkout, so nextChangeId() does not hand out a number another
+// worktree or an unmerged AIEF branch already took (the 0122 collision).
+// Two read-only sources: the `changes/` directory of every other worktree
+// (at the same path relative to the repository root as `projectDir`), and
+// branch names AIEF itself creates — `<type>/<NNNN>-<slug>` with `<type>` in
+// the closed Change-type list — under refs/heads and already-fetched
+// refs/remotes. Never fetches, never writes. [] outside git or on failure.
+const CHANGE_BRANCH = /(?:^|\/)([a-z]+)\/(\d{4,})-[^/]+$/;
+
+export function gitKnownChangeIds(projectDir = process.cwd()) {
+  if (!isInsideWorkTree(projectDir)) return [];
+  const ids = [];
+  const toplevel = run("git", ["rev-parse", "--show-toplevel"], { cwd: projectDir });
+  const worktrees = run("git", ["worktree", "list", "--porcelain"], { cwd: projectDir });
+  if (toplevel.status === 0 && worktrees.status === 0) {
+    const root = path.resolve(toplevel.stdout.trim());
+    const prefix = path.relative(root, path.resolve(projectDir));
+    for (const line of worktrees.stdout.split(/\r?\n/)) {
+      if (!line.startsWith("worktree ")) continue;
+      const worktree = path.resolve(line.slice("worktree ".length));
+      if (worktree === root) continue;
+      const changes = path.join(worktree, prefix, "changes");
+      if (!fs.existsSync(changes)) continue;
+      for (const name of fs.readdirSync(changes)) {
+        const match = name.match(/^(\d+)-/);
+        if (match) ids.push(Number(match[1]));
+      }
+    }
+  }
+  const refs = run("git", ["for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes"], { cwd: projectDir });
+  if (refs.status === 0) {
+    for (const ref of refs.stdout.split(/\r?\n/)) {
+      const match = ref.match(CHANGE_BRANCH);
+      if (match && CHANGE_TYPES.includes(match[1])) ids.push(Number(match[2]));
+    }
+  }
+  return ids;
 }
