@@ -4,6 +4,28 @@ Key decisions behind AIEF Next. Each entry follows a lightweight ADR format: dec
 
 ---
 
+## ADR-042: The approval guard reaches Gemini CLI through one script with per-assistant adapters; Codex and Cursor wait for verification
+
+**Status: Accepted (2026-10-21), by the project owner. Decided in [Change 0165](../changes/0165-define-guardrail-parity-across-assistants/). Extends ADR-041.**
+
+**Decision.** `aief-approval-guard.mjs` stays one script and gains input adapters per assistant;
+the first is Gemini CLI (`BeforeTool` on `write_file|replace`, registered in
+`.gemini/settings.json`). `aief guardrails install` gains `--assistant <id>`; without it, it keeps
+installing for Claude Code. Codex (`PreToolUse` on `apply_patch`) and Cursor (`preToolUse` on
+`Write`) each get a later Change, only after a real installation shows their edit-event format.
+Credential deny-rule parity is not pursued: it stays a recorded gap.
+
+**Context.** Change 0163 found Gemini CLI 0.64.0 has skills and hooks; its hook protocol differs
+from Claude Code's only in tool names and `allow_multiple`. Codex passes edits as patch text and
+Cursor does not document `Write`'s input fields. Only Claude Code has a project-level declarative
+deny list (Gemini's workspace policies are non-functional).
+
+**Consequences.** Gemini users in trusted folders get the same mitigation as Claude Code users; a
+shell command still bypasses it. Codex and Cursor rely on `aief close` and platform controls until
+their Changes land. ADR-038's two-projects-in-six-weeks rule applies to the Gemini guard.
+
+---
+
 ## ADR-041: An optional Claude Code hook enforces approval labels on the assistant's side, outside the AIEF engine
 
 **Status: Accepted (2026-10-05), by the project owner. Decided and implemented in [Change 0162](../changes/0162-guardrails-install/).**
