@@ -50,3 +50,7 @@ docs, and extend the parity tests to the five assistants.
 - `aief prompt gemini` points to the skill when it is installed, and carries the procedure when not.
 - Parity tests pass for all five assistants.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --change 0163 --strict` pass.
+
+## Status
+
+Closed (2026-10-22)

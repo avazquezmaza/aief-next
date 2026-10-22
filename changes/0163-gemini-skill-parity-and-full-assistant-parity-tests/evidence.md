@@ -69,7 +69,9 @@ points to the installed skill. The parity tests cover all five assistants in `AS
   ✗ ... [strict] unchecked (human) approval in spec.md Acceptance Criteria: Owner reviews the diff and the Gemini discovery evidence before merge.
   ```
 
-  The matching task and Acceptance Criterion stay unchecked until strict verify passes.
+  After the owner checked the `(human)` item (PR #114, merged as `1c2f1a5`), on `main`:
+  `aief verify --change 0163 --strict` → `Result: PASS`; `npm test` 758 pass; lint and
+  `git diff --check` clean; PR #114 CI (lint, test 22/24, CodeQL, dependency-review) green.
 - Real CLI in a temporary project:
 
   ```text
@@ -129,4 +131,4 @@ version before building around it.
 
 ## Next Change
 
-0164 — define guardrail parity across assistants. Pending here: the `(human)` review before merge.
+0164 — define guardrail parity across assistants. The `(human)` review was given on PR #114.
