@@ -28,5 +28,5 @@ same script.
 ## Acceptance Criteria
 
 - [x] R1–R6 implemented with tests.
-- [ ] `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
-- [ ] (human) Owner reviews the diff before merge.
+- [x] `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+- [x] (human) Owner reviews the diff before merge.

@@ -32,8 +32,9 @@ run: the `(human)` edit was blocked, the ordinary edit went through.
 
 - `node --test tests/guardrails.test.js` → 22 pass (13 existing + 9 new).
 - `npm test` → `tests 780, pass 780, fail 0`. `npm run lint` → clean. `git diff --check` → clean.
-- `aief verify` → PASS. `aief verify --change 0166 --strict` → fails only on the open `(human)`
-  review (expected until the owner checks it).
+- `aief verify` → PASS. `aief verify --change 0166 --strict` → failed only on the open `(human)`
+  review; after the owner checked it (PR #119 merged as `b6cfeb9`), on `main`: `--strict` → PASS,
+  `npm test` → 780 pass, lint and `git diff --check` clean.
 - **Real Gemini CLI 0.64.0.** Temporary git project with a synthetic
   `changes/0001-x/tasks.md` (`- [ ] Write the greeting`, `- [ ] (human) Owner approves`);
   `aief guardrails install --assistant gemini`; then

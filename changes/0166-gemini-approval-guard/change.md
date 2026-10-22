@@ -51,3 +51,7 @@ Implement ADR-042's first step: the approval guard (ADR-041) for Gemini CLI. The
   `(human)`/`(review)` item, and allows everything else; Claude behavior unchanged.
 - `aief guardrails install --assistant gemini` is idempotent and keeps every existing Gemini setting.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-10-22)
