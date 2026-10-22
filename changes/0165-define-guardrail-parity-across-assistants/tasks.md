@@ -9,8 +9,8 @@
 
 ## Human Approval
 
-- [ ] (human) Review and approve, amend or reject each Recommendation in change.md.
-- [ ] (human) Record the final Decision and Rationale for each approved item.
+- [x] (human) Review and approve, amend or reject each Recommendation in change.md.
+- [x] (human) Record the final Decision and Rationale for each approved item.
 
 ## Durable Knowledge
 
