@@ -6,6 +6,6 @@
 - [x] `aief prompt gemini` points to the installed skill (R3).
 - [x] `GEMINI.md`, comments and docs updated (R4).
 - [x] Parity tests for all five assistants; `assistant-skill.test.js` updated (R5).
-- [x] `npm test`, `npm run lint`, `git diff --check`, `aief verify --change 0163 --strict` (all pass except strict verify, which waits on the (human) item).
+- [x] `npm test`, `npm run lint`, `git diff --check`, `aief verify --change 0163 --strict`.
 - [x] Update evidence.md.
 - [x] (human) Owner reviews the diff and the Gemini discovery evidence before merge.
