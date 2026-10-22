@@ -227,6 +227,21 @@ Released by Change 0160.
 
 - [0160](0160-aief-update-command/) aief update command
 
-## Unreleased (after 4.2.0) — 0161+
+## 4.3.0 — 0161–0170
+
+Released by Change 0170.
+
+- [0161](0161-type-list-and-codeql-cleanup/) type list and codeql cleanup
+- [0162](0162-guardrails-install/) guardrails install
+- [0163](0163-gemini-skill-parity-and-full-assistant-parity-tests/) gemini skill parity and full assistant parity tests
+- [0164](0164-new-change-writes-the-requested-type/) new change writes the requested type
+- [0165](0165-define-guardrail-parity-across-assistants/) define guardrail parity across assistants
+- [0166](0166-gemini-approval-guard/) gemini approval guard
+- [0167](0167-gemini-guard-denies-with-json-instead-of-exit-2/) gemini guard denies with json instead of exit 2
+- [0168](0168-remove-stale-claude-fallback-from-configuration-docs/) remove stale claude fallback from configuration docs
+- [0169](0169-worktree-aware-change-id-allocation/) worktree aware change id allocation
+- [0170](0170-aief-4-3-0-release/) aief 4 3 0 release
+
+## Unreleased (after 4.3.0) — 0171+
 
 Merged on `main`, not yet in a tagged release. None yet.
