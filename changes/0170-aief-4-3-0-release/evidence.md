@@ -35,7 +35,9 @@ owner's confirmation.
 
 - `npm test` (repo root) → 788 tests, 788 pass, 0 fail, 0 skipped.
 - `npm run lint` → clean. `git diff --check` → clean. `aief verify` → PASS.
-- `aief verify --change 0170 --strict` → fails only on the open `(human)` release-readiness approval.
+- `aief verify --change 0170 --strict` → failed only on the open `(human)` release-readiness approval;
+  after the owner approved it (PR #123 merged as `31eb657`), on `main`: `--strict` → PASS,
+  `aief --version` → `aief 4.3.0`, `npm test` → 788 pass, PR #123 CI green.
 
 ## Findings
 

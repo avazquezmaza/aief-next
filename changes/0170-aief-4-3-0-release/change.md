@@ -53,3 +53,7 @@ where it used to succeed (0164).
 - `node cli/bin/aief.js --version` prints `aief 4.3.0`.
 - `npm test`, `npm run lint`, `aief verify`, `git diff --check` pass.
 - The owner approves release readiness.
+
+## Status
+
+Closed (2026-10-22)

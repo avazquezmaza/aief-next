@@ -7,4 +7,4 @@
 - [x] R5: pre-tag grep; regenerate diagrams and confirm no drift.
 - [x] `npm test`, `npm run lint`, `aief verify`, `git diff --check`.
 - [x] Update evidence.md.
-- [ ] (human) Approve 4.3.0 release readiness before close.
+- [x] (human) Approve 4.3.0 release readiness before close.

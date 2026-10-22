@@ -19,4 +19,4 @@
 
 - [x] R1–R5 done.
 - [x] `npm test`, `npm run lint`, `aief verify`, `git diff --check` pass.
-- [ ] (human) Approve 4.3.0 release readiness before close.
+- [x] (human) Approve 4.3.0 release readiness before close.
