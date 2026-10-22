@@ -199,3 +199,7 @@ Recorded in `knowledge/decisions.md` as ADR-042.
 - Open Questions are resolved or explicitly deferred.
 - Every entry in Decisions Required has a human-approved Decision recorded here and in knowledge/decisions.md.
 - Implementation Prerequisites and Follow-up Changes are identified.
+
+## Status
+
+Closed (2026-10-22)

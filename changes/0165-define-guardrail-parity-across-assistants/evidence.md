@@ -49,6 +49,7 @@ forum.cursor.com thread on Cursor CLI hooks.
 - After transcribing the decision and adding ADR-042: `aief verify --change 0165 --strict` → FAIL
   only for the two unchecked `(human)` tasks (the owner's confirmation). `aief verify` → PASS;
   `npm test` → 771 pass (no code changed).
+- After the owner checked both `(human)` tasks: `aief verify --change 0165 --strict` → `Result: PASS`.
 - `git diff --check` → clean.
 - No tests run: no code changed (R5).
 
