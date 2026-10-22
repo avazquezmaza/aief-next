@@ -49,7 +49,7 @@ const COMMAND_HELP = {
     next: "aief prompt --profile architect."
   },
   "new-change": {
-    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --depends-on <id>[,<id>...] writes a ## Depends on section naming existing Changes. --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton.",
+    purpose: "Create a new Change skeleton (change.md, spec.md, tasks.md, evidence.md). --depends-on <id>[,<id>...] writes a ## Depends on section naming existing Changes. --type definition scaffolds a pre-implementation Definition Change (context, open questions, decisions requiring human approval) instead of the default general skeleton. --type fix|feature|documentation|analysis|general writes that ## Type (case and aliases ignored); an unknown type fails before anything is created.",
     when: "Whenever you start a meaningful unit of work. Use --type definition before application code exists, when what's unresolved is requirements/architecture/product decisions rather than implementation.",
     reads: "changes/ to compute the next ID.",
     writes: "changes/<next-id>-<name>/.",
