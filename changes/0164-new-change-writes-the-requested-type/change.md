@@ -39,3 +39,7 @@ list and its aliases.
   `--type bugfix` write `Fix`; `--type definicion` creates the Definition scaffold.
 - `--type bogus` and `--type enrichment` exit 1 and leave no branch and no files.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-10-22)

@@ -47,6 +47,9 @@ the closed `## Type` list (`normalizeChangeType()`, Change 0161), and refuses an
   ✗ ... [strict] unchecked (human) approval in spec.md Acceptance Criteria: Owner reviews the diff before merge.
   ```
 
+- After the owner's `(human)` review (PR #116, merged as `d7f4127`), on `main`: `aief verify --change
+  0164 --strict` → `Result: PASS`; `npm test` 771 pass; lint and `git diff --check` clean; PR #116
+  CI (lint, test 22/24, CodeQL, dependency-review) green.
 - Same reproduction after the fix:
 
   ```text
@@ -88,5 +91,4 @@ domain already had it (`normalizeChangeType()`), the command just did not use it
 
 ## Next Change
 
-Guardrail parity across assistants (definition), now 0165. Pending here: the `(human)` review before
-merge.
+Guardrail parity across assistants (definition), now 0165. The `(human)` review was given on PR #116.
