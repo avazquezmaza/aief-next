@@ -40,3 +40,7 @@ events; keep Claude Code's exit 2.
 - A blocked Gemini edit is reported as a denial, not a hook failure, and the file is unchanged.
 - Claude Code events behave exactly as before.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-10-22)

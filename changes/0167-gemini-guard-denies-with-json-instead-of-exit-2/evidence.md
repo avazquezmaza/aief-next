@@ -22,7 +22,8 @@ a real Gemini CLI 0.64.0 run: same block, no hook-failure lines.
 
 - `node --test tests/guardrails.test.js` → 23 pass.
 - `npm test` → 781 pass, 0 fail. `npm run lint` → clean. `git diff --check` → clean.
-  `aief verify` → PASS.
+  `aief verify` → PASS. After the owner checked both `(human)` items: `aief verify --change 0167
+  --strict` → PASS.
 - **Real Gemini CLI 0.64.0**, same synthetic fixture and prompt as Change 0166, after
   `aief guardrails install --assistant gemini`:
 
