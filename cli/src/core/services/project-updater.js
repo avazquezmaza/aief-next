@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { inspectAgents, agentsTemplate } from "../domain/agents-file.js";
-import { skillAssistantIds, inspectSkill, skillTemplate } from "../domain/assistant-skill.js";
+import { distinctSkillAssistantIds, inspectSkill, skillTemplate } from "../domain/assistant-skill.js";
 
 const STATUS = { current: "up-to-date", "shipped-older": "updated", modified: "modified", missing: "missing" };
 
@@ -19,7 +19,7 @@ function refresh(projectDir, inspection, template) {
 // installed are left out.
 export function updateProject(projectDir) {
   const results = [refresh(projectDir, inspectAgents(projectDir), agentsTemplate())];
-  for (const id of skillAssistantIds()) {
+  for (const id of distinctSkillAssistantIds()) {
     const inspection = inspectSkill(projectDir, id);
     if (inspection.state !== "missing") results.push(refresh(projectDir, inspection, skillTemplate()));
   }

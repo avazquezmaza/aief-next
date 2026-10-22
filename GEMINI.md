@@ -12,4 +12,5 @@ Gemini-specific guidance:
 - Keep responses practical and implementation-oriented.
 - Do not duplicate `AGENTS.md`; treat it as the source of truth.
 
-For Change work, follow the procedure in [`cli/templates/skills/aief-change/SKILL.md`](cli/templates/skills/aief-change/SKILL.md) (Gemini CLI has no skill mechanism).
+For Change work, use the `aief-change` skill ([source](cli/templates/skills/aief-change/SKILL.md)).
+Gemini CLI discovers it in `.agents/skills/` only when this folder is trusted.

@@ -3,13 +3,13 @@
 // version AIEF shipped, is (re)written.
 import fs from "node:fs";
 import path from "node:path";
-import { SKILL_TARGETS, skillAssistantIds, skillTemplate, inspectSkill } from "../domain/assistant-skill.js";
+import { SKILL_TARGETS, distinctSkillAssistantIds, skillTemplate, inspectSkill } from "../domain/assistant-skill.js";
 
 // Which assistants an install covers: the configured one when it supports
-// skills, none when it does not (Gemini, Cursor), all of them when nothing
-// is configured.
+// skills, none when it does not (Cursor), and when nothing is configured one
+// per distinct path — Codex and Gemini share `.agents/skills/` (Change 0163).
 export function skillTargetsFor(configuredAssistant) {
-  if (!configuredAssistant) return skillAssistantIds();
+  if (!configuredAssistant) return distinctSkillAssistantIds();
   return SKILL_TARGETS[configuredAssistant] ? [configuredAssistant] : [];
 }
 

@@ -152,7 +152,7 @@ prompt`'s output for the rest (ADR-039).
 | Assistant | Mode | Command |
 |---|---|---|
 | Claude Code | Native target + `aief-change` skill | `aief prompt claude` |
-| Gemini CLI | Native target | `aief prompt gemini` |
+| Gemini CLI | Native target + `aief-change` skill (trusted folder) | `aief prompt gemini` |
 | Codex CLI | Native target + `aief-change` skill | `aief prompt codex` |
 | Cursor | Native target | `aief prompt cursor` |
 | Kiro | Native target + `aief-change` skill | `aief prompt kiro` |

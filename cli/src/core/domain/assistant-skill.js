@@ -10,14 +10,24 @@ import { sha256, readPreviousHashes, classifyShipped } from "./shipped-file.js";
 
 const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "templates", "skills", "aief-change");
 
+// Gemini CLI discovers `.agents/skills/` in a trusted folder (Change 0163),
+// so it shares Codex's file: two assistants, one path on disk.
 export const SKILL_TARGETS = Object.freeze({
   claude: ".claude/skills/aief-change/SKILL.md",
   kiro: ".kiro/skills/aief-change/SKILL.md",
-  codex: ".agents/skills/aief-change/SKILL.md"
+  codex: ".agents/skills/aief-change/SKILL.md",
+  gemini: ".agents/skills/aief-change/SKILL.md"
 });
 
 export function skillAssistantIds() {
   return Object.keys(SKILL_TARGETS);
+}
+
+// One assistant per distinct path (the first that names it): what to install,
+// refresh or report when every path is meant, so a shared file is handled once.
+export function distinctSkillAssistantIds() {
+  const seen = new Set();
+  return skillAssistantIds().filter((id) => !seen.has(SKILL_TARGETS[id]) && seen.add(SKILL_TARGETS[id]));
 }
 
 export function skillTemplate() {

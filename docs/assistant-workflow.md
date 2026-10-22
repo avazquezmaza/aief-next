@@ -12,10 +12,11 @@ The procedure for working a Change — select, read, plan, build, verify, docume
 | Claude Code | `AGENTS.md` | `.claude/skills/aief-change/SKILL.md` |
 | Kiro | `AGENTS.md` | `.kiro/skills/aief-change/SKILL.md` |
 | Codex | `AGENTS.md` | `.agents/skills/aief-change/SKILL.md` |
-| Gemini CLI, Cursor, others | `AGENTS.md` | Included in `aief prompt`'s output |
+| Gemini CLI | `AGENTS.md` | `.agents/skills/aief-change/SKILL.md` (same file as Codex; discovered only in a trusted folder) |
+| Cursor, others | `AGENTS.md` | Included in `aief prompt`'s output |
 
 `aief bootstrap` installs the skill for the configured assistant (`--assistant <id>` or
-`knowledge/assistant.json`), or for all three when none is configured. `aief skill install
+`knowledge/assistant.json`), or for all of them when none is configured. `aief skill install
 [assistant]` installs or refreshes it later. An installed copy someone edited is never overwritten;
 `aief doctor` reports it when it falls behind AIEF's version. After upgrading AIEF, `aief update`
 refreshes `AGENTS.md` and installed skills that nobody edited.
