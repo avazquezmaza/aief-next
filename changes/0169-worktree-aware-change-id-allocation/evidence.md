@@ -36,8 +36,9 @@ outside git, unchanged.
 
 - `node --test tests/change-id-allocation.test.js` → 7 pass; `tests/git-branch.test.js` → 12 pass.
 - `npm test` → `tests 788, pass 788, fail 0`. `npm run lint` → clean. `git diff --check` → clean.
-  `aief verify` → PASS. `aief verify --change 0169 --strict` → fails only on the open `(human)`
-  review (expected until the owner checks it).
+  `aief verify` → PASS. `aief verify --change 0169 --strict` → failed only on the open `(human)`
+  review; after the owner checked it (PR #122 merged as `ed21870`), on `main`: `--strict` → PASS,
+  `npm test` → 788 pass, lint and `git diff --check` clean.
 - This repository, on `feature/0169-worktree-aware-change-id-allocation`:
   `gitKnownChangeIds(repo)` → `[169]` (its own branch; merged branches were deleted), so the next
   `new-change` would allocate 0170 either way.

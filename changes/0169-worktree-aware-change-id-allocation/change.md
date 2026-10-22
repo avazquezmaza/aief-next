@@ -42,3 +42,7 @@ assessment initiative I4: the one item with an observed failure behind it.
   free number.
 - Outside git, and in a repo with no other worktrees or branches, IDs are as before.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-10-22)
