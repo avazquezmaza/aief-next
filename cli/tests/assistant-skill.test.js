@@ -4,18 +4,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SKILL_TARGETS, skillTemplate, skillVersion, isShippedSkill, inspectSkill, isOlderVersion } from "../src/core/domain/assistant-skill.js";
+import { SKILL_TARGETS, distinctSkillAssistantIds, skillTemplate, skillVersion, isShippedSkill, inspectSkill, isOlderVersion } from "../src/core/domain/assistant-skill.js";
 import { installSkill, skillTargetsFor } from "../src/core/services/skill-installer.js";
 import { resolveAssistant } from "../src/core/domain/assistant-resolver.js";
 import { makeProject, aief } from "./helpers/cli-runner.js";
 
 // Change 0159 (ADR-039): one self-contained aief-change skill, installed for
-// Claude Code, Kiro and Codex; never overwriting an edited copy.
+// Claude Code, Kiro and Codex (and Gemini, sharing Codex's path, Change 0163);
+// never overwriting an edited copy.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, "..", "..");
 const OLD_SHIPPED = fs.readFileSync(path.join(HERE, "fixtures", "aief-change-skill-1.1.0.md"), "utf8");
-const TARGETS = Object.values(SKILL_TARGETS);
+const TARGETS = [...new Set(Object.values(SKILL_TARGETS))];
 
 // --- template ---
 
@@ -58,11 +59,17 @@ test("isOlderVersion compares dotted versions; a missing version is older", () =
   assert.equal(isOlderVersion(null, "2.0.0"), true);
 });
 
-test("skillTargetsFor: configured skill-capable assistant, none for Gemini/Cursor, all three when unset", () => {
+test("skillTargetsFor: configured skill-capable assistant, none for Cursor, one per distinct path when unset", () => {
   assert.deepEqual(skillTargetsFor(null), ["claude", "kiro", "codex"]);
   assert.deepEqual(skillTargetsFor("claude"), ["claude"]);
-  assert.deepEqual(skillTargetsFor("gemini"), []);
+  assert.deepEqual(skillTargetsFor("gemini"), ["gemini"]);
   assert.deepEqual(skillTargetsFor("cursor"), []);
+});
+
+test("Gemini shares Codex's skill path; distinctSkillAssistantIds lists each path once", () => {
+  assert.equal(SKILL_TARGETS.gemini, ".agents/skills/aief-change/SKILL.md");
+  assert.equal(SKILL_TARGETS.gemini, SKILL_TARGETS.codex);
+  assert.deepEqual(distinctSkillAssistantIds(), ["claude", "kiro", "codex"]);
 });
 
 // --- installer ---
@@ -88,6 +95,15 @@ test("installSkill: an edited copy is never overwritten", () => {
   assert.equal(fs.readFileSync(path.join(dir, SKILL_TARGETS.codex), "utf8"), edited);
 });
 
+test("installSkill: Codex then Gemini writes the shared file once", () => {
+  const dir = makeProject();
+  assert.equal(installSkill(dir, "codex").status, "created");
+  const written = fs.statSync(path.join(dir, SKILL_TARGETS.codex)).mtimeMs;
+  assert.equal(installSkill(dir, "gemini").status, "up-to-date");
+  assert.equal(installSkill(dir, "gemini").status, "up-to-date");
+  assert.equal(fs.statSync(path.join(dir, SKILL_TARGETS.gemini)).mtimeMs, written);
+});
+
 // --- CLI ---
 
 test("bootstrap with no configured assistant installs the skill for all three", () => {
@@ -96,20 +112,24 @@ test("bootstrap with no configured assistant installs the skill for all three", 
   assert.equal(status, 0);
   for (const target of TARGETS) {
     assert.equal(fs.readFileSync(path.join(dir, target), "utf8"), skillTemplate());
-    assert.ok(out.includes(`Installed ${target}`), `missing "Installed ${target}"`);
+    assert.equal(out.split(`Installed ${target}`).length - 1, 1, `"Installed ${target}" should appear once`);
   }
 });
 
-test("bootstrap --assistant claude installs only Claude Code's skill; --assistant gemini installs none", () => {
+test("bootstrap --assistant claude installs only Claude Code's skill; gemini only the shared .agents one; cursor none", () => {
   const claude = makeProject();
   aief(claude, ["bootstrap", "--assistant", "claude"]);
   assert.ok(fs.existsSync(path.join(claude, SKILL_TARGETS.claude)));
   assert.equal(fs.existsSync(path.join(claude, SKILL_TARGETS.kiro)), false);
 
   const gemini = makeProject();
-  const { out } = aief(gemini, ["bootstrap", "--assistant", "gemini"]);
-  for (const target of TARGETS) assert.equal(fs.existsSync(path.join(gemini, target)), false);
-  assert.match(out, /gemini has no skill mechanism/);
+  aief(gemini, ["bootstrap", "--assistant", "gemini"]);
+  for (const target of TARGETS) assert.equal(fs.existsSync(path.join(gemini, target)), target === SKILL_TARGETS.gemini, target);
+
+  const cursor = makeProject();
+  const { out } = aief(cursor, ["bootstrap", "--assistant", "cursor"]);
+  for (const target of TARGETS) assert.equal(fs.existsSync(path.join(cursor, target)), false);
+  assert.match(out, /cursor has no skill mechanism/);
 });
 
 test("bootstrap follows knowledge/assistant.json, and rejects an unknown --assistant", () => {
@@ -150,6 +170,15 @@ test("doctor reports an edited copy older than AIEF's, and an unmodified older o
   assert.match(out, /! \.kiro\/skills\/aief-change\/SKILL\.md was edited and is older than AIEF's \(v1\.1\.0 < v2\.0\.0\)/);
   assert.match(out, /! \.agents\/skills\/aief-change\/SKILL\.md is an older AIEF version — run: aief update/);
   assert.match(out, /✓ \.claude\/skills\/aief-change\/SKILL\.md \(v2\.0\.0\)/);
+  assert.equal(out.split(".agents/skills/aief-change/SKILL.md").length - 1, 1, "the shared path is reported once");
+});
+
+test("update refreshes and reports the shared .agents skill once", () => {
+  const dir = makeProject({ [SKILL_TARGETS.codex]: OLD_SHIPPED });
+  const { status, out } = aief(dir, ["update"]);
+  assert.equal(status, 0, out);
+  assert.equal(out.split("Updated .agents/skills/aief-change/SKILL.md").length - 1, 1);
+  assert.equal(fs.readFileSync(path.join(dir, SKILL_TARGETS.gemini), "utf8"), skillTemplate());
 });
 
 test("prompt points to the installed skill, and carries the procedure for an assistant without one", () => {
@@ -159,8 +188,10 @@ test("prompt points to the installed skill, and carries the procedure for an ass
   assert.match(claude, /Follow the aief-change skill \(\.claude\/skills\/aief-change\/SKILL\.md\)/);
   assert.doesNotMatch(claude, /Change procedure \(aief-change\):/);
   const gemini = aief(dir, ["prompt", "gemini", "--change", "0001-adopt-aief"]).out;
-  assert.match(gemini, /Change procedure \(aief-change\):\n\n# Working an AIEF Change/);
-  assert.match(gemini, /Before calling the work complete, confirm/);
+  assert.match(gemini, /Follow the aief-change skill \(\.agents\/skills\/aief-change\/SKILL\.md\)/);
+  const cursor = aief(dir, ["prompt", "cursor", "--change", "0001-adopt-aief"]).out;
+  assert.match(cursor, /Change procedure \(aief-change\):\n\n# Working an AIEF Change/);
+  assert.match(cursor, /Before calling the work complete, confirm/);
 });
 
 test("an AIEF-installed skill is not a passive signal for an assistant; an edited one is", () => {

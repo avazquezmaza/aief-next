@@ -6,7 +6,7 @@ import { run, commandExists } from "../process-utils.js";
 import { detectProject, recommendSkills } from "../detect.js";
 import { listDescriptors } from "../hooks/index.js";
 import { assistantIds } from "../core/domain/assistant-resolver.js";
-import { skillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
+import { distinctSkillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
 import { inspectAgents } from "../core/domain/agents-file.js";
 import { denyRules, readSettings, isHookRegistered, inspectHook, settingsPath } from "../core/domain/guardrails.js";
 import { statusOverview } from "./status.js";
@@ -45,7 +45,7 @@ function printSkillInstalls() {
   const agents = inspectAgents(process.cwd());
   if (agents.state === "shipped-older") lines.push("! AGENTS.md is an older AIEF version — run: aief update");
   else if (agents.state === "current") lines.push("✓ AGENTS.md (current)");
-  for (const id of skillAssistantIds()) {
+  for (const id of distinctSkillAssistantIds()) {
     const s = inspectSkill(process.cwd(), id);
     if (s.state === "current") lines.push(`✓ ${s.path} (v${s.currentVersion})`);
     else if (s.state === "shipped-older") lines.push(`! ${s.path} is an older AIEF version — run: aief update`);

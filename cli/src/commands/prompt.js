@@ -199,9 +199,9 @@ export function prompt(args) {
   const hasRealEvidence = evidenceContent.trim().length > 0 && !evidenceIsPlaceholder(changeDir);
   const evidenceGuard = hasRealEvidence ? `\nevidence.md already exists and has real content:\n\n- Do not overwrite it blindly.\n- Review and amend only if needed; preserve existing validated evidence.\n- If no changes are needed, report that the evidence was re-verified.\n` : "";
   // ADR-039 D5: an assistant with an installed aief-change skill is pointed
-  // at it; any other assistant (Gemini, Cursor, generic, or a skill-capable
-  // one without the file) gets the procedure in the prompt itself, since
-  // AGENTS.md no longer carries it.
+  // at it (Gemini too since Change 0163); any other assistant (Cursor,
+  // generic, or a skill-capable one without the file) gets the procedure in
+  // the prompt itself, since AGENTS.md no longer carries it.
   const installedSkill = SKILL_TARGETS[assistant] && exists(SKILL_TARGETS[assistant]) ? SKILL_TARGETS[assistant] : "";
   const procedureBlock = installedSkill
     ? `\nFollow the aief-change skill (${installedSkill}) for the Change procedure.\n`
