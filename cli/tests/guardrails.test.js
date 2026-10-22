@@ -5,8 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { denyRules, hookTemplate, HOOK_PATH } from "../src/core/domain/guardrails.js";
-import { mergeDeny, registerHook } from "../src/core/services/guardrails-installer.js";
+import { denyRules, hookTemplate, HOOK_PATH, GEMINI_HOOK_PATH, GEMINI_SETTINGS_PATH } from "../src/core/domain/guardrails.js";
+import { mergeDeny, registerHook, registerGeminiHook } from "../src/core/services/guardrails-installer.js";
 import { makeProject, aief } from "./helpers/cli-runner.js";
 
 // Change 0162: `aief guardrails install` adds Claude Code deny rules for
@@ -148,4 +148,110 @@ test("hook allows ordinary edits, edits that keep approvals unchecked, and files
   assert.equal(runHook(dir, { tool_name: "Edit", tool_input: { file_path: path.join(dir, "src/app.js"), old_string: "a", new_string: "b" } }).status, 0);
   assert.equal(runHook(dir, { tool_name: "Bash", tool_input: { command: "ls" } }).status, 0);
   assert.equal(runHook(dir, "not an object").status, 0);
+});
+
+// --- Gemini CLI (Change 0166, ADR-042) ---
+
+const OLD_HOOK = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "aief-approval-guard-0162.mjs"), "utf8");
+
+function runGeminiHook(dir, event) {
+  const env = { ...process.env, GEMINI_PROJECT_DIR: dir };
+  delete env.CLAUDE_PROJECT_DIR;
+  const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify(event), encoding: "utf8", env, cwd: dir });
+  return { status: r.status, stderr: r.stderr };
+}
+
+test("registerGeminiHook adds one BeforeTool entry, keeps others, and is idempotent", () => {
+  const other = { matcher: "run_shell_command", hooks: [{ type: "command", command: "my-check" }] };
+  const first = registerGeminiHook({ hooks: { BeforeTool: [other] }, general: { vimMode: true } });
+  assert.equal(first.added, true);
+  assert.deepEqual(first.settings.hooks.BeforeTool[0], other);
+  assert.deepEqual(first.settings.hooks.BeforeTool[1], { matcher: "write_file|replace", hooks: [{ name: "aief-approval-guard", type: "command", command: 'node "$GEMINI_PROJECT_DIR/.gemini/hooks/aief-approval-guard.mjs"' }] });
+  assert.deepEqual(first.settings.general, { vimMode: true });
+  assert.equal(registerGeminiHook(first.settings).added, false);
+});
+
+test("guardrails install --assistant gemini installs and registers the hook once, keeps settings, leaves .claude/ alone", () => {
+  const dir = makeProject({ [GEMINI_SETTINGS_PATH]: JSON.stringify({ general: { vimMode: true } }) });
+  const first = aief(dir, ["guardrails", "install", "--assistant", "gemini"]);
+  assert.equal(first.status, 0, first.out);
+  assert.match(first.out, /no project-level deny list/);
+  assert.match(first.out, /✓ Installed \.gemini\/hooks\/aief-approval-guard\.mjs/);
+  assert.match(first.out, /Registered the approval guard as a BeforeTool hook in \.gemini\/settings\.json/);
+  assert.match(first.out, /trusted folder/);
+  assert.equal(fs.readFileSync(path.join(dir, GEMINI_HOOK_PATH), "utf8"), hookTemplate());
+  const settings = settingsOf(dir, GEMINI_SETTINGS_PATH);
+  assert.deepEqual(settings.general, { vimMode: true });
+  assert.equal(settings.hooks.BeforeTool.length, 1);
+  assert.equal(fs.existsSync(path.join(dir, ".claude")), false);
+  const second = aief(dir, ["guardrails", "install", "--assistant", "gemini", "--approval-hook"]);
+  assert.match(second.out, /Up to date: \.gemini\/hooks/);
+  assert.match(second.out, /already registered/);
+  assert.equal(settingsOf(dir, GEMINI_SETTINGS_PATH).hooks.BeforeTool.length, 1);
+});
+
+test("guardrails install --assistant gemini refreshes the 0162 hook, never an edited one", () => {
+  const dir = makeProject({ [GEMINI_HOOK_PATH]: OLD_HOOK });
+  assert.match(aief(dir, ["guardrails", "install", "--assistant", "gemini"]).out, /✓ Updated \.gemini\/hooks/);
+  assert.equal(fs.readFileSync(path.join(dir, GEMINI_HOOK_PATH), "utf8"), hookTemplate());
+  const edited = `${hookTemplate()}\n// team note\n`;
+  fs.writeFileSync(path.join(dir, GEMINI_HOOK_PATH), edited);
+  assert.match(aief(dir, ["guardrails", "install", "--assistant", "gemini"]).out, /Edited, left as is: \.gemini\/hooks/);
+  assert.equal(fs.readFileSync(path.join(dir, GEMINI_HOOK_PATH), "utf8"), edited);
+});
+
+test("guardrails install --assistant gemini refuses an invalid settings file and writes nothing", () => {
+  const dir = makeProject({ [GEMINI_SETTINGS_PATH]: "{ not json" });
+  const { status, out } = aief(dir, ["guardrails", "install", "--assistant", "gemini"]);
+  assert.equal(status, 1);
+  assert.match(out, /\.gemini\/settings\.json is not valid JSON/);
+  assert.equal(fs.existsSync(path.join(dir, GEMINI_HOOK_PATH)), false);
+});
+
+test("guardrails install refuses --local with Gemini, unsupported and unknown assistants, before writing", () => {
+  for (const [args, message] of [
+    [["--assistant", "gemini", "--local"], /--local applies to Claude Code only/],
+    [["--assistant", "codex"], /no guardrails for codex yet .*ADR-042/],
+    [["--assistant", "cursor"], /no guardrails for cursor yet/],
+    [["--assistant", "nope"], /unknown assistant "nope"/]
+  ]) {
+    const dir = makeProject();
+    const { status, out } = aief(dir, ["guardrails", "install", ...args]);
+    assert.equal(status, 1, args.join(" "));
+    assert.match(out, message);
+    assert.equal(fs.existsSync(path.join(dir, ".gemini")) || fs.existsSync(path.join(dir, ".claude")), false);
+  }
+});
+
+test("guardrails install without --assistant still means Claude Code", () => {
+  const dir = makeProject();
+  assert.equal(aief(dir, ["guardrails", "install", "--approval-hook"]).status, 0);
+  assert.ok(fs.existsSync(path.join(dir, HOOK_PATH)));
+  assert.equal(fs.existsSync(path.join(dir, ".gemini")), false);
+});
+
+test("doctor reports the Gemini hook state when .gemini/ exists", () => {
+  const dir = makeProject({ [GEMINI_SETTINGS_PATH]: "{}" });
+  assert.match(aief(dir, ["doctor"]).out, /Gemini CLI guardrails:\n○ Approval guard hook not installed \(optional: aief guardrails install --assistant gemini\)/);
+  aief(dir, ["guardrails", "install", "--assistant", "gemini"]);
+  assert.match(aief(dir, ["doctor"]).out, /✓ Approval guard hook installed and registered \(Gemini runs it only in a trusted folder\)/);
+  fs.writeFileSync(path.join(dir, GEMINI_SETTINGS_PATH), "{}");
+  assert.match(aief(dir, ["doctor"]).out, /! \.gemini\/hooks\/aief-approval-guard\.mjs exists but is not registered/);
+  assert.doesNotMatch(aief(makeProject(), ["doctor"]).out, /Gemini CLI guardrails:/, "silent without .gemini/");
+});
+
+test("hook blocks a Gemini write_file or replace that checks or removes an approval, with a relative path", () => {
+  const { dir } = changeProject();
+  const replace = runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/tasks.md", instruction: "approve", old_string: "- [ ] (human) Owner approves", new_string: "- [x] (human) Owner approves" } });
+  assert.equal(replace.status, 2);
+  assert.match(replace.stderr, /This edit to changes\/0001-x\/tasks\.md would change:\n  - checked: \(human\) Owner approves/);
+  assert.equal(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: path.join(dir, "changes/0001-x/tasks.md"), content: "# Tasks\n\n- [x] Work\n" } }).status, 2);
+  assert.equal(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/spec.md", old_string: "- [ ]", new_string: "- [-]", allow_multiple: true } }).status, 2);
+});
+
+test("hook allows Gemini edits that keep approvals unchecked, other tools, and files outside changes/", () => {
+  const { dir } = changeProject();
+  assert.equal(runGeminiHook(dir, { tool_name: "replace", tool_input: { file_path: "changes/0001-x/tasks.md", old_string: "- [x] Work", new_string: "- [x] Work done" } }).status, 0);
+  assert.equal(runGeminiHook(dir, { tool_name: "write_file", tool_input: { file_path: "src/app.js", content: "b\n" } }).status, 0);
+  assert.equal(runGeminiHook(dir, { tool_name: "run_shell_command", tool_input: { command: "ls" } }).status, 0);
 });
