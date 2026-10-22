@@ -93,13 +93,15 @@ Named explicitly, not left implicit:
   `permissions.deny` rules to Claude Code's settings. Gemini CLI's project-level policies are
   non-functional in 0.64 and `.geminiignore` binds only the tools that honor it; no equivalent was
   found for Codex; Cursor would need a `beforeReadFile` hook. Not pursued until a real need appears.
-- **Numeric Change-ID collisions across parallel branches are detected, not prevented.**
-  Identified by the same external audit (Change 0130, finding C0130-F2): `aief new-change`
-  allocates the next ID from the current checkout only, so two branches can create the same
-  numeric prefix. Since Changes 0135/0137, `aief verify` and `aief status` list every collision as
-  a non-blocking notice, and a bare `--change <number>` that matches more than one Change fails
-  loudly instead of picking one. Allocation-side prevention was deliberately not pursued; use the
-  full Change basename when a number is shared.
+- **Numeric Change-ID collisions across separate clones are detected, not prevented.**
+  Identified by the same external audit (Change 0130, finding C0130-F2): two branches could
+  create the same numeric prefix. Since Change 0169, ID allocation also counts the `changes/` of
+  every other worktree and AIEF branch names (`<type>/<NNNN>-<slug>`, local or already fetched),
+  so collisions within one clone are prevented. Two clones that never fetched each other's
+  branches can still collide; Changes 0135/0137 keep reporting that in `aief verify` and
+  `aief status` as a non-blocking notice, and a bare `--change <number>` that matches more than
+  one Change fails loudly instead of picking one. Use the full Change basename when a number is
+  shared.
 
 ## Related decisions
 

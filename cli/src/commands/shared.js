@@ -14,7 +14,7 @@ import path from "node:path";
 import { parseArgs as nodeParseArgs } from "node:util";
 import { changeTypeFromContent, matchChanges, isEvidencePlaceholderContent, loadChange } from "../core/domain/change.js";
 import { buildGraph } from "../core/domain/change-graph.js";
-import { ensureChangeBranch, ChangeBranchError } from "../core/services/git-branch.js";
+import { ensureChangeBranch, ChangeBranchError, gitKnownChangeIds } from "../core/services/git-branch.js";
 
 // --- fs/string primitives ---
 
@@ -37,11 +37,14 @@ export function slugify(value) {
 
 // --- `changes/` directory queries ---
 
+// Change 0169: also counts IDs taken in other worktrees and by AIEF branches
+// (gitKnownChangeIds()), so parallel work does not reuse a number.
 export function nextChangeId(changesDir = cwd("changes")) {
   fs.mkdirSync(changesDir, { recursive: true });
   const numbers = fs.readdirSync(changesDir)
     .map((name) => Number((name.match(/^(\d+)/) || [])[1]))
-    .filter((n) => Number.isFinite(n));
+    .filter((n) => Number.isFinite(n))
+    .concat(gitKnownChangeIds(path.dirname(changesDir)));
   return String(numbers.length ? Math.max(...numbers) + 1 : 1).padStart(4, "0");
 }
 export function getChangeDirs() {
