@@ -15,5 +15,5 @@ missing.
 ## Acceptance Criteria
 
 - [x] R1–R2 done.
-- [ ] `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
-- [ ] (human) Owner reviews the diff before merge.
+- [x] `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+- [x] (human) Owner reviews the diff before merge.

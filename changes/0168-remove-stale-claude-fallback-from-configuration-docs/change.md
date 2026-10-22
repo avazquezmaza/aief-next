@@ -28,3 +28,7 @@ removed that fallback: the prompt becomes the generic, `AGENTS.md`-only one. Fou
 
 - The sentence matches `aief prompt`'s behavior and `docs/cli.md`.
 - `npm test`, `npm run lint`, `git diff --check`, `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-10-22)

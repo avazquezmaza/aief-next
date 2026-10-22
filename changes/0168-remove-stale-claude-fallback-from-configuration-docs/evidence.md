@@ -26,7 +26,8 @@ generic, `AGENTS.md`-only prompt, not `CLAUDE.md`.
 
 - `npm test` → 781 pass, 0 fail. `npm run lint` → clean. `git diff --check` → clean.
   `aief verify` → PASS. `aief verify --change 0168 --strict` → fails only on the open `(human)`
-  review (expected until the owner checks it).
+  review; after the owner checked it (PR #121 merged as `75394fa`), on `main`: `--strict` → PASS,
+  `npm test` → 781 pass, lint and `git diff --check` clean.
 
 ## Findings
 
