@@ -81,9 +81,9 @@ result with `git diff`; AIEF never commits.
 
 `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `CURSOR.md` at the project root — one per assistant, selected
 by `aief prompt [assistant]`. Each should extend `AGENTS.md`, never contradict it. Only the one
-matching the requested assistant is included in a given prompt; if an *explicitly requested*
-assistant's file is missing, `aief prompt` warns and falls back to `CLAUDE.md` if present
-(unchanged, explicit-argument-only behavior).
+matching the requested assistant is included in a given prompt; if the requested assistant's file
+is missing, `aief prompt` warns and uses the generic, `AGENTS.md`-only prompt — never another
+assistant's file (Change 0112).
 
 With no assistant argument, `aief prompt` resolves one automatically instead of requiring it on
 every invocation — see [`docs/cli.md` — Assistants](cli.md#assistants) for the full precedence
