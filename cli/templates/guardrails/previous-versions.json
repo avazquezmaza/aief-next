@@ -1,4 +1,6 @@
 {
-  "description": "sha256 of every aief-approval-guard.mjs AIEF shipped before the current one (Change 0162). None yet.",
-  "sha256": []
+  "description": "sha256 of every aief-approval-guard.mjs AIEF shipped before the current one (Changes 0162, 0166). An installed copy matching one of these is unmodified and safe to replace.",
+  "sha256": [
+    "5bf7b5063c3b34991895671201d0f85729a9e13a384b901ade4e3e07578ac828"
+  ]
 }

@@ -8,7 +8,7 @@ import { listDescriptors } from "../hooks/index.js";
 import { assistantIds } from "../core/domain/assistant-resolver.js";
 import { distinctSkillAssistantIds, inspectSkill, isOlderVersion } from "../core/domain/assistant-skill.js";
 import { inspectAgents } from "../core/domain/agents-file.js";
-import { denyRules, readSettings, isHookRegistered, inspectHook, settingsPath } from "../core/domain/guardrails.js";
+import { denyRules, readSettings, isHookRegistered, inspectHook, settingsPath, GEMINI_SETTINGS_PATH, GEMINI_HOOK_PATH } from "../core/domain/guardrails.js";
 import { statusOverview } from "./status.js";
 import { exists, section, parseArgs, printNext } from "./shared.js";
 
@@ -78,6 +78,20 @@ function printGuardrails() {
   else if (!registered) console.log("! .claude/hooks/aief-approval-guard.mjs exists but is not registered — run: aief guardrails install --approval-hook");
   else console.log(`✓ Approval guard hook installed and registered${hook === "modified" ? " (edited)" : ""}`);
 }
+// Change 0166 (ADR-042): the same approval guard as a Gemini CLI BeforeTool
+// hook, only when the project has a .gemini/ directory.
+function printGeminiGuardrails() {
+  if (!exists(".gemini")) return;
+  const read = readSettings(path.join(process.cwd(), GEMINI_SETTINGS_PATH));
+  console.log("\nGemini CLI guardrails:");
+  if (read.error) { console.log(`! ${GEMINI_SETTINGS_PATH} ${read.error}`); return; }
+  const registered = isHookRegistered(read.value, "BeforeTool");
+  const hook = inspectHook(process.cwd(), GEMINI_HOOK_PATH);
+  if (hook === "missing" && !registered) console.log("○ Approval guard hook not installed (optional: aief guardrails install --assistant gemini)");
+  else if (hook === "missing") console.log(`! Approval guard is registered but ${GEMINI_HOOK_PATH} is missing — run: aief guardrails install --assistant gemini`);
+  else if (!registered) console.log(`! ${GEMINI_HOOK_PATH} exists but is not registered — run: aief guardrails install --assistant gemini`);
+  else console.log(`✓ Approval guard hook installed and registered${hook === "modified" ? " (edited)" : ""} (Gemini runs it only in a trusted folder)`);
+}
 function printSignals(project) {
   console.log("\nDetected project signals:");
   if (!project.signals.length) { console.log("(none)"); return; }
@@ -138,4 +152,4 @@ function doctorEnvironment() {
   else console.log("Environment is ready.");
   return missingRequired;
 }
-export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printSkillInstalls(); printGuardrails(); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }
+export function doctor(args = []) { const parsed = parseArgs("doctor", args); if (!parsed) return; const verbose = Boolean(parsed.verbose); section("AIEF Doctor"); console.log("Purpose: inspect your environment and project readiness for AIEF.\nDoctor never modifies your project.\n"); doctorEnvironment(); printGraphEngineStatus(); const project = detectProject(); statusOverview(project, false); printSignals(project); console.log(""); printSkills(project); printSkillInstalls(); printGuardrails(); printGeminiGuardrails(); if (verbose) printHookRegistry(); printNext(!exists("AGENTS.md") || !exists("changes") ? "aief bootstrap" : "aief analyze"); }

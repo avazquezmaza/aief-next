@@ -182,7 +182,7 @@ export const KNOWN_FLAGS = {
   bootstrap: { interactive: { type: "boolean" }, force: { type: "boolean" }, assistant: { type: "string" } },
   skill: {},
   update: {},
-  guardrails: { local: { type: "boolean" }, "approval-hook": { type: "boolean" } }
+  guardrails: { local: { type: "boolean" }, "approval-hook": { type: "boolean" }, assistant: { type: "string" } }
 };
 export function parseArgs(command, args) {
   return parseCommandArgs(command, args, KNOWN_FLAGS[command] || {});

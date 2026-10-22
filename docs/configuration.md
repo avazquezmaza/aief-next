@@ -65,6 +65,11 @@ PreToolUse hook (ADR-041). It refuses an Edit/Write/MultiEdit on a Change's `tas
 that would check, abandon or delete a `(human)`/`(review)` item, and tells the assistant to ask you.
 Restart Claude Code after installing it.
 
+`--assistant gemini` installs the same script as `.gemini/hooks/aief-approval-guard.mjs` and
+registers it in `.gemini/settings.json` as a `BeforeTool` hook on `write_file|replace` (ADR-042).
+Gemini CLI has no project-level deny list, so no credential rules are added for it. Gemini runs
+project hooks only in a trusted folder and warns once about a new hook; restart it after installing.
+
 ## Keeping AIEF-shipped files current — `aief update`
 
 `AGENTS.md` and the installed `aief-change` skills are files AIEF ships. After upgrading AIEF,
