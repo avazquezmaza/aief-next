@@ -45,6 +45,9 @@ owner: Continue already loads `AGENTS.md`, which carries the same instruction (s
 - On this repository: `aief verify --strict` → zero new notices; 0.16 s. `aief verify` → PASS, no
   closed Change changed classification.
 - `npm test` → `tests 813, pass 813, fail 0`. `npm run lint` → clean. `git diff --check` → clean.
+- PR: https://github.com/avazquezmaza/aief-next/pull/125, squash-merged as `7480564`. On `main`
+  before close, `aief verify --strict --change 0172` → PASS with five `!` notices for the owner's
+  approvals — the squash-merge window described in Risks, observed as predicted.
 
 ## Findings
 

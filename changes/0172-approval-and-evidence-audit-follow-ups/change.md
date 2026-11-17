@@ -59,3 +59,7 @@ approval already checked, and nothing in AIEF noticed.
   tested (or recorded as "no change").
 - 0171's documents no longer cite `F3`/`F4` without content.
 - `npm test`, lint, `git diff --check` and `aief verify --strict --change 0172` pass.
+
+## Status
+
+Closed (2026-11-17)
