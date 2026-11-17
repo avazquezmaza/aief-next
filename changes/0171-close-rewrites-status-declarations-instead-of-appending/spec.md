@@ -58,10 +58,10 @@ heading is unsafe to keep, and R3's verify-before-write is what bounds it.
 ## Acceptance Criteria
 
 - [x] R1–R6 implemented with tests.
-- [x] `npm test` introduces no new failures (798/799 pass; `cli/tests/diagrams.test.js` fails
-      identically at `HEAD` — ImageMagick rejects `stroke-dasharray` on this machine), `npm run lint`
+- [x] `npm test` introduces no new failures (799/799 on the host; in the VM 798/799 —
+      `cli/tests/diagrams.test.js` fails identically at `HEAD` there, ImageMagick rejects
+      `stroke-dasharray`), `npm run lint`
       and `git diff --check` pass, and `aief verify --strict` passes once the approval below is
       recorded.
 - [x] No existing test is weakened or deleted.
-- [x] (human) Owner reviews the diff before merge.
-
+- [ ] (human) Owner reviews the diff before merge.

@@ -30,4 +30,4 @@
 
 ## Review
 
-- [x] (human) Owner reviews the diff before merge.
+- [ ] (human) Owner reviews the diff before merge.

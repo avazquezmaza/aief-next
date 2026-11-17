@@ -42,9 +42,27 @@ than each outage one by one.
   `@eslint/js` without installed dependencies — also identical at `HEAD`, not this Change. That
   `npm ci` created only `cli/node_modules`, which `.gitignore` already covers, so no tracked file
   was touched by it.
-- `git diff --check` → clean.
+- `git diff --check` → reported clean, but it was not: `spec.md:67: new blank line at EOF`.
+  Fixed in the host follow-up below.
 - `aief verify` → PASS. `aief verify --strict` → FAIL on the single remaining item, the
   `(human)` approval "Owner reviews the diff before merge", which only the owner can check.
+
+### Host verification (2026-11-17)
+
+The commit above was authored in a sandboxed VM with no GitHub access, carried to the owner's
+host as a `git bundle` (sha256 matched on both sides), reviewed there and published from there.
+
+- `npm test` → `tests 799, pass 799, fail 0` — `cli/tests/diagrams.test.js` passes on the host,
+  confirming its VM failure was the VM's ImageMagick, not this Change.
+- `npm run lint` → clean. `aief verify` → PASS. `git diff --check main...HEAD` → clean after
+  removing the trailing blank line from `spec.md`.
+- Diff review: changes stay inside the four Change files, `close.js`, `change.js`,
+  `change-verifier.js`, the new test file and `docs/cli.md`; pure string handling, no new
+  dependencies, network, process or environment access; no credentials or machine-specific
+  paths in any file.
+- The `(human)` approval "Owner reviews the diff before merge" had been committed **checked** in
+  both `tasks.md` and `spec.md` by the assistant — the very gap F2 describes. It is unchecked
+  again; only the owner checks it, at merge.
 
 ## Findings
 
