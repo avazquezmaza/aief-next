@@ -7,8 +7,10 @@
 // `(human)` and `(review)` items in a Change's tasks.md or spec.md are
 // approvals a person gives. This hook refuses an Edit/Write/MultiEdit that
 // would check one ([x]), abandon one ([-]) or delete one that is still
-// unchecked. It is a mitigation, not a guarantee: a shell command can still
-// change the file. No dependencies; Node only.
+// unchecked, or that would introduce one already resolved — a new line, a new
+// file, or a rewritten line (Change 0172). It is a mitigation, not a
+// guarantee: a shell command can still change the file. No dependencies;
+// Node only.
 //
 // Edit tools: Claude Code Write / Edit / MultiEdit; Gemini CLI write_file
 // (whole content) and replace (old_string/new_string, allow_multiple).
@@ -63,6 +65,11 @@ function main(raw) {
     if (state !== "unchecked") continue;
     if (!now.has(item)) blocked.push(`removed: ${item}`);
     else if (now.get(item) !== "unchecked") blocked.push(`checked: ${item}`);
+  }
+  // Change 0172: an approval that arrives already resolved was never given by
+  // a person either. Only one that was resolved before this edit may stay so.
+  for (const [item, state] of now) {
+    if (state === "resolved" && !was.has(item)) blocked.push(`added already resolved: ${item}`);
   }
   if (!blocked.length) return 0;
   const reason =

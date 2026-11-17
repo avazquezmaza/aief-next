@@ -29,9 +29,11 @@ loss passes verification. This Change makes the write a transformation the parse
 
 ### Out of scope
 
-- F2: the approval guard lets a `- [x] (human)` line be invented.
-- F3: evidence placeholder ratio.
-- F4.
+- F2: the approval guard lets a `- [x] (human)` line be invented — resolved in Change 0172.
+- F3: evidence placeholder ratio — resolved in Change 0172 (not the F3 of
+  `docs/history/dogfooding-findings.md`).
+- F4: recorded without content; unrecoverable (Change 0172, decision D3). Not the F4 of
+  `docs/history/dogfooding-findings.md`.
 - Any change to `parseChangeStatus()`'s accepted tokens or to the `unknown` semantics.
 
 ## Success Criteria

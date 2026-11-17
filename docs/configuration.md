@@ -62,8 +62,12 @@ lists across settings files, so yours stay in effect.
 
 `--approval-hook` also installs `.claude/hooks/aief-approval-guard.mjs` and registers it as a
 PreToolUse hook (ADR-041). It refuses an Edit/Write/MultiEdit on a Change's `tasks.md` or `spec.md`
-that would check, abandon or delete a `(human)`/`(review)` item, and tells the assistant to ask you.
-Restart Claude Code after installing it.
+that would check, abandon or delete a `(human)`/`(review)` item, or add one already checked or
+abandoned (Change 0172), and tells the assistant to ask you. Restart Claude Code after installing it.
+
+An assistant that runs no hook (Continue, for example) is not guarded. `aief verify --strict` covers
+it after the fact: on an open Change it prints a non-blocking `!` notice for every
+`(human)`/`(review)` item that is resolved but was never committed unchecked (Change 0172).
 
 `--assistant gemini` installs the same script as `.gemini/hooks/aief-approval-guard.mjs` and
 registers it in `.gemini/settings.json` as a `BeforeTool` hook on `write_file|replace` (ADR-042).

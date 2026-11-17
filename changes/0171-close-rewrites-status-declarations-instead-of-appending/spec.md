@@ -53,7 +53,7 @@ heading is unsafe to keep, and R3's verify-before-write is what bounds it.
   covers the heading-destruction case; an end-to-end `aief close --yes` on a Change with an inline
   declaration exits 0, leaves exactly one agreeing declaration and a file that passes `aief verify`.
 - Out of scope, each its own Change: F2 (the guard allows inventing a `- [x] (human)` approval),
-  F3 (evidence placeholder ratio), F4.
+  F3 (evidence placeholder ratio), F4 (no content; unrecoverable) — all taken up by Change 0172.
 
 ## Acceptance Criteria
 
