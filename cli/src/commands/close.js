@@ -3,7 +3,7 @@
 // for every Change (ADR-038).
 import fs from "node:fs";
 import path from "node:path";
-import { loadChange, isClosedContent, parseApprovalLines, parseSpecApprovalLines } from "../core/domain/change.js";
+import { loadChange, isClosedContent, markClosedContent, parseApprovalLines, parseSpecApprovalLines } from "../core/domain/change.js";
 import { checkChangeReadiness } from "../core/services/change-verifier.js";
 import { parseJUnitReport, renderCapturedVerification } from "../core/domain/junit-report.js";
 import { buildProvenance } from "../core/domain/evidence-provenance.js";
@@ -37,16 +37,17 @@ function printApprovalsReliedOn(tasksMd, specMd) {
 
 function markClosed(changeDir) {
   const file = path.join(changeDir, "change.md");
-  const stamp = `Closed (${new Date().toISOString().slice(0, 10)})`;
-  let content = read(file);
-  if (/^##\s*status\s*$/im.test(content)) content = content.replace(/(^##\s*Status\s*(?:\r?\n)+)[^\r\n]*/im, `$1${stamp}`);
-  else content = `${content.replace(/\s*$/, "")}\n\n## Status\n\n${stamp}\n`;
-  writeFile(file, content, true);
-  // Checked against change.md directly, not isClosed() — see the comment on
-  // isClosed() in commands/shared.js (Change 0043 review finding B1).
-  // close() only ever writes change.md; verifying success must read the
-  // same file it wrote.
-  return isClosedContent(read(file));
+  const original = read(file);
+  // Change 0171: the rewrite is the domain's (`markClosedContent`, the exact
+  // inverse of parseChangeStatus), and the candidate it returns is verified
+  // before it is written — a rewrite that would not read back as closed
+  // writes nothing at all. Verification is against change.md content, not
+  // isClosed(): close() only ever writes change.md, and the manifest-aware
+  // isClosed() answers a different question (Change 0043 finding B1).
+  const candidate = markClosedContent(original, new Date().toISOString().slice(0, 10));
+  if (!isClosedContent(candidate)) return false;
+  if (candidate !== original) writeFile(file, candidate, true);
+  return true;
 }
 export function close(args) {
   const parsed = parseArgs("close", args);
