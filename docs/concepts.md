@@ -156,6 +156,9 @@ Change id. With 0 or 1 open Changes, it shows that Change's next action. See
 `evidence.md` is a Change's proof: what was done, how it was verified, what was found, what's next.
 AIEF treats it as load-bearing — `aief close` refuses to close a Change whose evidence is still a
 placeholder, and `aief prompt` guards real evidence against being blindly overwritten on a re-run.
+Evidence counts as complete when real lines outnumber `Pending.` markers at least two to one and,
+when the sections exist, `## Summary` and `## Verification` hold real content; a residual
+`Pending.` elsewhere is fine (Change 0172).
 
 ## AGENTS.md and the instruction hierarchy
 

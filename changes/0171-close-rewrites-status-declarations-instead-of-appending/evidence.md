@@ -97,7 +97,8 @@ host as a `git bundle` (sha256 matched on both sides), reviewed there and publis
 ## Recommendations
 
 - F2 (the guard allows inventing a `- [x] (human)` approval), F3 (evidence placeholder ratio) and
-  F4 remain open as their own Changes, as scoped in `spec.md`.
+  F4 remain open as their own Changes, as scoped in `spec.md` — taken up by Change 0172, which
+  records F4 as unrecoverable.
 
 ## Artifacts Produced
 

@@ -248,7 +248,28 @@ export function classifyEvidence(evidenceMd) {
   // is reported once, as missing/empty, not a second time as a "placeholder".)
   if (pending === 0) return "complete";
   if (substantive === 0) return "placeholder";
-  return substantive < pending * 2 ? "partial" : "complete";
+  if (substantive < pending * 2) return "partial";
+  // Change 0172 (F3, decision D2): the ratio alone let generic prose in one
+  // section outweigh eight untouched ones. What was done and how it was
+  // verified are the two sections no finished Change can leave as template —
+  // a residual "Pending." elsewhere still counts as complete.
+  return REQUIRED_EVIDENCE_SECTIONS.some((name) => evidenceSectionIsPlaceholder(evidenceMd, name)) ? "partial" : "complete";
+}
+
+const REQUIRED_EVIDENCE_SECTIONS = ["Summary", "Verification"];
+
+// True only when the section exists and holds no substantive line. A
+// document without the heading is not judged by it: free-form evidence keeps
+// the ratio rule above.
+function evidenceSectionIsPlaceholder(evidenceMd, name) {
+  const lines = String(evidenceMd || "").split(/\r?\n/);
+  const start = lines.findIndex((line) => new RegExp(`^##\\s+${name}\\s*$`, "i").test(line.trim()));
+  if (start === -1) return false;
+  for (const line of lines.slice(start + 1)) {
+    if (/^##\s/.test(line.trim())) break;
+    if (evidenceLineCounts(line).substantive) return false;
+  }
+  return true;
 }
 
 // Kept for existing callers: only an untouched template is a "placeholder".

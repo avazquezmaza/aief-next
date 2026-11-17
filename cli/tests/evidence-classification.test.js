@@ -98,3 +98,31 @@ test("F3: the Next hint points an untouched Change at prompt", () => {
   const report = verifyProject({ hasReadme: true, hasAgents: true, hasChangesDir: true, hasKnowledge: true, changes: [change], cwd: path.dirname(change.dir) });
   assert.ok(report.next.join(" ").includes("aief prompt"));
 });
+
+// --- Change 0172 (F3 of 0171's audit, decision D2) ---
+// The 2x ratio alone let generic prose in one section outweigh eight
+// untouched ones. `complete` now also needs real content in ## Summary and
+// ## Verification when those sections exist.
+
+const prose = (n) => Array.from({ length: n }, (_, i) => `Work was done and everything looks good, line ${i}.`).join("\n");
+
+test("0172 D2: generic prose in Summary alone no longer makes evidence complete", () => {
+  const md = TEMPLATE.replace("## Summary\n\nPending.", `## Summary\n\n${prose(20)}`);
+  assert.equal(classifyEvidence(md), "partial", "Verification is still the template");
+});
+
+test("0172 D2: Summary and Verification filled, residual Pending. elsewhere, is complete", () => {
+  const md = TEMPLATE
+    .replace("## Summary\n\nPending.", `## Summary\n\n${prose(10)}`)
+    .replace("## Verification\n\nPending.", `## Verification\n\n${prose(10)}`);
+  assert.equal(classifyEvidence(md), "complete");
+});
+
+test("0172 D2: a filled Verification with an empty Summary is partial", () => {
+  const md = TEMPLATE.replace("## Verification\n\nPending.", `## Verification\n\n${prose(20)}`);
+  assert.equal(classifyEvidence(md), "partial");
+});
+
+test("0172 D2: evidence without those headings keeps the ratio rule", () => {
+  assert.equal(classifyEvidence(`# Evidence\n\n## Notes\n\n${prose(6)}\n\nPending.\n`), "complete");
+});

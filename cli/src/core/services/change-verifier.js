@@ -7,6 +7,7 @@ import path from "node:path";
 import { createVerificationReport, addLine, setNext } from "../domain/verification-report.js";
 import { analyzeDefinitionSections } from "../domain/definition-enrichment.js";
 import { parseApprovalLines, parseSpecApprovalLines, CHANGE_TYPES } from "../domain/change.js";
+import { approvalsNeverUnchecked } from "./approval-history.js";
 
 // Enrichment Changes are Discovery-phase: they precede a real implemented
 // product, so a missing README.md must not fail verify by itself (limitation:
@@ -293,6 +294,15 @@ function addChangeLines(report, change, cwd, strict = false) {
       }
       if (change.closed) {
         for (const p of specApprovalProblems(change.files?.["spec.md"])) addLine(report, "warn", `! ${name}: [strict] closed with ${p}`);
+      }
+      // Change 0172 (D1): a notice, never an error — git cannot tell an
+      // assistant that wrote an approval already checked from a person who
+      // wrote and checked their own in one commit. Open Changes only: closed
+      // history predates the check and is not re-judged.
+      if (!change.closed) {
+        for (const { file, item } of approvalsNeverUnchecked(change.dir, change.files)) {
+          addLine(report, "warn", `! ${name}: [strict] ${file}: ${item} is resolved but was never committed unchecked — confirm a person gave it`);
+        }
       }
       // Change 0161: a notice, never an error — history holds free-text
       // values, and an unknown one already behaves as general.

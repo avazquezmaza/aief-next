@@ -150,6 +150,43 @@ test("hook allows ordinary edits, edits that keep approvals unchecked, and files
   assert.equal(runHook(dir, "not an object").status, 0);
 });
 
+// --- Change 0172 (F2): an approval that arrives already resolved ---
+
+test("0172: hook blocks a new line that arrives already checked, naming it", () => {
+  const { dir, tasks } = changeProject();
+  const r = runHook(dir, { tool_name: "Edit", tool_input: { file_path: tasks, old_string: "- [x] Work", new_string: "- [x] Work\n- [x] (human) Owner approves the design" } });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /added already resolved: \(human\) Owner approves the design/);
+});
+
+test("0172: hook blocks a new file whose approval is already resolved, and a rewritten one", () => {
+  const { dir, tasks } = changeProject();
+  const fresh = path.join(dir, "changes/0002-y/spec.md");
+  assert.equal(runHook(dir, { tool_name: "Write", tool_input: { file_path: fresh, content: "# Spec\n\n## Acceptance Criteria\n\n- [x] (human) Owner signs off\n" } }).status, 2);
+  assert.equal(runHook(dir, { tool_name: "Write", tool_input: { file_path: fresh, content: "# Spec\n\n- [-] (review) Peer review\n" } }).status, 2);
+  const r = runHook(dir, { tool_name: "Edit", tool_input: { file_path: tasks, old_string: "- [ ] (human) Owner approves", new_string: "- [x] (human) Owner approves it all" } });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /removed: \(human\) Owner approves/);
+  assert.match(r.stderr, /added already resolved: \(human\) Owner approves it all/);
+});
+
+test("0172: hook allows a new unchecked approval and leaves an already resolved one alone", () => {
+  const dir = makeProject({ "changes/0001-x/tasks.md": "# Tasks\n\n- [x] (human) Owner approved earlier\n- [ ] Work\n" });
+  const tasks = path.join(dir, "changes/0001-x/tasks.md");
+  assert.equal(runHook(dir, { tool_name: "Edit", tool_input: { file_path: tasks, old_string: "- [ ] Work", new_string: "- [x] Work\n- [ ] (human) Owner approves the release" } }).status, 0);
+  assert.equal(runHook(dir, { tool_name: "Write", tool_input: { file_path: path.join(dir, "changes/0002-y/tasks.md"), content: "# Tasks\n\n- [ ] (human) Owner approves\n" } }).status, 0);
+});
+
+test("0172: Gemini write_file adding an already resolved approval is denied as JSON", () => {
+  const { dir } = changeProject();
+  const env = { ...process.env, GEMINI_PROJECT_DIR: dir };
+  delete env.CLAUDE_PROJECT_DIR;
+  const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify({ tool_name: "write_file", tool_input: { file_path: "changes/0003-z/tasks.md", content: "- [x] (human) Owner approves\n" } }), encoding: "utf8", env, cwd: dir });
+  assert.equal(r.status, 0);
+  assert.equal(JSON.parse(r.stdout).decision, "deny");
+  assert.match(JSON.parse(r.stdout).reason, /added already resolved/);
+});
+
 // --- Gemini CLI (Change 0166, ADR-042) ---
 
 const OLD_HOOK = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "aief-approval-guard-0162.mjs"), "utf8");
@@ -212,6 +249,14 @@ test("guardrails install --assistant gemini refreshes the 0162 and 0166 hooks, n
   fs.writeFileSync(path.join(dir, GEMINI_HOOK_PATH), edited);
   assert.match(aief(dir, ["guardrails", "install", "--assistant", "gemini"]).out, /Edited, left as is: \.gemini\/hooks/);
   assert.equal(fs.readFileSync(path.join(dir, GEMINI_HOOK_PATH), "utf8"), edited);
+});
+
+test("0172: guardrails install refreshes an unmodified 0167 hook to the current one", () => {
+  const v0167 = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "aief-approval-guard-0167.mjs"), "utf8");
+  assert.notEqual(v0167, hookTemplate());
+  const dir = makeProject({ [HOOK_PATH]: v0167 });
+  assert.match(aief(dir, ["guardrails", "install", "--approval-hook"]).out, /✓ Updated \.claude\/hooks/);
+  assert.equal(fs.readFileSync(path.join(dir, HOOK_PATH), "utf8"), hookTemplate());
 });
 
 test("guardrails install --assistant gemini refuses an invalid settings file and writes nothing", () => {
