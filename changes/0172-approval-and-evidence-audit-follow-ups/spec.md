@@ -30,4 +30,4 @@ references are resolved.
       rewritten unchecked line, new unchecked line (allowed), untouched resolved line (allowed).
 - [x] R4–R7 implemented according to the recorded decisions.
 - [x] `npm test`, `npm run lint`, `git diff --check` and `aief verify --strict --change 0172` pass.
-- [ ] (human) Owner reviews the diff before merge.
+- [x] (human) Owner reviews the diff before merge.
