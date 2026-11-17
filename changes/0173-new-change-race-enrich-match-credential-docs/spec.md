@@ -26,5 +26,5 @@ for its own, and the documentation states what the credential deny rules actuall
       "Created"; `enrich` next to a suffix-sharing Change creates its own; exact duplicate still
       detected.
 - [x] R4–R6 done.
-- [ ] `npm test`, `npm run lint`, `git diff --check` and `aief verify --strict --change 0173` pass.
-- [ ] (human) Owner reviews the diff before merge.
+- [x] `npm test`, `npm run lint`, `git diff --check` and `aief verify --strict --change 0173` pass.
+- [x] (human) Owner reviews the diff before merge.

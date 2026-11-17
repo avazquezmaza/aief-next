@@ -2,7 +2,7 @@
 
 ## Decisions
 
-- [ ] (human) D1 — rewording an approval that is already resolved. Since Change 0172 the guard
+- [x] (human) D1 — rewording an approval that is already resolved. Since Change 0172 the guard
       refuses it (it reads as "removed" + "added already resolved"), so fixing a typo in
       `- [x] (human) Approve scopes` is blocked and an agent may fall back to `sed`, which the guard
       cannot see. Options: (a) keep blocking — the wording is what was approved; (b) allow it when
@@ -28,7 +28,7 @@
 - [x] `npm test`
 - [x] `npm run lint`
 - [x] `git diff --check`
-- [ ] `aief verify --strict --change 0173`
+- [x] `aief verify --strict --change 0173`
 
 ## Evidence
 
@@ -36,4 +36,4 @@
 
 ## Review
 
-- [ ] (human) Owner reviews the diff before merge.
+- [x] (human) Owner reviews the diff before merge.
