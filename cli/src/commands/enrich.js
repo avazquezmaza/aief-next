@@ -18,8 +18,10 @@ import { ensureChangeBranch, ChangeBranchError } from "../core/services/git-bran
 // from requirement-providers/) is the one contract every provider implements,
 // so adding notion/github/azure-devops/markdown means adding an adapter file
 // there, never touching the functions below.
+// Change 0173: the slug after the numeric prefix must match exactly —
+// `endsWith` took `0001-notes-on-manual-test-001` for `manual-test-001`.
 function findChangeBySlugSuffix(slug) {
-  return getChangeDirs().find((dir) => path.basename(dir).endsWith(`-${slug}`));
+  return getChangeDirs().find((dir) => path.basename(dir).replace(/^\d+-/, "") === slug);
 }
 function requirementFactsAndAssumptions(requirement) {
   const fields = [

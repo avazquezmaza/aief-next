@@ -54,9 +54,12 @@ that assistant.
 ## Claude Code guardrails — `aief guardrails install`
 
 Adds `permissions.deny` rules to `.claude/settings.json` (or `.claude/settings.local.json` with
-`--local`, which Claude Code does not share with the team) so an assistant cannot read credentials:
-`.env` files except examples, `~/.aws`, `~/.ssh`, keys and certificates, Terraform state and
-variables, AWS credential CSVs, and the AWS CLI commands that print credentials. The list lives in
+`--local`, which Claude Code does not share with the team) so Claude Code's file tools refuse the
+credential paths it lists: `.env` files except examples, `~/.aws`, `~/.ssh`, keys and certificates,
+Terraform state and variables, AWS credential CSVs, and the AWS CLI commands that print credentials.
+It is a reduction, not a guarantee: credential files outside that list (`.envrc`, `.npmrc`,
+kubeconfig, …) are not covered, and a shell command such as `cat .env` is not blocked unless you add
+your own rule (Change 0173). The list lives in
 `cli/templates/guardrails/claude-deny.json`. AIEF only adds missing rules; Claude Code merges deny
 lists across settings files, so yours stay in effect.
 
