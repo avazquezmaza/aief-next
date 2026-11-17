@@ -29,7 +29,8 @@ export const CHANGE_FILES = ["change.md", "spec.md", "tasks.md", "evidence.md"];
 // Tokens whose meaning we are willing to assert. Deliberately small.
 // "COMPLETE" and "PASS" are absent on purpose: Flux Portal wrote both meaning
 // "done", and guessing that intent is how a parser starts lying. They land in
-// `unknown`, which asks the author to say CLOSED (or run `aief close`).
+// `unknown`, which asks the author to say CLOSED in change.md by hand —
+// `aief close` rejects an unreadable status too (Change 0171, R5).
 const CLOSED_TOKENS = new Set(["CLOSED"]);
 const OPEN_TOKENS = new Set([
   "OPEN", "PROPOSED", "DRAFT", "IN PROGRESS", "IN-PROGRESS", "WIP", "PENDING", "ACTIVE", "TODO"
@@ -101,6 +102,66 @@ export function parseChangeStatus(changeMd) {
 // verifier reports it as an error rather than letting it pass as "open".
 export function isClosedContent(changeMd) {
   return parseChangeStatus(changeMd).state === "closed";
+}
+
+// Marking a Change Closed (Change 0171).
+//
+// `close` used to patch change.md with a regex of its own, unrelated to the
+// parser above: beside an inline or H3 declaration it appended a second one
+// (two disagreeing declarations read as unknown), and after a valueless
+// `## Status` it overwrote the next line, deleting the heading that followed.
+// The writer is now the inverse of the reader: every declaration the parser
+// recognises is rewritten in place, so the result reads `closed` and no other
+// line changes. Pure — no I/O, no clock: the caller passes the date.
+
+// Any Markdown heading, at any level: used to tell a valueless `## Status`
+// apart from one followed by real content.
+const ANY_HEADING = /^[ \t]*#{1,6}[ \t]/;
+
+// markClosedContent(changeMd, "2026-07-11") -> the same document, closed.
+export function markClosedContent(changeMd, date) {
+  const stamp = `Closed (${date})`;
+  const text = String(changeMd || "");
+  // Rewriting one value must not silently convert every line ending in the
+  // file: rejoin with whatever the document already used.
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let rewrote = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const inline = line.match(STATUS_INLINE);
+    if (inline) {
+      // Replace only the value, keeping the prefix (`>`, opening emphasis).
+      // A marker that CLOSED the value (`> **Status: OPEN**`) is kept too:
+      // dropping it would leave the prefix's `**` unbalanced, which is a
+      // shape change R2 does not allow.
+      const value = inline[1];
+      const closer = (value.match(/(\*\*|__|\*|_)\s*$/) || [])[1] || "";
+      out.push(line.slice(0, line.length - value.length) + stamp + closer);
+      rewrote = true;
+      continue;
+    }
+    if (STATUS_HEADING.test(line)) {
+      // The value the parser reads is the next non-empty line — unless that is
+      // itself a heading, in which case there is nothing to replace and it
+      // must survive (R4).
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      const hasValue = j < lines.length && !ANY_HEADING.test(lines[j]);
+      out.push(line, "", stamp);
+      if (hasValue) j++; // the old value line is replaced, not preserved
+      else out.push(""); // valueless: keep a blank line before what follows
+      i = j - 1;
+      rewrote = true;
+      continue;
+    }
+    out.push(line);
+  }
+  if (rewrote) return out.join(eol);
+  // No declaration anywhere (AIEF's own 0001-0012 have none): append one.
+  const base = text.replace(/\s*$/, "");
+  return `${base ? `${base}${eol}${eol}` : ""}## Status${eol}${eol}${stamp}${eol}`;
 }
 
 // Single source of truth for a Change's declared `## Type` (Analysis,

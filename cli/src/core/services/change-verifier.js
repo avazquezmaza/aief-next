@@ -161,11 +161,19 @@ export function checkStrictCompleteness(change) {
 // that was declared but could not be read is an ERROR, never a silent "open":
 // the message quotes what was found and names what is accepted, so the author
 // can fix the file instead of wondering why nothing happened.
+// Change 0171 (R5): this used to suggest `aief close`, a command that cannot
+// resolve an `unknown` state — close refuses to write while this problem
+// stands, so the advice sent the author in a circle. It names the accepted
+// values and both causes instead, and deliberately does not assert which of
+// the two it is: `statusRaw` may hold either an uninterpretable value or one
+// of two disagreeing declarations. Naming both causes keeps the message true
+// without asserting which one applies; the declarations themselves are in
+// change.md, one grep away.
 function statusProblem(change) {
   if (change.statusState !== "unknown") return null;
   const raw = String(change.statusRaw || "").trim();
   const seen = raw ? `"${raw.length > 60 ? `${raw.slice(0, 60)}…` : raw}"` : "(empty)";
-  return `status is declared but not understood: ${seen} — use CLOSED (or run aief close), or one of: Open, Proposed, Draft, In Progress. Two disagreeing Status declarations are also reported here.`;
+  return `status is declared but not understood: ${seen} — accepted values are Closed, Open, Proposed, Draft, In Progress. Two causes land here: a value that could not be interpreted, or two Status declarations that disagree. Fix the Status declaration(s) in change.md.`;
 }
 
 // The readiness rules `aief close` reports before marking a Change Closed —
