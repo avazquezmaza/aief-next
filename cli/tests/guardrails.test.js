@@ -177,6 +177,14 @@ test("0172: hook allows a new unchecked approval and leaves an already resolved 
   assert.equal(runHook(dir, { tool_name: "Write", tool_input: { file_path: path.join(dir, "changes/0002-y/tasks.md"), content: "# Tasks\n\n- [ ] (human) Owner approves\n" } }).status, 0);
 });
 
+test("0173 D1: rewording an already resolved approval stays blocked — the wording is what was approved", () => {
+  const dir = makeProject({ "changes/0001-x/tasks.md": "# Tasks\n\n- [x] (human) Aprove scopes\n" });
+  const tasks = path.join(dir, "changes/0001-x/tasks.md");
+  const r = runHook(dir, { tool_name: "Edit", tool_input: { file_path: tasks, old_string: "Aprove scopes", new_string: "Approve scopes" } });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /added already resolved: \(human\) Approve scopes/);
+});
+
 test("0172: Gemini write_file adding an already resolved approval is denied as JSON", () => {
   const { dir } = changeProject();
   const env = { ...process.env, GEMINI_PROJECT_DIR: dir };

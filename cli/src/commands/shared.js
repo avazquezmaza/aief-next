@@ -308,8 +308,37 @@ export function createChange(name, options = {}) {
     : options.type === "definition" ? definitionChangeFiles(id, slug, name)
       : genericChangeFiles(id, slug, name, options.type);
   if (dependsOn.length) files["change.md"] = withDependsOn(files["change.md"], dependsOn);
-  for (const [file, content] of Object.entries(files)) writeFile(path.join(changeDir, file), content);
-  console.log(`Created Change: ${path.relative(process.cwd(), changeDir)}`); return changeDir;
+  // Change 0173: two `new-change` runs with the same name at the same time
+  // compute the same id. The directory is the claim: created non-recursively,
+  // so only one run gets it and the other stops before writing or announcing
+  // a Change it did not create.
+  const relative = path.relative(process.cwd(), changeDir);
+  if (!claimChangeDir(changeDir)) {
+    console.error(`${relative} already exists — another aief new-change may be running at the same time. Nothing was written; run it again.`);
+    process.exitCode = 1;
+    return null;
+  }
+  const unwritten = Object.entries(files).filter(([file, content]) => !writeFile(path.join(changeDir, file), content)).map(([file]) => file);
+  if (unwritten.length) {
+    console.error(`${relative}: not written because they already exist: ${unwritten.join(", ")}`);
+    process.exitCode = 1;
+    return null;
+  }
+  console.log(`Created Change: ${relative}`); return changeDir;
+}
+
+// claimChangeDir(dir) -> true when this call created `dir`, false when it
+// already existed. Non-recursive on purpose: mkdir is atomic, so it is the
+// one step two concurrent processes cannot both win (Change 0173).
+export function claimChangeDir(dir) {
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  try {
+    fs.mkdirSync(dir);
+    return true;
+  } catch (err) {
+    if (err.code === "EEXIST") return false;
+    throw err;
+  }
 }
 
 // --- standards (multi-consumer: doctor/prompt, staying in cli.js for now,

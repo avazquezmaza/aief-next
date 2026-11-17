@@ -97,7 +97,7 @@ const COMMAND_HELP = {
     next: "Commit your work, then aief status."
   },
   guardrails: {
-    purpose: "Add Claude Code permissions.deny rules that keep credentials out of an assistant's reach; with --approval-hook, also install a PreToolUse hook that refuses an edit checking, abandoning or deleting a (human)/(review) item. --assistant gemini installs that same hook for Gemini CLI (BeforeTool); Gemini has no deny-rule equivalent.",
+    purpose: "Add Claude Code permissions.deny rules that stop its file tools reading the listed credential paths (not shell commands); with --approval-hook, also install a PreToolUse hook that refuses an edit checking, abandoning or deleting a (human)/(review) item. --assistant gemini installs that same hook for Gemini CLI (BeforeTool); Gemini has no deny-rule equivalent.",
     when: "Once per project that uses Claude Code or Gemini CLI; again after an AIEF upgrade to pick up new rules.",
     reads: ".claude/settings.json (or .claude/settings.local.json with --local); .gemini/settings.json with --assistant gemini.",
     writes: "That settings file, adding only missing rules and the hook entry; with --approval-hook, .claude/hooks/aief-approval-guard.mjs (with --assistant gemini, .gemini/hooks/aief-approval-guard.mjs), never overwriting an edited copy. Writes nothing if the settings file is not valid JSON.",
