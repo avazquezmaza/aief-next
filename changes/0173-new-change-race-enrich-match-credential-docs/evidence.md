@@ -49,6 +49,9 @@ blocking a reworded approval, now pinned by a test.
 - `node --test cli/tests/new-change-claim.test.js` → 4 pass, three consecutive runs.
 - `npm test` → `tests 818, pass 818, fail 0`. `npm run lint` → clean. `git diff --check` → clean.
   `aief verify` → PASS.
+- PR: https://github.com/avazquezmaza/aief-next/pull/126, squash-merged as `3d5ca40`. On `main`
+  before close: `verify --strict --change 0173` → PASS with three non-blocking approval notices
+  (the squash-merge window from Change 0172).
 
 ## Findings
 

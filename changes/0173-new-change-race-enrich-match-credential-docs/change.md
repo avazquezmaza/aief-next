@@ -59,3 +59,7 @@ Change 0162 left open.
 - No document claims the deny rules make credentials unreadable.
 - D1 decided and, if it changes behaviour, implemented with tests.
 - `npm test`, lint, `git diff --check` and `aief verify --strict --change 0173` pass.
+
+## Status
+
+Closed (2026-11-17)
