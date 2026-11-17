@@ -63,6 +63,9 @@ host as a `git bundle` (sha256 matched on both sides), reviewed there and publis
 - The `(human)` approval "Owner reviews the diff before merge" had been committed **checked** in
   both `tasks.md` and `spec.md` by the assistant — the very gap F2 describes. It is unchecked
   again; only the owner checks it, at merge.
+- PR: https://github.com/avazquezmaza/aief-next/pull/124, merged as `76e8033`. The owner then
+  checked the `(human)` approval in `tasks.md` and `spec.md`; on `main`: `npm test` → 799 pass,
+  0 fail; lint clean; `aief verify --strict --change 0171` → PASS; `git diff --check` clean.
 
 ## Findings
 

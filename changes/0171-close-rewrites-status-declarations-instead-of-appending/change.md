@@ -43,3 +43,7 @@ loss passes verification. This Change makes the write a transformation the parse
 - The unreadable-status message no longer points at a command that cannot fix it.
 - Full suite with no new failures (the pre-existing `cli/tests/diagrams.test.js` ImageMagick
   failure aside), lint, `git diff --check` and `aief verify --strict` pass.
+
+## Status
+
+Closed (2026-11-17)

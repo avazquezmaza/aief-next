@@ -64,4 +64,4 @@ heading is unsafe to keep, and R3's verify-before-write is what bounds it.
       and `git diff --check` pass, and `aief verify --strict` passes once the approval below is
       recorded.
 - [x] No existing test is weakened or deleted.
-- [ ] (human) Owner reviews the diff before merge.
+- [x] (human) Owner reviews the diff before merge.
